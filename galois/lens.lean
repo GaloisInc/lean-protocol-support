@@ -1,23 +1,31 @@
+-- A minimal implementation of lenses.
 universe variables u v
 
+-- This tactic proves (∀v s, get (set v s) = v by case splitting on s
+-- and using reflexivity.
 meta def lens.get_set_tactic : tactic unit := do
   tactic.intro `v,
-  tactic.intro `s,
-  tactic.interactive.cases `(s) [],
-  tactic.interactive.refl
+  e ← tactic.intro `s,
+  tactic.cases e [],
+  tactic.reflexivity
 
+-- This tactic proves (∀v s, set (get s) = s by case splitting on s
+-- and using reflexivity.
 meta def lens.set_get_tactic : tactic unit := do
-  tactic.intro `s,
-  tactic.interactive.cases `(s) [],
-  tactic.interactive.refl
+  e ← tactic.intro `s,
+  tactic.cases e [],
+  tactic.reflexivity
 
+-- This tactic proves (∀u v s, set u (set v s) = set u s by case splitting on s
+-- and using reflexivity.
 meta def lens.set_set_tactic : tactic unit := do
   tactic.intro `u,
   tactic.intro `v,
-  tactic.intro `s,
-  tactic.interactive.cases `(s) [],
-  tactic.interactive.refl
+  e ← tactic.intro `s,
+  tactic.cases e [],
+  tactic.reflexivity
 
+-- A lens is a structure with a getter, setter, and axioms about their effect.
 structure lens (S : Type u) (α : Type v) :=
   (get : S → α)
   (set : α → S → S)
@@ -30,6 +38,7 @@ namespace lens
 variables { s t : Type u }
 variables { a b : Type v }
 
+-- This applies a function to the value of a lens on an object and updates the state.
 def over (l : lens s a) (f : a → a) (x : s) : s := lens.set l (f (lens.get l x)) x
 
 end lens
