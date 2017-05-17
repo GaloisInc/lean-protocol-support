@@ -177,29 +177,30 @@ section literal_simplification_literals
 -- This tactic simplifies the bitvector equalitiy lemmas
 private
 meta def simp_bvlit_rule : tactic unit := do
-    s ← simp_lemmas.mk.append
+    let lemmas : list expr :=
       [ -- Core lemmas
-        ```(@and_true)
-      , ```(@true_and)
-      , ```(@and_false)
-      , ```(@false_and)
-      , ```(@eq_self_iff_true.{1})
-      , ```(@tt_eq_ff_eq_false)
-      , ```(@ff_eq_tt_eq_false)
+        expr.const `and_true []
+      , expr.const `true_and []
+      , expr.const `and_false []
+      , expr.const `false_and []
+      , expr.const `eq_self_iff_true [level.of_nat 1]
+      , expr.const `tt_eq_ff_eq_false []
+      , expr.const `ff_eq_tt_eq_false []
         -- Natural number lemmas
-      , ```(@nat.succ_eq_zero)
-      , ```(@nat.zero_eq_succ)
-      , ```(@nat.succ_sub_succ)
+      , expr.const `nat.succ_eq_zero []
+      , expr.const `nat.zero_eq_succ []
+      , expr.const `nat.succ_sub_succ []
         -- Vector lemmas
-      , ```(@vector.repeat_succ_to_append)
-      , ```(@vector.zero_vec_always_eq.{0})
-      , ```(@vector.cons_eq_cons.{0})
-      , ```(@vector.append_eq_append.{0})
-      , ```(@bitvec.zero_to_repeat)
-      , ```(@bitvec.one_to_repeat)
-      , ```(@bitvec.bit0_to_repeat)
-      , ```(@bitvec.bit1_to_repeat)
-      ],
+      , expr.const `vector.repeat_succ_to_append []
+      , expr.const `vector.zero_vec_always_eq [level.of_nat 0]
+      , expr.const `vector.cons_eq_cons [level.of_nat 0]
+      , expr.const `vector.append_eq_append [level.of_nat 0]
+      , expr.const `bitvec.zero_to_repeat []
+      , expr.const `bitvec.one_to_repeat []
+      , expr.const `bitvec.bit0_to_repeat []
+      , expr.const `bitvec.bit1_to_repeat []
+      ] in do
+    s ← simp_lemmas.mk.append lemmas,
     tactic.simplify_goal s,
     tactic.try (tactic.reflexivity)
 
