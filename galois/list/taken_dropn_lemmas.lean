@@ -35,7 +35,7 @@ begin
   { intros l pr,
     cases l with v l,
     { simp },
-    { simp [nat.add_succ] at pr,
+    { simp [nat.add_succ, nat.succ_le_succ_iff] at pr,
       simp [ind pr]
     }
   },
