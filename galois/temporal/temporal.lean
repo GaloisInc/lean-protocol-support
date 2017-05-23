@@ -95,25 +95,15 @@ def release {T : Type} (P Q : tProp T) : tProp T :=
 infix `𝓡` : 50 := release
 
 /-- Lifting of prop implication --/
-<<<<<<< Updated upstream
 @[ltl, tImp]
-def tImp {T : Type} (P Q : tProp ) : @tProp T :=
-=======
-@[ltl]
 def tImp {T : Type} (P Q : tProp T) : tProp T :=
->>>>>>> Stashed changes
 tInj2 implies P Q
 
 infixr `=>` : 50 := tImp
 
 /-- Lifting of iff --/
-<<<<<<< Updated upstream
 @[ltl, tImp]
-def tIff {T : Type} (P Q : tProp ) : @tProp T :=
-=======
-@[ltl]
 def tIff {T : Type} (P Q : tProp T) : tProp T :=
->>>>>>> Stashed changes
 tInj2 iff P Q
 
 infixr `<=>` : 50 := tIff
