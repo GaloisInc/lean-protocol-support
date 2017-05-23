@@ -1,6 +1,4 @@
 /- A shallow embedding of temporal logic -/
-
-
 namespace temporal
 
 
@@ -8,7 +6,7 @@ namespace temporal
 def trace T : Type : Type := nat -> T
 
 /--Type of Propositions over traces --/
-def tProp {T : Type} : Type := trace T -> Prop
+def tProp T : Type : Type := trace T -> Prop
 
 /- This defines a simp attribute named ltl
    later we can say "simp with ltl" in order
@@ -18,7 +16,7 @@ run_cmd mk_simp_attr `tImp
 
 /-- Proposition P holds in the next state notation ◯ \ciO --/
 @[ltl]
-def next {T : Type} (P : tProp ) : tProp  :=
+def next {T : Type} (P : tProp T) : tProp  T:=
   λ tr : trace T, P (λ t : ℕ, tr (t + 1))
 
 notation `◯` := next
@@ -26,7 +24,7 @@ notation `◯` := next
 
 /-- Proposition P always holds notation □ \B --/
 @[ltl]
-def always {T: Type} (P : tProp ) : tProp  :=
+def always {T: Type} (P : tProp T) : tProp T :=
 -- given a trace, P holds no matter how far forward we move the trace
  λ (tr : trace T), forall n : ℕ, P (λ t, tr(n+t))
 
@@ -34,7 +32,7 @@ notation `□` := always
 
 /-- Proposition P eventually holds notation ◇ \dia -/
 @[ltl]
-def eventually {T: Type} (P : tProp ) : tProp  :=
+def eventually {T: Type} (P : tProp T) : tProp T :=
 -- given a trace, we can find some n such that advancing
 -- the trace by n allows p to hold on that trace
  λ (tr : trace T), exists n : ℕ, P (λ t, tr(n+t))
@@ -43,7 +41,7 @@ notation `◇` := eventually
 
 
 /-- Proposition P holds for the first time -/
-def first {T : Type} (P: tProp) : tProp :=
+def first {T : Type} (P: tProp T) : tProp T:=
  λ (tr : trace T), exists n : ℕ, P (λ t, tr(n+t)) /\ forall n', n' < n -> ¬ P (λ t, tr (n' + t))
 
 
@@ -51,7 +49,7 @@ def first {T : Type} (P: tProp) : tProp :=
 
 
 @[ltl]
-def tInj1 {T: Type} (R : Prop -> Prop) (P : tProp ) :=
+def tInj1 {T: Type} (R : Prop -> Prop) (P : tProp T ) :=
 λ (tr : trace T), R (P tr)
 
 /-- Standard negation on tProps --/
@@ -61,26 +59,26 @@ def tNot {T : Type} (P : @tProp T ) := tInj1 not P
 
 
 @[ltl, tImp]
-def tInj2 {T: Type} (R : Prop -> Prop -> Prop) (P Q : tProp ) :=
+def tInj2 {T: Type} (R : Prop -> Prop -> Prop) (P Q : tProp T) :=
 λ (tr : trace T), R (P tr) (Q tr)
 
 /-- Prop and on tProp, notation //\\ --/
 @[ltl]
-def tAnd {T: Type} (P Q : tProp ) : @tProp T  :=
+def tAnd {T: Type} (P Q : tProp T) : @tProp T  :=
 tInj2 and P Q 
 
 infix `//\\` : 50 := tAnd
 
 /-- Prop or on tProp, notation \\// --/
 @[ltl]
-def tOr {T: Type} (P Q : tProp ) : @tProp T :=
+def tOr {T: Type} (P Q : tProp T) : @tProp T :=
 tInj2 or P Q 
 
 infix `\\//` : 50 := tOr
 
 /-- Until, notation 𝓤 --/
 @[ltl]
-def until {T : Type} (P Q : tProp ) : tProp  :=
+def until {T : Type} (P Q : tProp T) : tProp T :=
 λ (tr : trace T), exists n, (Q (λ t, tr(n + t)) /\ (forall n', n' < n -> (P (λ t: ℕ, tr(t + n')))))
 
 -- \MCU
@@ -89,12 +87,12 @@ infix `𝓤` : 50 := until
 -- if running into axiom of choice problems, this one will need a more
 -- positive definition TODO: what's the internal only command?
 /-- This is here for posterity, use release --/
-def release_neg {T : Type} (P Q : tProp ) : @tProp T  :=
+def release_neg {T : Type} (P Q : tProp T) : tProp T  :=
 tNot ((tNot P) 𝓤 (tNot Q))
 
 /-- same as until, but we don't require Q to occur --/
 @[ltl]
-def release {T : Type} (P Q : tProp ) : @tProp T :=
+def release {T : Type} (P Q : tProp T) : tProp T :=
 (P 𝓤 Q) \\// □ P
 
 -- \MCR
@@ -102,14 +100,14 @@ infix `𝓡` : 50 := release
 
 /-- Lifting of prop implication --/
 @[ltl, tImp]
-def tImp {T : Type} (P Q : tProp ) : @tProp T :=
+def tImp {T : Type} (P Q : tProp T) : @tProp T :=
 tInj2 implies P Q
 
 infixr `=>` : 50 := tImp
 
 /-- Lifting of iff --/
 @[ltl, tImp]
-def tIff {T : Type} (P Q : tProp ) : @tProp T :=
+def tIff {T : Type} (P Q : tProp T) : @tProp T :=
 tInj2 iff P Q
 
 infixr `<=>` : 50 := tIff
@@ -140,211 +138,6 @@ def fair {T : Type} (P : T -> Prop) := always (eventually (now P))
 
 notation `⊩` P := forall tr, P tr
 
-/-- If P is decidable we can find all of the times it is true until N-/
-def find_P_until_n {T : Type} (P: T -> Prop) [decidable_pred P] (tr: trace T) : nat -> (list (nat × T))
-| 0  := []
-| (nat.succ n') := if (P (tr n')) 
-                        then (n', (tr n')) :: find_P_until_n n' 
-                        else find_P_until_n n'
-
-inductive Exists {a : Type} (P : a -> Prop) : list a -> Prop
-| Exists_this : ∀ h t, P h -> Exists (h :: t)
-| Exists_rest : ∀ h t, Exists t -> Exists (h::t)
-
-inductive Forall {a : Type} (P : a -> Prop) : list a -> Prop
-| Forall_this : ∀ h t, P h -> Forall t -> Forall (h :: t)
-
-
-def In {a:Type} (i:a) := Exists (eq i)
-
-lemma In_or_cons_iff : forall T (i : T) h t,
-In i (h:: t) <-> i = h ∨ In i t :=
-begin
-    intros; split; intros,
-    {
-        revert h,
-        induction t; intros,
-        {
-            cases a,
-            { subst i, left, refl },
-            { cases a_2}
-        },
-        {
-            cases a_2,
-            {
-                subst i,
-                left, refl
-            },
-            {
-                simp [In] at ih_1,
-                note iha := ih_1 _ a_3,
-                clear ih_1, clear a_3,
-                cases iha,
-                {
-                    right, subst i, apply Exists.Exists_this, refl
-                },
-                {
-                    right, apply Exists.Exists_rest, assumption
-                }
-
-            }
-        }
-
-    },
-    {
-        revert h,
-        induction t; intros,
-        {
-            cases a,
-            {
-                subst i, apply Exists.Exists_this, refl
-            },
-            {
-                cases a_1
-            }
-        },
-        {
-            cases a_2,
-            {
-                subst i, 
-                apply Exists.Exists_this, refl
-            },
-            {
-                apply Exists.Exists_rest,
-                apply a_3
-            }
-        }
-    }
-end
-
-lemma decidable_ite P [decidable P] : forall A B, 
-(if P then A else B) -> A ∨ B :=
-take A B, suppose if P then A else B,
-if h : P then
- or.inl (by simp [h] at this; assumption)
-else 
- or.inr (by simp [h] at this; assumption)
-
-lemma nat.lt_succ_le : forall a b,
-a < nat.succ b ->
-a ≤ b :=
-begin
-intros,
-cases a_1,
-{
-    refl,
-},
-{
-    apply nat.le_trans,
-    apply nat.le_add_right,
-    exact 1,
-    apply a_2
-}
-end
-
-lemma nat.lt_succ_ne_lt : forall a b,
-a < nat.succ b ->
-a ≠ b ->
-a < b :=
-begin
-intros,
-cases  (nat.lt_trichotomy a b),
-{  assumption },
-{ cases a_3,
-    { contradiction},
-    {   exfalso,
-        apply nat.le_lt_antisymm,
-        apply a_1,
-        apply nat.succ_lt_succ,
-        assumption,
-    }
-}
-end
-
-lemma find_P_trace {T : Type} (P : T -> Prop) [dpP : decidable_pred P] : forall  (tr : trace T) max n,
---TODO: why did I have to name and provide dpP here
-In (n, (tr n)) (@find_P_until_n _ P dpP tr max) ↔ (P (tr n) ∧ n < max) :=
-begin
-    intros, split; intros,
-    {
-        induction max,
-        {
-            simp [find_P_until_n] at a,
-            cases a
-        },
-        {
-            rename a b,
-            simp [find_P_until_n] at b,
-            cases (dpP (tr a)),
-            {
-                simp [a_1] at b,
-                note ih_b := ih_1 b,
-                cases ih_b,
-                split, assumption,
-                apply nat.lt.step, assumption
-            },
-            {
-                simp [a_1] at b,
-                rw In_or_cons_iff at b,
-                cases b,
-                {
-                    cases a_2,
-                    split,
-                    assumption,
-                    apply nat.lt.base
-                },
-                {
-                    note iha := ih_1 a_2,
-                    cases iha,
-                    split, assumption,
-                    apply nat.lt.step, assumption
-                }
-            }
-
-        }
-    },
-    {
-        induction max,
-        {
-            cases a,
-            rw nat.lt_zero_iff_false at a_2, contradiction
-        },
-        {
-            cases a,
-            simp [find_P_until_n],
-            cases (dpP (tr a)),
-            {
-                simp [a_3],
-                by_cases (a = n); intros,
-                {
-                    subst a,
-                    exfalso,
-                    apply a_3,
-                    assumption
-                },
-                {
-                    apply ih_1,
-                    split, assumption, apply nat.lt_succ_ne_lt,
-                    assumption,
-                    intro, apply a_4, symmetry, assumption
-                }
-            },
-            {
-                simp [a_3],
-                rw In_or_cons_iff,
-                by_cases a = n; intros,
-                subst a, left, refl,
-                right, apply ih_1,split,
-                { assumption },
-                {
-                    apply nat.lt_succ_ne_lt,
-                    assumption, intro, apply a_4, symmetry, assumption
-                }
-
-            }
-        }
-    }
-end
 
 
 /-- Pull out implication from always --/
