@@ -7,12 +7,6 @@ namespace list
 
 variable { α : Type u}
 
-@[simp]
-theorem length_tail (l : list α) : length (tail l) = length l  - 1 :=
-begin
-  cases l, all_goals { refl },
-end
-
 theorem tail_repeat (x : α) (n : ℕ) : tail (repeat x n) = repeat x (n - 1) :=
 begin
   cases n,

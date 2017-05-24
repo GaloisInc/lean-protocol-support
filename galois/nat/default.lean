@@ -1,1 +1,1 @@
-import .simplify_eq .simplify_le .lemmas
+import .simplify_eq .simplify_le .div_lemmas .lemmas
