@@ -132,8 +132,10 @@ instance monad.state_t.is_monad (S : Type u) (M : Type u → Type v) [inst : mon
 
 -- A typeclas for monad states.
 -- Used to provide monad transformers.
+@[reducible]
 instance monad.state_t.is_monad_state (s : Type u) (m : Type u → Type v) [inst : monad m]
-: monad.monad_state s (monad.state_t s m) :=
+: monad.monad_state (monad.state_t s m) :=
 { to_monad := monad.state_t.is_monad s m
-, state := λα f, ⟨pure ∘ f⟩
+, state := s
+, with_state := λα f, ⟨pure ∘ f⟩
 }
