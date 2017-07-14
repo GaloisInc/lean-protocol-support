@@ -13,7 +13,7 @@ structure temporalrelation :=
 --{t0 : (state_ty × label_ty)}
 --(t0_trace : atrace 0 = t0)
 {relation : state_ty -> label_ty -> state_ty -> Prop}
-(trace_next : forall (t: nat), relation ((atrace t)^.fst) (prod.snd (atrace t)) (prod.fst (atrace (t+1))))
+(trace_next : forall (t: nat), relation ((atrace t).fst) ((atrace t).snd) ((atrace (t+1)).fst))
 
 
 

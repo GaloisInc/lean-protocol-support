@@ -18,6 +18,7 @@ parameter [@process_set message_ty state_ty set_type]
 
 /-- We can make a state for a process trace by combining a process
     set with an action allowed on any give process state -/
+@[reducible]
 def process_trace_state : Type := 
     (set_type × @process_set_actions message_ty state_ty proc_actions)
 
@@ -32,9 +33,9 @@ parameter trace_next : forall (t: nat), update_process_set _ _ _ _ ((trace t)^.f
     and actions that can be taken
     over them
 -/
-def proc_trace : temporalrelation :=
+
+def proc_trace : @temporalrelation set_type (@process_set_actions message_ty state_ty proc_actions) :=
 ⟨
-    t0_trace,
     trace_next
 ⟩
 

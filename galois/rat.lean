@@ -1,4 +1,4 @@
-import data.rat
+import library_dev.data.rat
 import galois.nat.div_lemmas
 
 namespace rat

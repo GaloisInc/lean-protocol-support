@@ -50,7 +50,7 @@ include t0_trace
 include trace_next
 
 /-- Define a trace around our initial state and transitions -/
-def proc_trace := process_set_trace.proc_trace _ _ t0_trace trace_next
+def proc_trace := process_set_trace.proc_trace _ _ trace_next
 
 open temporal
 
@@ -119,6 +119,7 @@ forall fr to hd tl,
 (now_at_proc_state _ _ fr (eq (hd::tl))) =>  
 (◇ (now (send_message_from_to fr to [hd]) //\\ (now (prefix_state fr tl ))))) trace :=
 begin
+admit
 end
 
 
@@ -130,7 +131,7 @@ forall pref to,
                 (temporal.now (send_message_from_to_ex 0 to)))) trace :=
 begin
 intros,
-simp [tImp, tInj2, implies], intros --todo, I should be able to do this with lemmas
+simp [tInj2, implies] with tImp, intros --todo, I should be able to do this with lemmas
 intro,
 simp [until], 
 simp [fair] at send0_to1_fair,
@@ -139,7 +140,7 @@ note s01 := send0_to1_fair 0,
 cases s01,
 simp at a_1,
 existsi a,
-
+admit
 end
 
 
@@ -148,7 +149,7 @@ lemma add_message_send_message :
 forall m,
 tImp (temporal.now (state0_adds_message m)) (eventually (now (send_message_from_to 0 1 [m]))) trace :=
 begin
-intros, simp [tImp, now, tInj2, implies, later],
+intros, simp [now, tInj2, implies, later] with tImp,
 intros message_add, rewrite t0_trace at message_add,
 note a0snd := (adds_message_l _ _ message_add),
 simp at a0snd,
