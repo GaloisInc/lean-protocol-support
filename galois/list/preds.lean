@@ -6,9 +6,61 @@ inductive Exists {a : Type} (P : a -> Prop) : list a -> Prop
 | Exists_this : ∀ h t, P h -> Exists (h :: t)
 | Exists_rest : ∀ h t, Exists t -> Exists (h::t)
 
-inductive Forall {a : Type} (P : a -> Prop) : list a -> Prop
-| Forall_this : ∀ h t, P h -> Forall t -> Forall (h :: t)
 
+inductive Forall {A} (P : A -> Prop) : list A -> Prop
+| nil : Forall []
+| cons : ∀ {x xs}, P x -> Forall xs -> Forall (x :: xs)
+
+lemma map_Forall {A B : Type} (f : A -> B) (P : B -> Prop)
+  (xs : list A)
+  (Pxs : Forall (λ x, P (f x)) xs)
+  : Forall P (list.map f xs) :=
+begin
+induction Pxs,
+{ constructor },
+{ simp [list.map], constructor; assumption
+}
+end
+
+lemma impl_Forall {A : Type} {P Q : A -> Prop}
+  (xs : list A)
+  (Pxs : Forall P xs)
+  (impl : forall x, P x -> Q x)
+  : Forall Q xs :=
+begin
+induction Pxs; constructor,
+  { apply impl, assumption },
+  { assumption }
+end
+
+lemma Forall_invert {A : Type} {P : A -> Prop} {xs : list A}
+  (H : list.Forall P xs)
+  : (match xs with
+  | [] := true
+  | (y :: ys) := P y ∧ list.Forall P ys
+  end : Prop) :=
+begin
+induction H; dsimp,
+  { constructor },
+  { split; assumption }
+end
+
+lemma concat_Forall {A : Type} {P : A -> Prop}
+  {xs ys : list A}
+  (Hxs : Forall P xs) (Hys : Forall P ys)
+  : Forall P (xs ++ ys)
+:=
+begin
+induction xs,
+{ dsimp, assumption },
+{ simp [concat], 
+  note Hxs' := Forall_invert Hxs,
+  clear Hxs,
+  dsimp at Hxs',
+  cases Hxs',
+  constructor, assumption,
+  apply ih_1, assumption }
+end
 
 def In {a:Type} (i:a) := Exists (eq i)
 
