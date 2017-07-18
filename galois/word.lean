@@ -16,6 +16,12 @@ definition word32 := bitvec 32
 
 definition word64 := bitvec 64
 
+instance : has_zero word64 := begin unfold word64, apply_instance end
+instance : has_one word64  := begin unfold word64, apply_instance end
+instance : has_add word64  := begin unfold word64, apply_instance end
+instance : decidable_eq word64  := begin unfold word64, apply_instance end
+instance : has_to_string word64 := begin unfold word64, apply_instance end
+
 def byte_to_word32 (w : byte) : word32 := @bitvec.append 24 8 0 w
 def byte_to_word64 (w : byte) : word64 := @bitvec.append 56 8 0 w
 def word16_to_byte (w : word16) : byte := vector.dropn 8 w

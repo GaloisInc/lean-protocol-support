@@ -82,10 +82,9 @@ end monad
 /- Show state_t is a monad if the underlying action is a monad -/
 instance monad.state_t.is_monad (S : Type u) (M : Type u → Type v) [inst : monad M]
   : monad (monad.state_t S M) :=
-{ bind   := @monad.state_t.bind S M inst
+{ to_functor := @monad.state_t.is_functor S M inst.to_functor
+, bind   := @monad.state_t.bind S M inst
 , pure   := @monad.state_t.pure S M (by apply_instance)
-, map    := @has_map.map _ (by apply_instance)
-, id_map := @functor.id_map _ (by apply_instance)
 , pure_bind :=
   begin
     intros α β x f,
