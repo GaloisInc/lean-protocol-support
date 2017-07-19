@@ -11,6 +11,11 @@ definition get_member {A : Type u}
 | (x :: xs) member.here := x
 | (x :: xs) (member.there m) := get_member m
 
+definition remove_member {A : Type u}
+  : ∀ (xs : list A), member xs -> list A
+| (x :: xs) member.here := xs
+| (x :: xs) (member.there m) := x :: remove_member xs m
+
 inductive el_member {A : Type u} : A → list A → Type u
 | here : ∀ {x : A} {xs : list A}, el_member x (x :: xs)
 | there : ∀ {y x : A} {xs : list A}, el_member y xs → el_member y (x :: xs)
