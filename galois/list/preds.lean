@@ -228,4 +228,33 @@ intros; induction l,
 }
 end
 
+instance Exists_decidable {A} (P : A -> Prop)
+  [decidable_pred P] : decidable_pred (list.Exists P)
+:=
+begin
+simp [decidable_pred],
+intros xs,
+induction xs,
+{ apply decidable.is_false , intros contra,
+  cases contra },
+{ apply (@decidable.by_cases (list.Exists P a_1)); intros,
+  { apply decidable.is_true, apply list.Exists.Exists_rest, assumption },
+  {
+  apply (@decidable.by_cases (P a)); intros,
+    { apply decidable.is_true, constructor, assumption },
+    { apply decidable.is_false, intros contra, 
+      cases contra; contradiction
+    }
+  }
+}
+end
+
+instance In_decidable {A} [decidable_eq A]
+  (x : A)
+  : decidable_pred (list.In x)
+:= begin
+unfold list.In,
+apply list.Exists_decidable
+end
+
 end list
