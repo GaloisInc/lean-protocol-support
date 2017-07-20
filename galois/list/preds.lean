@@ -54,7 +54,7 @@ begin
 induction xs,
 { dsimp, assumption },
 { simp [concat], 
-  note Hxs' := Forall_invert Hxs,
+  have Hxs' := Forall_invert Hxs,
   clear Hxs,
   dsimp at Hxs',
   cases Hxs',
@@ -75,7 +75,7 @@ begin
         {
             cases a,
             { subst i, left, refl },
-            { cases a_2}
+            { cases a_1}
         },
         {
             cases a_2,
@@ -85,7 +85,7 @@ begin
             },
             {
                 simp [In] at ih_1,
-                note iha := ih_1 _ a_3,
+                have iha := ih_1 _ a_3,
                 clear ih_1, clear a_3,
                 cases iha,
                 {
@@ -108,7 +108,7 @@ begin
                 subst i, apply Exists.Exists_this, refl
             },
             {
-                cases a_1
+                cases a
             }
         },
         {
@@ -119,7 +119,7 @@ begin
             },
             {
                 apply Exists.Exists_rest,
-                apply a_3
+                apply a_2
             }
         }
     }
@@ -142,7 +142,7 @@ intros; split; intros,
             subst i, left, apply Exists.Exists_this, refl,
         },
         {
-            note iha := ih_1 a_2,
+            have iha := ih_1 a_2,
             cases iha,
             { 
                 left,
@@ -159,7 +159,7 @@ intros; split; intros,
     induction l1; simp,
     {
         cases a,
-        cases a_1,
+        cases a,
         assumption,
     },
     {
@@ -222,7 +222,7 @@ intros; induction l,
     },
     {
         cases a_2,
-        { cases a_3},
+        { cases a_2},
         right, apply ih_1, assumption
     }
 }

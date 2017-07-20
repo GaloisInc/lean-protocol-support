@@ -50,16 +50,15 @@ begin
     intros,
     simp with ltl,
     intros,
-    dsimp,
     induction n_1,
     {
         simp,
         assumption
     },
     {
-        unfold relation_maintains_prop at a_1,
-        note rel := r^.trace_next (a_2 + n),
-        note wat := a_1 _ _ _ ih_1 rel,
+        dsimp [relation_maintains_prop] at a_1,
+        have rel := r^.trace_next (n + a_2),
+        have wat := a_1 (r.atrace (n + a_2)).fst (r.atrace (n + a_2 + 1)).fst _ ih_1 rel,
         apply congr_arg_app _ _ _ wat,
         simp
     }
@@ -75,23 +74,21 @@ relation_maintains_prop_unless r^.relation P Q ->
 (later_state P n 𝓤 later_label Q 0) r^.atrace:=
 begin
 simp with ltl, -- don't want to do this, haven't found the right abstraction at the next level
-dsimp,
 intros,
 induction n,
 {
-     note a_n := a_2 0,
+     have a_n := a_2 0,
      cases a_n,
      existsi a_3,
      split,
      {
-         simp, simp at a_4,
+         simp at a_4,
          assumption
      },
      {
          intros,
          simp, 
-         simp at a_2,
-         unfold relation_maintains_prop_unless at a_1,
+         dsimp [relation_maintains_prop_unless] at a_1,
          admit
      }
 },

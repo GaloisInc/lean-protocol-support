@@ -1,5 +1,5 @@
 import galois.vector.basic
-import galois.list.taken_dropn_lemmas
+import galois.list.take_drop_lemmas
 
 universe variables u
 
@@ -34,23 +34,23 @@ lemma to_list_join : ∀(x : vector (vector α m) n), to_list (join x) = join_li
 | ⟨ l, h ⟩ := rfl
 
 def take_le (n : ℕ) (l : list α) (p : n ≤ list.length l) : vector α n :=
-  ⟨list.taken n l, eq.trans (list.length_taken n l) (min_eq_left p)⟩
+  ⟨list.take n l, eq.trans (list.length_take n l) (min_eq_left p)⟩
 
-lemma to_list_take_le (n : ℕ) (l : list α) (p : n ≤ list.length l) : to_list (take_le n l p) = list.taken n l := rfl
+lemma to_list_take_le (n : ℕ) (l : list α) (p : n ≤ list.length l) : to_list (take_le n l p) = list.take n l := rfl
 
 -- 'bounded_chunk_list n m l' splits 'l' into at most 'n' 'm'-element chunks.
 definition bounded_chunk_list : Π(n m : ℕ), list α → list (vector α m)
 | nat.zero m l := list.nil
 | (nat.succ n) m l :=
   if p : list.length l ≥ m then
-    list.cons (take_le m l p) (bounded_chunk_list n m (list.dropn m l))
+    list.cons (take_le m l p) (bounded_chunk_list n m (list.drop m l))
   else
     list.nil
 
 lemma bounded_chunk_list_zero (m : ℕ) (l : list α) : bounded_chunk_list 0 m l = [] := rfl
 
 lemma bounded_chunk_list_succ_next (n m : ℕ) (l : list α) (p : list.length l ≥ m)
-: bounded_chunk_list (nat.succ n) m l = list.cons (take_le m l p) (bounded_chunk_list n m (list.dropn m l)) :=
+: bounded_chunk_list (nat.succ n) m l = list.cons (take_le m l p) (bounded_chunk_list n m (list.drop m l)) :=
 begin
   unfold bounded_chunk_list,
   rw [dif_pos p]
@@ -67,8 +67,8 @@ lemma length_bounded_chunk_list : ∀(n m : ℕ) (l : list α), (list.length l =
     begin
       rw [nat.mul_succ],
       intro h,
-      assert q : list.length (list.dropn m t) = m * n,
-         { rw [list.length_dropn, h, nat.add_sub_cancel] },
+      have q : list.length (list.drop m t) = m * n,
+         { rw [list.length_drop, h, nat.add_sub_cancel] },
       unfold bounded_chunk_list,
       rw [dif_pos p],
       simp [length_bounded_chunk_list n m _ q, nat.add_succ]
@@ -77,7 +77,7 @@ lemma length_bounded_chunk_list : ∀(n m : ℕ) (l : list α), (list.length l =
     begin
       simp [nat.mul_succ],
       intro h,
-      assert t_ge : list.length t ≥ m,
+      have t_ge : list.length t ≥ m,
         { rw [h], apply nat.le_add_right },
       contradiction
     end
@@ -114,18 +114,18 @@ begin
   rw [dif_pos q],
   unfold join_list,
   intros,
-  assert h : list.length (list.dropn m l) = m * n,
-    { rw [list.length_dropn, p, nat.mul_succ,nat.add_sub_cancel]
+  have h : list.length (list.drop m l) = m * n,
+    { rw [list.length_drop, a, nat.mul_succ,nat.add_sub_cancel]
     },
   simp [join_list_of_bounded_chunk_list _ _ _ h, to_list_take_le],
-  exact (list.taken_append_dropn_self m l)
+  exact (list.take_append_drop_self m l)
 end
 else
 begin
   rw [nat.mul_succ],
   intro p,
   -- Assert contradiction
-  assert t_ge : list.length l ≥ m, { rw p, apply nat.le_add_left },
+  have t_ge : list.length l ≥ m, { rw p, apply nat.le_add_left },
   contradiction
 end
 

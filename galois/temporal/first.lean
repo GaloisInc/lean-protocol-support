@@ -32,7 +32,7 @@ begin
             cases (_inst_1 (tr a)),
             {
                 simp [a_1] at b,
-                note ih_b := ih_1 b,
+                have ih_b := ih_1 b,
                 cases ih_b,
                 split, assumption,
                 apply nat.lt.step, assumption
@@ -47,7 +47,7 @@ begin
                     apply nat.lt.base
                 },
                 {
-                    note iha := ih_1 a_2,
+                    have iha := ih_1 a_2,
                     cases iha,
                     split, assumption,
                     apply nat.lt.step, assumption
@@ -60,7 +60,7 @@ begin
         induction max,
         {
             cases a,
-            rw nat.lt_zero_iff_false at a_2, contradiction
+            rw nat.lt_zero_iff_false at a_1, contradiction
         },
         {
             cases a,
@@ -68,7 +68,7 @@ begin
             cases (_inst_1 (tr a)),
             {
                 simp [a_3],
-                by_cases (a = n); intros,
+                by_cases (a = n) with h; intros,
                 {
                     subst a,
                     exfalso,
@@ -79,18 +79,18 @@ begin
                     apply ih_1,
                     split, assumption, apply nat.lt_succ_ne_lt,
                     assumption,
-                    intro, apply a_4, symmetry, assumption
+                    intro, apply h, symmetry, assumption
                 }
             },
             {
                 simp [a_3],
-                by_cases a = n; intros,
+                by_cases a = n with h; intros,
                 subst a, left, refl,
                 right, apply ih_1,split,
                 { assumption },
                 {
                     apply nat.lt_succ_ne_lt,
-                    assumption, intro, apply a_4, symmetry, assumption
+                    assumption, intro, apply h, symmetry, assumption
                 }
 
             }
@@ -114,7 +114,7 @@ induction a; simp [find_P_until_n] at a_1,
 },
 {
     rename a_1 ax,
-    cases (_inst_1 (tr a_1)); simp [a] at ax,
+    cases (_inst_1 (tr a)); simp [ite] at ax,
     {
         apply ih_1, assumption
     },
@@ -153,7 +153,7 @@ begin
         cases (_inst_1 (tr a)),
         {
             simp [a_1] at a_1_1,
-            apply ih_1; assumption
+            apply ih_1, assumption, assumption
         },
         {
             simp [a_1] at a_1_1,
@@ -167,9 +167,9 @@ begin
                 clear a_4,
                 clear ih_1,
                 intro, 
-                assert conj : P (tr n') /\ n' < a,
+                have conj : P (tr n') /\ n' < a,
                 { split; assumption},
-                rw - find_P_trace at conj,
+                rw <- find_P_trace at conj,
                 rw In_reverse_In at conj,
                 rw f at conj,
                 cases conj,
@@ -177,7 +177,7 @@ begin
             {
                 intros,
                 cases a_3,
-                assert sf : snd = tr fst,
+                have sf : snd = tr fst,
                     {
                         apply @find_n_tr_n' _ _ _inst_1,
                         assumption
@@ -206,31 +206,31 @@ intros,
 simp with ltl at a,
 cases a,
 simp [first],
-generalize2 (list.reverse (find_P_until_n P tr (nat.succ a_1))) h z,
+generalize2 (list.reverse (find_P_until_n P tr (nat.succ a))) h z,
 cases h,
 { admit },
 { 
-    cases a,
+    cases a_2,
   existsi fst,
-  assert sf : (snd = tr fst),
+  have sf : (snd = tr fst),
   {
     apply @find_n_tr_n' _ _ _inst_1, assumption
   },
   subst snd,
-  note lfl := last_found_lowest _ _ _ _ _ z,
+  have lfl := last_found_lowest _ _ _ _ _ z,
   split,
-  assert iz : In (fst, tr fst) (find_P_until_n P tr (nat.succ a_1)),
+  have iz : In (fst, tr fst) (find_P_until_n P tr (nat.succ a)),
   {
       rw In_reverse_In, rw z,
       simp
   },
   rw find_P_trace at iz, cases iz,
   simp with ltl,
-  simp, assumption,
+  assumption,
   intros,
   intro,
   apply lfl,
-  apply a, simp with ltl at a_4, simp at a_4,
+  apply a_2, simp with ltl at a_4,
   assumption,
 }
 end

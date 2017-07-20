@@ -7,17 +7,11 @@ namespace list
 
 variable {α : Type u}
 
--- | Return all but the last element in a list or nil if the list is empty.
-def init : list α → list α
-| nil := nil
-| (x::nil) := nil
-| (x::l)  := x :: init l
-
 theorem length_init : ∀ (l : list α), length (init l) = length l - 1
 | nil := by simp [init]
 | (x::l)   :=
 begin
-  note p := length_init l,
+  have p := length_init l,
   cases l with b r,
   -- Case where l = nil
   { simp [init] },

@@ -133,13 +133,9 @@ def fair {T : Type} (P : T -> Prop) := always (eventually (now P))
 
 notation `⊩` P := forall tr, P tr
 
-lemma decidable_ite P [decidable P] : forall A B,
-(if P then A else B) -> A ∨ B :=
-take A B, suppose if P then A else B,
-if h : P then
- or.inl (by simp [h] at this; assumption)
-else
- or.inr (by simp [h] at this; assumption)
+-- lemma decidable_ite P [decidable P] : forall A B,
+-- (if P then A else B) -> A ∨ B := sorry
+
 
 lemma nat.lt_succ_le : forall a b,
 a < nat.succ b ->
@@ -207,13 +203,13 @@ split; intros,
     intro n,
     simp [tAnd, tInj2],
     split,
+       apply (a n),
        apply (a_1 n),
-       apply (a_2 n),
 simp [always],
 simp [always] at a,
 split; {intro n,
     simp [tAnd] at a,
-    assert h_n: tAnd P Q (λ (t : ℕ), tr (n + t)),
+    have h_n: tAnd P Q (λ (t : ℕ), tr (n + t)),
         apply a, clear a,
     simp [tAnd] at h_n,
     cases h_n, assumption}
@@ -263,9 +259,9 @@ cases a with a_1 a_2,
 { simp [until] at a,
     simp [eventually],
     cases a,
-    existsi a_1,
-    cases a_2,
-  apply a,
+    existsi a,
+    cases a_1,
+  assumption,
 },
 end
 
@@ -299,15 +295,15 @@ intros; split; intros,
     simp [always] at a,
     split,
     {
-        note a0 := a 0,
+        have a0 := a 0,
         simp at a0,
-        assert treq : tr = λ t, tr t,
+        have treq : tr = λ t, tr t,
         { apply funext, intro, trivial },
         rewrite treq, assumption
     },
     {
         intro,
-        note a1 := a (n + 1),
+        have a1 := a (n + 1),
         apply congr_arg_app,
         apply a1,
         apply funext,
@@ -320,12 +316,12 @@ intros; split; intros,
     simp with ltl at a,
     cases a,
     intro,
-    note a2n := a_2 (nat.pred n),
+    have a2n := a_1 (nat.pred n),
     apply dite (n = 0); intro,
     {
         subst n, simp,
         apply congr_arg_app,
-        apply a_1,
+        apply a,
         reflexivity,
     },
     {
@@ -333,8 +329,8 @@ intros; split; intros,
         apply a2n,
         apply funext,
         intro,
-        dsimp,
-        note nex := ne0_succ_exists _ a,
+        --dsimp,
+        have nex := ne0_succ_exists _ a_2,
         cases nex,
         subst n,
         simp
@@ -348,8 +344,8 @@ forall tr, □ (tOr P Q) tr -> □ (◇ Q) tr -> (□ (P 𝓤 Q)) tr  :=
 begin
 simp with ltl,
 intros,
-note an := a n,
-note a_1n := a_1 n,
+have an := a n,
+have a_1n := a_1 n,
 clear a,
 clear a_1,
 induction n,
@@ -383,16 +379,16 @@ intros p0 pIH n,
 induction n; intros,
 
     simp,
-    assert treq : tr = λ t, tr t,
+    have treq : tr = λ t, tr t,
     {    apply funext,
         intro, reflexivity,
     },
     exact p0,
 
     simp,
-    pose pIHa := pIH a,
-    pose pC := pIHa ih_1,
-    assert teq : (λ (t : ℕ), (λ (t : ℕ), tr (a + t)) (t + 1)) =
+    have pIHa := pIH a,
+    have pC := pIHa ih_1,
+    have teq : (λ (t : ℕ), (λ (t : ℕ), tr (a + t)) (t + 1)) =
                   (λ (t : ℕ), tr (t + nat.succ a)),
     {   apply funext,
         intro x,
@@ -412,7 +408,7 @@ forall trace,
  P trace -> □ (P => (◯ P)) trace -> □ P trace :=
 begin
 intros,
-note ti := @temporal_induction,
+have ti := @temporal_induction,
 simp [implies] with tImp at ti,
 apply ti;
 assumption
