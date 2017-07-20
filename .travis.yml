@@ -12,3 +12,7 @@ addons:
 
 install:
   - .travis/install-lean.sh
+
+script:
+  - cd galois/
+  - ../lean/bin/lean --make
