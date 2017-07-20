@@ -1,0 +1,2 @@
+install:
+  - .travis/install-lean.sh
