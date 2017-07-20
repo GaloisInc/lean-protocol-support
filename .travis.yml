@@ -7,10 +7,7 @@ addons:
       - sourceline: 'ppa:adrozdoff/cmake' # cmake 3 for trusty
     packages: &default_packages
       - cmake
-      - g++-4.9
-
-before_install:
-  - sudo apt install ninja
+      - g++-6
 
 install:
   - .travis/install-lean.sh
