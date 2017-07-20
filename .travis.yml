@@ -17,7 +17,7 @@ install:
   - .travis/install-lean.sh
 
 script:
-  - ../lean/bin/leanpkg configure
+  - lean/bin/leanpkg configure
   - cd galois/
   - ../lean/bin/lean --make
 
