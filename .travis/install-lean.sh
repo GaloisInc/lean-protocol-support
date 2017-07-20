@@ -3,5 +3,5 @@ cd lean/
 git checkout ae5bc52
 mkdir build
 cd build
-cmake ../src
+cmake -DCMAKE_CXX_COMPILER=g++-6 ../src
 make -j 2
