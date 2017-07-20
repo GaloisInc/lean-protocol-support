@@ -2,7 +2,7 @@
 
 import data.vector
 import galois.list.simplify_eq
-import galois.list.taken_dropn_lemmas
+import galois.list.take_drop_lemmas
 import galois.subtype
 
 universe variables u

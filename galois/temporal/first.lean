@@ -158,7 +158,8 @@ begin
         {
             simp [a_1] at a_1_1,
             revert a_1_1,
-            generalize2 (list.reverse (find_P_until_n P tr a)) l f, intros,
+            generalize f : (list.reverse (find_P_until_n P tr a)) = l, intros,
+           -- generalize2 (list.reverse (find_P_until_n P tr a)) l f, intros,
             cases l,
             {   
                 simp at a_1_1,
@@ -206,7 +207,7 @@ intros,
 simp with ltl at a,
 cases a,
 simp [first],
-generalize2 (list.reverse (find_P_until_n P tr (nat.succ a))) h z,
+generalize z : (list.reverse (find_P_until_n P tr (nat.succ a))) = h,
 cases h,
 { admit },
 { 
@@ -231,7 +232,7 @@ cases h,
   intro,
   apply lfl,
   apply a_2, simp with ltl at a_4,
-  assumption,
+  assumption
 }
 end
 

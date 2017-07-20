@@ -125,7 +125,6 @@ instance monad.state_t.is_monad (S : Type u) (M : Type u → Type v) [inst : mon
     transitivity,
     { apply monad.bind_pure_comp_eq_map, },
     unfold has_map.map monad.state_t.map,
-    refl,
   end
 }
 

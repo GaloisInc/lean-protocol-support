@@ -81,13 +81,11 @@ open nat
 -- Definition of 0
 theorem zero_to_repeat (n : ℕ) : (0 : bitvec n) = repeat ff n :=
 begin
-  unfold zero bitvec.zero,
   refl
 end
 
 theorem one_to_repeat (n : ℕ) : (1 : bitvec (succ n)) = repeat ff n ++ [tt] :=
 begin
-  unfold has_one.one bitvec.one,
   trivial,
 end
 
@@ -95,17 +93,16 @@ theorem bit0_to_repeat {n : ℕ} (x : bitvec (succ n))
 : bit0 x = vector.total_tail x ++ [ff] :=
 begin
   unfold bit0,
-  unfold add has_add.add bitvec.add,
+  unfold has_add.add bitvec.add,
   apply vector.eq,
   simp [adc_eq, list.tail_append],
-
 end
 
 theorem bit1_to_repeat {n : ℕ} (x : bitvec (succ n))
 : bit1 x = vector.total_tail x ++ [tt] :=
 begin
   unfold bit1,
-  unfold add has_add.add bitvec.add,
+  unfold has_add.add bitvec.add,
   apply vector.eq,
   simp [one_to_repeat, bit0_to_repeat, adc_append1, bitvec.carry, bitvec.xor3],
   dsimp [nat.succ_sub_one],
@@ -136,7 +133,6 @@ begin
   -- Case for n ≥ 2
   { apply vector.eq,
     unfold has_one.one,
-    dsimp [nat.succ_sub_succ, one._main],
     trivial,
   }
 end
@@ -201,7 +197,7 @@ meta def simp_bvlit_rule : tactic unit := do
       , expr.const `bitvec.bit1_to_repeat []
       ] in do
     s ← simp_lemmas.mk.append lemmas,
-    tactic.simplify_goal s,
+    tactic.simp_target s,
     tactic.try (tactic.reflexivity)
 
 @[simp]

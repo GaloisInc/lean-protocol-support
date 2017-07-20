@@ -3,7 +3,6 @@ This defines an operation fin_nth which gets the nth item on a list when the
 index is guaranteed to reference a valid element.
 -/
 import galois.nat.simplify_le
-import aim.tactic.search_about
 import init.data.fin.ops
 
 universe variable u
