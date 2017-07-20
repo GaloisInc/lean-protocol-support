@@ -1,5 +1,7 @@
 sudo: required
 cache: apt
+  directories:
+  - lean
 
 addons:
   apt:
@@ -16,3 +18,4 @@ install:
 script:
   - cd galois/
   - ../lean/bin/lean --make
+
