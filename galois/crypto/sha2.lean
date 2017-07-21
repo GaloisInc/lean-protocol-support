@@ -167,8 +167,8 @@ namespace sha256
 
   definition preprocess (msg : list (bitvec 8)) : list (chunk 32) :=
   let len : bitvec 64 := list.foldl (λ n a, bitvec.add n 8) 0 msg,
-      hi : bitvec 32 := vector.dropn 32 (bitvec.ushr len 32),
-      lo : bitvec 32 := vector.dropn 32 len
+      hi : bitvec 32 := vector.drop 32 (bitvec.ushr len 32),
+      lo : bitvec 32 := vector.drop 32 len
   in words_to_chunks 32 hi lo (bytes_to_words (list.concat msg 0x80))
 
   definition sha256 (msg : list (bitvec 8)) : bitvec 256 :=
@@ -184,7 +184,7 @@ namespace sha224
           0xffc00b31 0x68581511 0x64f98fa7 0xbefa4fa4
 
   definition sha224 (msg : list (bitvec 8)) : bitvec 224 :=
-  vector.dropn 32 (bitvec.ushr (bitvec_of_hash 32 (sha256.hash_chunks_32 hash0 (sha256.preprocess msg))) 32)
+  vector.drop 32 (bitvec.ushr (bitvec_of_hash 32 (sha256.hash_chunks_32 hash0 (sha256.preprocess msg))) 32)
   /- should use "vector.firstn 224" but it fails to infer the less-than-or-equal constraint -/
 
 end sha224
@@ -244,8 +244,8 @@ namespace sha512
 
   definition preprocess (msg : list (bitvec 8)) : list (chunk 64) :=
   let len : bitvec 128 := list.foldl (λ n a, bitvec.add n 8) 0 msg,
-      hi : bitvec 64 := vector.dropn 64 (bitvec.ushr len 64),
-      lo : bitvec 64 := vector.dropn 64 len
+      hi : bitvec 64 := vector.drop 64 (bitvec.ushr len 64),
+      lo : bitvec 64 := vector.drop 64 len
   in words_to_chunks 64 hi lo (bytes_to_words (list.concat msg 0x80))
 
   definition sha512 (msg : list (bitvec 8)) : bitvec 512 :=
@@ -260,7 +260,7 @@ namespace sha384
           0x67332667ffc00b31 0x8eb44a8768581511 0xdb0c2e0d64f98fa7 0x47b5481dbefa4fa4
 
   definition sha384 (msg : list (bitvec 8)) : bitvec 384 :=
-  vector.dropn 128 (bitvec.ushr (bitvec_of_hash 64 (sha512.hash_chunks_64 hash0 (sha512.preprocess msg))) 128)
+  vector.drop 128 (bitvec.ushr (bitvec_of_hash 64 (sha512.hash_chunks_64 hash0 (sha512.preprocess msg))) 128)
   /- should use "vector.firstn 384" but it fails to infer the less-than-or-equal constraint -/
 
 end sha384
@@ -272,7 +272,7 @@ namespace sha512_224
           0x0f6d2b697bd44da8 0x77e36f7304c48942 0x3f9d85a86a1d36c8 0x1112e6ad91d692a1
 
   definition sha512_224 (msg : list (bitvec 8)) : bitvec 224 :=
-  vector.dropn 288 (bitvec.ushr (bitvec_of_hash 64 (sha512.hash_chunks_64 hash0 (sha512.preprocess msg))) 288)
+  vector.drop 288 (bitvec.ushr (bitvec_of_hash 64 (sha512.hash_chunks_64 hash0 (sha512.preprocess msg))) 288)
   /- should use "vector.firstn 288" but it fails to infer the less-than-or-equal constraint -/
 
 end sha512_224
@@ -284,7 +284,7 @@ namespace sha512_256
           0x96283ee2a88effe3 0xbe5e1e2553863992 0x2b0199fc2c85b8aa 0x0eb72ddc81c52ca2
 
   definition sha512_256 (msg : list (bitvec 8)) : bitvec 256 :=
-  vector.taken 256 (bitvec_of_hash 64 (sha512.hash_chunks_64 hash0 (sha512.preprocess msg)))
+  vector.take 256 (bitvec_of_hash 64 (sha512.hash_chunks_64 hash0 (sha512.preprocess msg)))
 
 end sha512_256
 

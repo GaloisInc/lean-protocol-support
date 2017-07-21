@@ -10,7 +10,7 @@
 -- which takes the state and generates a new state.  The loop action
 -- called again whenever the next action terminates.
 --
--- On top of these core definitions, we define a translation relation
+-- On top of these core definitions, we define a transition relation
 -- over a system state, which is defined as a collection of agents,
 -- and messages between agents.
 --

@@ -13,8 +13,7 @@ begin
   apply iff.intro,
   {
     intro g,
-    injection g with h,
-    exact h
+    injection g with h
   },
   {
     intro p,

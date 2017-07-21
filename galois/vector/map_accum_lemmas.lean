@@ -45,7 +45,7 @@ begin
   -- Reduce to proof about list.map_accumr₂ and use corresponding theorem
   cases x with xv xp,
   cases y with yv yp,
-  assert len_pr : xv^.length = yv^.length, { simp [xp, yp] },
+  have len_pr : xv^.length = yv^.length, { simp [xp, yp] },
   simp [vector.cons, vector.nil, vector.append, map_accumr₂],
   simp [list.map_accumr₂_append1 f _ _ len_pr],
 end

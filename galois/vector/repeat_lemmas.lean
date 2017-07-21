@@ -24,7 +24,7 @@ begin
     simp [repeat]
   },
   {
-    note h := congr_arg to_list ind,
+    have h := congr_arg to_list ind,
     simp [vector.repeat] at h,
     apply vector.eq,
     simp [vector.repeat],
