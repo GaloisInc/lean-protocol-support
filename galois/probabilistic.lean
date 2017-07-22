@@ -35,12 +35,6 @@ import galois.rat
 instance : has_to_string ℚ :=
 ⟨ λx, "rat" ⟩
 
-namespace rat
-
-lemma nz_mul {p q : ℚ} (p_nz : p ≠ 0) (q_nz :q ≠ 0) : p * q ≠ 0 := sorry
-
-end rat
-
 universe variables u v
 
 def algebra.sum {α : Type u} [has_zero α] [has_add α] : list α → α

@@ -3,3 +3,4 @@ name = "lean-protocol-support"
 version = "0.1"
 
 [dependencies]
+library_dev = {git = "https://github.com/leanprover/library_dev.git", rev = "9d8ac7c7798ca550874e90fed585caad030bbfac"}
