@@ -10,7 +10,10 @@ variables {α : Type u} {β : Type u}
 theorem is_some_none  : is_some (none : option α) = ff := rfl
 
 @[simp]
-theorem not_is_some (x : option α) : ¬ (is_some x) ↔ (x = none) :=
+theorem is_some_some {α : Type} (x : α) : option.is_some (some x) = tt := rfl
+
+@[simp]
+theorem is_some_ff_to_none (x : option α) : is_some x = ff ↔ (x = none) :=
 begin
   cases x,
   { simp, },

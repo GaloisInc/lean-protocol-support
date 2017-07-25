@@ -1,4 +1,4 @@
-/- Defines init and supporting function -/
+/- Defines theorems about init and supporting function -/
 import galois.list.simplify_eq
 
 universe variable u
@@ -19,7 +19,7 @@ begin
   {  simp [init, p, nat.add_sub_cancel, nat.add_sub_cancel_left], }
 end
 
--- Maps a list with length 0 to nil
+-- A list with length 0 must be nil nil
 theorem length_0_implies_nil {l : list α} (h : length l = 0) : l = nil :=
 begin
   cases l,

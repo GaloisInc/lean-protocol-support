@@ -33,6 +33,18 @@ structure lens (S : Type u) (α : Type v) :=
   (set_get :  ∀ (s : S), set (get s) s = s         . lens.set_get_tactic)
   (set_set :  ∀ (u v : α) (s : S), set u (set v s) = set u s . lens.set_set_tactic)
 
+@[simp]
+lemma get_set_cancel {S : Type u} {α : Type v} (l : lens S α)
+: ∀ (v : α) (s : S), l.get (l.set v s) = v := l.get_set
+
+@[simp]
+lemma set_get_cancel {S : Type u} {α : Type v} (l : lens S α)
+: ∀ (s : S), l.set (l.get s) s = s := l.set_get
+
+@[simp]
+lemma set_set_cancel {S : Type u} {α : Type v} (l : lens S α)
+: ∀ (u v : α) (s : S), l.set u (l.set v s) = l.set u s := l.set_set
+
 namespace lens
 
 variables { s t : Type u }

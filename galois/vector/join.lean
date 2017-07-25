@@ -9,7 +9,7 @@ variables {α : Type u}
 variable {m : ℕ}
 variable {n : ℕ}
 
-definition join_list : list (vector α m) → list α
+def join_list : list (vector α m) → list α
 | list.nil := list.nil
 | (list.cons a v) := list.append (to_list a) (join_list v)
 
