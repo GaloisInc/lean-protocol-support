@@ -1,17 +1,18 @@
 /- Useful predicates and lemmas for quantifying over lists -/
+universes u v
 
 namespace list
 
-inductive Exists {a : Type} (P : a -> Prop) : list a -> Prop
-| Exists_this : ∀ h t, P h -> Exists (h :: t)
-| Exists_rest : ∀ h t, Exists t -> Exists (h::t)
+inductive Exists {a : Type u} (P : a -> Prop) : list a -> Prop
+| here : ∀ {h t}, P h -> Exists (h :: t)
+| there : ∀ {h t}, Exists t -> Exists (h::t)
 
 
 inductive Forall {A} (P : A -> Prop) : list A -> Prop
 | nil : Forall []
 | cons : ∀ {x xs}, P x -> Forall xs -> Forall (x :: xs)
 
-lemma map_Forall {A B : Type} (f : A -> B) (P : B -> Prop)
+lemma map_Forall {A : Type u} {B : Type v} (f : A -> B) (P : B -> Prop)
   (xs : list A)
   (Pxs : Forall (λ x, P (f x)) xs)
   : Forall P (list.map f xs) :=
@@ -22,7 +23,7 @@ induction Pxs,
 }
 end
 
-lemma impl_Forall {A : Type} {P Q : A -> Prop}
+lemma impl_Forall {A : Type u} {P Q : A -> Prop}
   (xs : list A)
   (Pxs : Forall P xs)
   (impl : forall x, P x -> Q x)
@@ -33,7 +34,7 @@ induction Pxs; constructor,
   { assumption }
 end
 
-lemma Forall_invert {A : Type} {P : A -> Prop} {xs : list A}
+lemma Forall_invert {A : Type u} {P : A -> Prop} {xs : list A}
   (H : list.Forall P xs)
   : (match xs with
   | [] := true
@@ -45,7 +46,7 @@ induction H; dsimp,
   { split; assumption }
 end
 
-lemma concat_Forall {A : Type} {P : A -> Prop}
+lemma concat_Forall {A : Type u} {P : A -> Prop}
   {xs ys : list A}
   (Hxs : Forall P xs) (Hys : Forall P ys)
   : Forall P (xs ++ ys)
@@ -89,10 +90,10 @@ begin
                 clear ih_1, clear a_3,
                 cases iha,
                 {
-                    right, subst i, apply Exists.Exists_this, refl
+                    right, subst i, apply Exists.here, refl
                 },
                 {
-                    right, apply Exists.Exists_rest, assumption
+                    right, apply Exists.there, assumption
                 }
 
             }
@@ -105,7 +106,7 @@ begin
         {
             cases a,
             {
-                subst i, apply Exists.Exists_this, refl
+                subst i, apply Exists.here, refl
             },
             {
                 cases a
@@ -115,10 +116,10 @@ begin
             cases a_2,
             {
                 subst i, 
-                apply Exists.Exists_this, refl
+                apply Exists.here, refl
             },
             {
-                apply Exists.Exists_rest,
+                apply Exists.there,
                 apply a_2
             }
         }
@@ -139,14 +140,14 @@ intros; split; intros,
         simp at a, 
         cases a,
         {
-            subst i, left, apply Exists.Exists_this, refl,
+            subst i, left, apply Exists.here, refl,
         },
         {
             have iha := ih_1 a_2,
             cases iha,
             { 
                 left,
-                apply Exists.Exists_rest,
+                apply Exists.there,
                 apply a_3,
             } ,
             {
@@ -191,7 +192,7 @@ begin
 intros,
 split;intros,
 trivial,
-apply Exists.Exists_this, refl
+apply Exists.here, refl
 end
 
 lemma In_reverse_In : forall {T} (i :T) l, 
@@ -238,7 +239,7 @@ induction xs,
 { apply decidable.is_false , intros contra,
   cases contra },
 { apply (@decidable.by_cases (list.Exists P a_1)); intros,
-  { apply decidable.is_true, apply list.Exists.Exists_rest, assumption },
+  { apply decidable.is_true, apply list.Exists.there, assumption },
   {
   apply (@decidable.by_cases (P a)); intros,
     { apply decidable.is_true, constructor, assumption },
