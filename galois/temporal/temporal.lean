@@ -18,7 +18,7 @@ run_cmd mk_simp_attr `tImp
 
 /-- Proposition P holds in the next state notation ◯ \ciO --/
 @[ltl]
-def next {T : Type} (P : tProp T) : tProp T :=
+def next {T : Type u} (P : tProp T) : tProp T :=
   λ tr : trace T, P (λ t : ℕ, tr (t + 1))
 
 notation `◯` := next
@@ -26,7 +26,7 @@ notation `◯` := next
 
 /-- Proposition P always holds notation □ \B --/
 @[ltl]
-def always {T: Type} (P : tProp T) : tProp T :=
+def always {T: Type u} (P : tProp T) : tProp T :=
 -- given a trace, P holds no matter how far forward we move the trace
  λ (tr : trace T), forall n : ℕ, P (λ t, tr(n+t))
 
@@ -34,7 +34,7 @@ notation `□` := always
 
 /-- Proposition P eventually holds notation ◇ \dia -/
 @[ltl]
-def eventually {T: Type} (P : tProp T) : tProp T :=
+def eventually {T: Type u} (P : tProp T) : tProp T :=
 -- given a trace, we can find some n such that advancing
 -- the trace by n allows p to hold on that trace
  λ (tr : trace T), exists n : ℕ, P (λ t, tr(n+t))
@@ -42,39 +42,39 @@ def eventually {T: Type} (P : tProp T) : tProp T :=
 notation `◇` := eventually
 
 /-- Proposition P holds for the first time -/
-def first {T : Type} (P: tProp T) : tProp T :=
+def first {T : Type u} (P: tProp T) : tProp T :=
  λ (tr : trace T), exists n : ℕ, P (λ t, tr(n+t)) /\ forall n', n' < n -> ¬ P (λ t, tr (n' + t))
 
 @[ltl]
-def tInj1 {T: Type} (R : Prop -> Prop) (P : tProp T) :=
+def tInj1 {T: Type u} (R : Prop -> Prop) (P : tProp T) :=
 λ (tr : trace T), R (P tr)
 
 /-- Standard negation on tProps --/
 @[ltl]
-def tNot {T : Type} (P : tProp T ) := tInj1 not P
+def tNot {T : Type u} (P : tProp T ) := tInj1 not P
 
 
 @[ltl, tImp]
-def tInj2 {T: Type} (R : Prop -> Prop -> Prop) (P Q : tProp T) :=
+def tInj2 {T: Type u} (R : Prop -> Prop -> Prop) (P Q : tProp T) :=
 λ (tr : trace T), R (P tr) (Q tr)
 
 /-- Prop and on tProp, notation //\\ --/
 @[ltl]
-def tAnd {T: Type} (P Q : tProp T) : tProp T  :=
+def tAnd {T: Type u} (P Q : tProp T) : tProp T  :=
 tInj2 and P Q
 
 infix `//\\` : 50 := tAnd
 
 /-- Prop or on tProp, notation \\// --/
 @[ltl]
-def tOr {T: Type} (P Q : tProp T) : tProp T :=
+def tOr {T: Type u} (P Q : tProp T) : tProp T :=
 tInj2 or P Q
 
 infix `\\//` : 50 := tOr
 
 /-- Until, notation \MCU --/
 @[ltl]
-def until {T : Type} (P Q : tProp T) : tProp T :=
+def until {T : Type u} (P Q : tProp T) : tProp T :=
 λ (tr : trace T), exists n, (Q (λ t, tr(n + t)) /\ (forall n', n' < n -> (P (λ t: ℕ, tr(t + n')))))
 
 -- \MCU
@@ -83,38 +83,38 @@ infix `𝓤` : 50 := until
 -- if running into axiom of choice problems, this one will need a more
 -- positive definition TODO: what's the internal only command?
 /-- This is here for posterity, use release --/
-def release_neg {T : Type} (P Q : tProp T) : tProp T  :=
+def release_neg {T : Type u} (P Q : tProp T) : tProp T  :=
 tNot ((tNot P) 𝓤 (tNot Q))
 
 /-- same as until, but we don't require Q to occur --/
 @[ltl]
-def release {T : Type} (P Q : tProp T) : tProp T :=
+def release {T : Type u} (P Q : tProp T) : tProp T :=
 (P 𝓤 Q) \\// □ P
 -- \MCR
 infix `𝓡` : 50 := release
 
 /-- Lifting of prop implication --/
 @[ltl, tImp]
-def tImp {T : Type} (P Q : tProp T) : tProp T :=
+def tImp {T : Type u} (P Q : tProp T) : tProp T :=
 tInj2 implies P Q
 
 infixr `=>` : 50 := tImp
 
 /-- Lifting of iff --/
 @[ltl, tImp]
-def tIff {T : Type} (P Q : tProp T) : tProp T :=
+def tIff {T : Type u} (P Q : tProp T) : tProp T :=
 tInj2 iff P Q
 
 infixr `<=>` : 50 := tIff
 
 /-- True --/
 @[ltl]
-def tt {T : Type} : tProp T :=
+def tt {T : Type u} : tProp T :=
 λ (tr : trace T), true
 
 /-- False --/
 @[ltl]
-def ff {T : Type} : tProp T :=
+def ff {T : Type u} : tProp T :=
 λ (tr : trace T), false
 
 /-- P holds at the nth step of some trace --/
@@ -129,7 +129,7 @@ def now {T : Type u} (P: T -> Prop) := later P 0
 /-- Fairness constraints on a trace require that
     something happens infinitely often --/
 @[ltl]
-def fair {T : Type} (P : T -> Prop) := always (eventually (now P))
+def fair {T : Type u} (P : T -> Prop) := always (eventually (now P))
 
 notation `⊩` P := forall tr, P tr
 
