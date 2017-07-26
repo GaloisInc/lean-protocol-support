@@ -83,9 +83,14 @@ def ne_eval  (x : α) : ne_poly α → α
 | (ne_poly.last r pr) := r
 | (ne_poly.cons c p) := c + ne_eval p * x
 
-def eval (x : α) : univariate_poly α → α
-| zero := 0
-| (nonzero p) := ne_eval x p
+def eval : univariate_poly α → α → α
+| zero x := 0
+| (nonzero p) x := ne_eval x p
+
+instance : has_coe_to_fun (univariate_poly α) :=
+{ F := λe, α → α
+, coe := eval
+}
 
 end eval
 
@@ -150,7 +155,6 @@ end to_string
 
 end univariate_poly
 
---#eval (2 : poly) + poly.x
 
 ------------------------------------------------------------------------
 -- negligible function
@@ -158,10 +162,21 @@ end univariate_poly
 -- This is a function with decreases to 0.
 --
 -- It essentially says that μ approaches 0 super exponentially fast.
-def negligible_function :=
-  { μ : ℕ → ℚ
-  // ∀(c : ℕ), ∃(n0 : ℕ), ∀(n : ℕ),
-       n0 ≤ n → abs (μ n) < 1 / (rat.of_nat (nat.pow n c)) }
+def is_negligible (μ : ℕ → ℚ) :=
+  ∀(c : ℕ), ∃(n0 : ℕ), ∀(n : ℕ),
+    n0 ≤ n → abs (μ n) < 1 / (rat.of_nat (nat.pow n c))
+
+-- This is a function with decreases to 0.
+--
+-- It essentially says that μ approaches 0 super exponentially fast.
+def dep_is_negligible (α : ℕ → Type) (μ : Π(k : ℕ), α k → ℚ) :=
+  ∀(c : ℕ), ∃(n0 : ℕ), ∀(n : ℕ) (x : α n),
+    n0 ≤ n → abs (μ n x) < 1 / (rat.of_nat (nat.pow n c))
+
+-- This is a function with decreases to 0.
+--
+-- It essentially says that μ approaches 0 super exponentially fast.
+def negligible_function := { μ : ℕ → ℚ // is_negligible μ }
 
 ------------------------------------------------------------------------
 -- random

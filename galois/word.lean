@@ -5,12 +5,11 @@ import data.bitvec
 definition byte := bitvec 8
 
 namespace bitvec
-private def to_string {n : nat} : bitvec n → string
-| ⟨bs, p⟩ :=
-  "0b" ++ (bs.reverse.map (λ b : bool, if b then '1' else '0')).as_string
 
-instance (n : nat) : has_to_string (bitvec n) :=
-⟨to_string⟩
+protected def to_string {n : nat} (x : bitvec n) : string := has_to_string.to_string x.to_nat
+
+instance (n : nat) : has_to_string (bitvec n) := ⟨bitvec.to_string⟩
+
 end bitvec
 
 instance : has_zero byte := begin unfold byte, apply_instance end
