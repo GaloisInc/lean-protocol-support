@@ -3,10 +3,12 @@ import .temporal
 import galois.list
 import galois.nat
 
+universes u v w
+
 namespace temporal
 open list
 /-- If P is decidable we can find all of the times it is true until N-/
-def find_P_until_n {T : Type} (P: T -> Prop) [decidable_pred P] (tr: trace T) : nat -> (list (nat × T))
+def find_P_until_n {T : Type u} (P: T -> Prop) [decidable_pred P] (tr: trace T) : nat -> (list (nat × T))
 | 0  := []
 | (nat.succ n') := if (P (tr n')) 
                         then (n', (tr n')) :: find_P_until_n n' 
@@ -16,7 +18,7 @@ def find_P_until_n {T : Type} (P: T -> Prop) [decidable_pred P] (tr: trace T) : 
 
 
 
-lemma find_P_trace {T : Type} (P : T -> Prop) [decidable_pred P] : forall  (tr : trace T) max n,
+lemma find_P_trace {T : Type u} (P : T -> Prop) [decidable_pred P] : forall  (tr : trace T) max n,
 In (n, (tr n)) (find_P_until_n P tr max) ↔ (P (tr n) ∧ n < max) :=
 begin
     intros, split; intros,
@@ -140,7 +142,7 @@ rw In_reverse_In, rw a_1,
 simp
 end
 
-lemma last_found_lowest max {T : Type} (P : T -> Prop) [decidable_pred P] : forall  (tr : trace T)  n tl,
+lemma last_found_lowest max {T : Type u} (P : T -> Prop) [decidable_pred P] : forall  (tr : trace T)  n tl,
 list.reverse (find_P_until_n P tr max) = ((n, tr n) :: tl) -> forall n', n' < n -> ¬ P (tr n') :=
 begin
     induction max; intros,
@@ -199,11 +201,10 @@ begin
 end
 
 
-lemma eventually_first_dec {T: Type} P [decidable_pred P] : forall (tr :  @trace T),
-(◇ (now P)) tr ->
-first (now P) tr :=
+lemma eventually_first_dec {T: Type u} (P : T → Prop) [decidable_pred P] :
+⊩ ◇ (now P) => first (now P) :=
 begin
-intros,
+intros tr a,
 simp with ltl at a,
 cases a,
 simp [first],

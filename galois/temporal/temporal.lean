@@ -133,9 +133,6 @@ def fair {T : Type u} (P : T -> Prop) := always (eventually (now P))
 
 notation `⊩` P := forall tr, P tr
 
--- lemma decidable_ite P [decidable P] : forall A B,
--- (if P then A else B) -> A ∨ B := sorry
-
 
 lemma nat.lt_succ_le : forall a b,
 a < nat.succ b ->
