@@ -2,7 +2,8 @@
 Copyright (c) 2017 Galois Inc.  All rights reserved.
 Author: Joe Hendrix
 
-This module defines operations for simplifying comparisons between natural numbers.
+This module defines operations for simplifying comparisons between
+natural numbers.
 -/
 
 namespace nat
@@ -31,12 +32,11 @@ begin
   exact nat.succ_le_succ,
 end
 
-
 ------------------------------------------------------------------------
 -- lt theorems
 
--- Reduce proof involving lt to proof involving le.
-protected theorem lt_is_succ_le (x y : ℕ) : x < y ↔ succ x ≤ y := by trivial
+-- Reduce x < y to theorem with addition
+protected theorem lt_is_succ_le (x y : ℕ) : x < y ↔ x + 1 ≤ y := by trivial
 
 -- Reduce succ x < succ y
 protected lemma succ_lt_succ_iff : ∀{m n : ℕ}, succ n < succ m ↔ n < m :=
@@ -45,9 +45,26 @@ begin
   simp [nat.lt_is_succ_le, nat.succ_le_succ_iff],
 end
 
+-- This rewrites a subtraction on left-hand-side of inequality into an
+-- addition, and one of two additional checks.
+protected lemma sub_lt_iff (a m n : ℕ) : a - n < m ↔ (a < m + n ∧ (n ≤ a ∨ 0 < m)) :=
+begin
+  revert a m,
+  induction n,
+  case nat.zero {
+    intros a m,
+    simp [zero_le],
+  },
+  case nat.succ n ind {
+    intros a m,
+    cases a,
+    case nat.zero { simp [nat.zero_sub, zero_lt_succ, succ_le_zero_iff_false], },
+    case nat.succ { simp [add_succ, nat.succ_lt_succ_iff, nat.succ_le_succ_iff, ind], },
+  },
+end
 
--- This rewrites a subtraction into an addition.
-protected lemma lt_sub (a m n : ℕ) : a < m - n ↔ a + n < m :=
+-- This rewrites a subtraction on right-hand side of inequality into an addition.
+protected lemma lt_sub_iff (a m n : ℕ) : a < m - n ↔ a + n < m :=
 begin
   revert n,
   induction m with m ind,

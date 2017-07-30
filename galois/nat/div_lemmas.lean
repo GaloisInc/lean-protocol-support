@@ -25,7 +25,7 @@ begin
         { apply rec,
           { exact sub_lt m_gt_0 n_gt_0, },
           { have n_lt_m : n < m := nat.lt_of_le_and_ne n_le_m n_ne_m,
-            simp [gt, nat.lt_sub, n_lt_m],
+            simp [gt, nat.lt_sub_iff, n_lt_m],
           },
           { exact n_gt_1, },
         },

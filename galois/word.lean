@@ -20,7 +20,19 @@ instance : has_to_string byte := begin unfold byte, apply_instance end
 
 definition word16 := bitvec 16
 
+instance : has_zero word16 := begin unfold word16, apply_instance end
+instance : has_one word16  := begin unfold word16, apply_instance end
+instance : has_add word16  := begin unfold word16, apply_instance end
+instance : decidable_eq word16  := begin unfold word16, apply_instance end
+instance : has_to_string word16 := begin unfold word16, apply_instance end
+
 definition word32 := bitvec 32
+
+instance : has_zero word32 := begin unfold word32, apply_instance end
+instance : has_one word32  := begin unfold word32, apply_instance end
+instance : has_add word32  := begin unfold word32, apply_instance end
+instance : decidable_eq word32  := begin unfold word32, apply_instance end
+instance : has_to_string word32 := begin unfold word32, apply_instance end
 
 definition word64 := bitvec 64
 
