@@ -3,7 +3,6 @@ universe variable u
 
 namespace temporal
 
-
 /--An ordered series of events over states --/
 def trace (T : Type u) : Type u := nat -> T
 
@@ -28,7 +27,7 @@ notation `◯` := next
 @[ltl]
 def always {T: Type u} (P : tProp T) : tProp T :=
 -- given a trace, P holds no matter how far forward we move the trace
- λ (tr : trace T), forall n : ℕ, P (λ t, tr(n+t))
+ λ (tr : trace T), ∀ n : ℕ, P (λ t, tr (t + n))
 
 notation `□` := always
 
@@ -37,13 +36,17 @@ notation `□` := always
 def eventually {T: Type u} (P : tProp T) : tProp T :=
 -- given a trace, we can find some n such that advancing
 -- the trace by n allows p to hold on that trace
- λ (tr : trace T), exists n : ℕ, P (λ t, tr(n+t))
+ λ (tr : trace T), ∃ n : ℕ, P (λ t, tr(t + n))
 
 notation `◇` := eventually
 
-/-- Proposition P holds for the first time -/
-def first {T : Type u} (P: tProp T) : tProp T :=
- λ (tr : trace T), exists n : ℕ, P (λ t, tr(n+t)) /\ forall n', n' < n -> ¬ P (λ t, tr (n' + t))
+/-- Until, notation \MCU --/
+@[ltl]
+def until {T : Type u} (P Q : tProp T) : tProp T :=
+λ (tr : trace T), ∃ n, (Q (λ t, tr(t + n)) /\ (∀ n', n' < n -> (P (λ t: ℕ, tr(t + n')))))
+
+-- \MCU
+infix `𝓤` : 50 := until
 
 @[ltl]
 def tInj1 {T: Type u} (R : Prop -> Prop) (P : tProp T) :=
@@ -52,6 +55,10 @@ def tInj1 {T: Type u} (R : Prop -> Prop) (P : tProp T) :=
 /-- Standard negation on tProps --/
 @[ltl]
 def tNot {T : Type u} (P : tProp T ) := tInj1 not P
+
+/-- Proposition P holds for the first time -/
+@[ltl]
+def first {T : Type u} (P: tProp T) : tProp T := tNot P 𝓤 P
 
 
 @[ltl, tImp]
@@ -72,14 +79,6 @@ tInj2 or P Q
 
 infix `\\//` : 50 := tOr
 
-/-- Until, notation \MCU --/
-@[ltl]
-def until {T : Type u} (P Q : tProp T) : tProp T :=
-λ (tr : trace T), exists n, (Q (λ t, tr(n + t)) /\ (forall n', n' < n -> (P (λ t: ℕ, tr(t + n')))))
-
--- \MCU
-infix `𝓤` : 50 := until
-
 -- if running into axiom of choice problems, this one will need a more
 -- positive definition TODO: what's the internal only command?
 /-- This is here for posterity, use release --/
@@ -99,6 +98,13 @@ def tImp {T : Type u} (P Q : tProp T) : tProp T :=
 tInj2 implies P Q
 
 infixr `=>` : 50 := tImp
+
+@[ltl]
+def weak_until {T : Type u} (P Q : tProp T) : tProp T :=
+  ◇ Q => (P 𝓤 Q)
+
+-- \MCW
+infix `𝓦` : 50 := weak_until
 
 /-- Lifting of iff --/
 @[ltl, tImp]
@@ -132,6 +138,37 @@ def now {T : Type u} (P: T -> Prop) := later P 0
 def fair {T : Type u} (P : T -> Prop) := always (eventually (now P))
 
 notation `⊩` P := forall tr, P tr
+
+lemma eventually_mono {T : Type u} (A B : tProp T)
+  (AB : ⊩ A => B)
+  : ⊩ ◇ A => ◇ B
+:= begin
+intros tr HA, induction HA with k HA,
+unfold eventually, existsi k,
+apply AB, assumption
+end
+
+
+lemma weak_until_mono {T : Type u} (A B P : tProp T)
+  (AB : ⊩ A => B)
+  : ⊩ A 𝓦 P => B 𝓦 P
+:= begin
+intros tr AP evQ,
+have H := AP evQ,
+induction H with k Hk, induction Hk with H1 H2,
+unfold until, existsi k, split, assumption,
+intros, apply AB, apply H2, assumption
+end
+
+lemma eventually_and_r {T : Type u} (P Q : tProp T)
+ : ⊩ ◇ (P //\\ Q) => ◇ Q
+ :=
+ begin
+intros tr PQ,
+induction PQ with k Hk,
+induction Hk with Hkl Hkr,
+constructor, assumption,
+end
 
 
 lemma nat.lt_succ_le : forall a b,
@@ -171,13 +208,26 @@ cases  (nat.lt_trichotomy a b),
 end
 
 /-- Pull out implication from always --/
-lemma always_imp : forall {T : Type} (P Q : tProp T),
+lemma always_imp : forall {T : Type u} (P Q : tProp T),
 (⊩ always (P => Q)) -> ((⊩ always P) -> (⊩ always Q)) :=
 begin
 simp with ltl,
 intros,
     apply a,
     apply a_1,
+end
+
+lemma always_tImp : forall {T : Type u} (P Q : tProp T),
+(⊩ □ (P => Q)) -> (⊩ □ P => □ Q) :=
+begin
+simp with ltl,
+intros, unfold implies, intros, apply a, apply a_1
+end
+
+lemma always_tautology {T : Type u} (P : tProp T) :
+(⊩ P) → (⊩ □ P) :=
+begin
+intros, intros n, apply a,
 end
 
 /-- pull out top level implication --/
@@ -196,19 +246,19 @@ begin
 intros,
 split; intros,
     cases a,
-    simp [always],
+    simp only [always],
     intro n,
-    simp [tAnd, tInj2],
+    simp only [tAnd, tInj2],
     split,
        apply (a n),
        apply (a_1 n),
-simp [always],
-simp [always] at a,
+simp only [always],
+simp only [always] at a,
 split; {intro n,
-    simp [tAnd] at a,
-    have h_n: tAnd P Q (λ (t : ℕ), tr (n + t)),
+    simp only [tAnd] at a,
+    have h_n: tAnd P Q (λ (t : ℕ), tr (t + n)),
         apply a, clear a,
-    simp [tAnd] at h_n,
+    simp only [tAnd] at h_n,
     cases h_n, assumption}
 end
 
@@ -263,7 +313,7 @@ cases a with a_1 a_2,
 end
 
 
-lemma congr_arg_app {T : Type} ( P : T -> Prop) :
+lemma congr_arg_app {T : Type u} ( P : T -> Prop) :
 forall a1 a2,
 P a1 -> a1 = a2 -> P a2 :=
 begin
@@ -400,7 +450,7 @@ induction n; intros,
     assumption,
 end
 
-lemma temporal_induction' {T} : forall (P : @tProp T),
+lemma temporal_induction' {T : Type u} : forall (P : tProp T),
 forall trace,
  P trace -> □ (P => (◯ P)) trace -> □ P trace :=
 begin
@@ -409,6 +459,23 @@ have ti := @temporal_induction,
 simp [implies] with tImp at ti,
 apply ti;
 assumption
+end
+
+lemma eventually_strengthen_until {T : Type u}
+  (P Q : tProp T)
+  : ⊩ ◇ Q => (P 𝓦 Q) => (P 𝓤 Q)
+:= begin
+intros tr PWQ fairQ, apply fairQ, assumption,
+end
+
+lemma fair_strengthen_until {T : Type u}
+  (P Q : tProp T) :
+  ⊩ □ (P 𝓦 Q)
+  => □ (◇ Q)
+  => □ (P 𝓤 Q)
+:= begin
+intros tr PQ fairQ  n,
+apply eventually_strengthen_until; apply PQ <|> apply fairQ,
 end
 
 end temporal

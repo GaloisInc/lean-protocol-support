@@ -207,7 +207,7 @@ begin
 intros tr a,
 simp with ltl at a,
 cases a,
-simp [first],
+simp [first, until, tNot],
 generalize z : (list.reverse (find_P_until_n P tr (nat.succ a))) = h,
 cases h,
 { admit },
@@ -235,6 +235,21 @@ cases h,
   apply a_2, simp with ltl at a_4,
   assumption
 }
+end
+
+lemma not_weakuntil_yes {T : Type u}
+  (P : T → Prop) [decidable_pred P]
+  : ⊩ tNot (now P) 𝓦 (now P)
+:= begin
+apply eventually_first_dec
+end
+
+lemma fair_first_dec {T: Type u} (P : T → Prop) [decidable_pred P] :
+⊩ fair P => □ (first (now P))
+:= begin
+unfold fair, apply always_tImp,
+apply (always_tautology (◇ (now P)=>first (now P))),
+apply eventually_first_dec
 end
 
 end temporal

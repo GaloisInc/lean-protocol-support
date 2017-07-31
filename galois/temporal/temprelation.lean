@@ -1,11 +1,13 @@
 import galois.temporal.temporal
 
+universes u v
+
 section temporalrelation
 
 open temporal
 
-parameter {state_ty : Type}
-parameter {label_ty : Type}
+parameter {state_ty : Type u}
+parameter {label_ty : Type v}
 
 
 structure temporalrelation :=
