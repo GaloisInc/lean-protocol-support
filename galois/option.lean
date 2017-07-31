@@ -43,4 +43,20 @@ begin
   all_goals { refl },
 end
 
+@[simp]
+theorem option_is_some_plus (x y : option α)
+: is_some (x <|> y) = is_some x || is_some y := do
+begin
+  cases x,
+  all_goals { simp [is_some] },
+end
+
+@[simp]
+theorem option_is_some_map (f : α → β) (x : option α)
+: is_some (f <$> x) = is_some x := do
+begin
+  cases x,
+  all_goals { simp [is_some] },
+end
+
 end option
