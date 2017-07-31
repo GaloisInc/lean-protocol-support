@@ -63,7 +63,7 @@ induction xs,
   apply ih_1, assumption }
 end
 
-def In {a:Type} (i:a) := Exists (eq i)
+def In {a:Type u} (i:a) := Exists (eq i)
 
 @[simp]
 lemma In_or_cons_iff : forall T (i : T) h t,
