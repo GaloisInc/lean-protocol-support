@@ -7,9 +7,25 @@
 
 universes u v w
 
+namespace option
+
+structure has_value {V : Type u} (x : option V) :=
+  (value : V)
+  (value_ok : x = some value)
+
+def check_has_value {V : Type u} (x : option V) : option (has_value x) :=
+begin
+destruct x; intros,
+{ exact none },
+{ apply some, constructor, assumption }
+end
+
+end option
+
 /-- 
 The type of Dependent maps. Takes a total mapping from keys to type and
-represents a partial mapping from keys of type K to values of type defined by V -/
+represents a partial mapping from keys of type K to values of type defined by V 
+-/
 def mapd {K : Type u} (V : K → Type v) : Type (max u v)
   := ∀ k, option (V k)
 
@@ -159,6 +175,14 @@ rw insert_char,
 rw (dif_pos (eq.refl k))
 end
 
+
+lemma find_insert_neq {m : mapd V}
+  {k k' : K} (H : k ≠ k') (v : V k) : find k' (insert k v m) = find k' m
+:= begin
+rw insert_char,
+rw (dif_neg H)
+end
+
 /--
 A membership structure to allow lookups that
 come with a proof of membership
@@ -171,6 +195,64 @@ structure member (m : mapd V) :=
 inductive is_member (k : K) (m : mapd V) : Prop
   | mk : ∀ value : V k, find k m = some value → is_member
 
+def has_value_to_member {m : mapd V} {k : K} (x : (find k m).has_value)
+  : member m
+:= { key := k, value := x.value, in_map := x.value_ok  }
+
+/-- 
+Get the member, if there is a member at k
+-/
+def check_member (m : mapd V) (k : K) : option (member m) :=
+  option_map has_value_to_member (find k m).check_has_value
+
+def check_member_same_key {m : mapd V} {k : K} {v : m.member}
+(H : check_member m k = some v)
+  : v.key = k :=
+begin
+dsimp [check_member] at H,
+destruct ((find k m).check_has_value); intros,
+{ rw a at H, contradiction },
+{ rw a_1 at H, 
+  simp [option_map, option_bind, function.comp] at H, 
+  injection H with H', clear H,
+  subst v, simp [has_value_to_member], }
+end
+
+lemma member_eq_value {m : mapd V} {k : K} {v v' : V k}
+  (H : v = v')
+  {in1 : find k m = some v} {in2 : find k m = some v'} 
+  : member.mk k v in1 = member.mk k v' in2 :=
+begin
+induction H,
+trivial
+end
+
+lemma check_member_same {m : mapd V} {x x' : m.member}
+  (H : check_member m (x.key) = some x')
+  : x = x'
+:= begin
+dsimp [check_member] at H,
+destruct ((find x.key m).check_has_value); intros,
+{ rw a at H, contradiction },
+{ rw a_1 at H, 
+  simp [option_map, option_bind, function.comp] at H, 
+  injection H with H', clear H, subst x',
+  simp [has_value_to_member],
+  have H2 := a.value_ok,
+  have H3 := x.in_map, rw H2 at H3, clear H2,
+  injection H3 with H, clear H3,
+  induction x, dsimp, dsimp at H,
+  apply member_eq_value, symmetry, assumption }
+end
+
+def mfind (k : K) (m : mapd V) (mem : is_member k m) : V k
+:= begin 
+destruct (find k m); intros,
+{ exfalso, induction mem,
+  rw a at a_1,
+  contradiction },
+{ assumption }
+end
 
 instance member_decidable (m : mapd V) 
   : decidable_eq (member m)
@@ -184,114 +266,11 @@ apply (if H : k = k' then _ else _),
   rw kv at kv',
   injection kv',
   induction h,
-  apply congr_arg,
-  admit 
-  /- I should use a quotient on `member` that ignores the
-     equality proof, but this will be annoying, and for
-     now I'm too lazy
-  -/
+  apply congr_arg, apply proof_irrel,
 },
 { apply decidable.is_false,
   intros contra, injection contra, contradiction }
 end
-
-/--
-Definition of when we say a key is in a map
--/
-inductive key_in_map (k : K) (m : mapd V) : Prop
-| mk : ∀ v : V k, find k m = some v → key_in_map
-
-/-- 
-Get the member, if there is a member at k
--/
-def check_member (m : mapd V) (k : K) : option (member m) :=
-begin
-destruct (find k m); intros,
-{ exact none },
-{ apply some, constructor, assumption }
-end
-
-@[reducible]
-def check_member_ty (m : mapd V) (k : K) (w : option (V k)) : Type (max u v) := match w with
-  | some v := find k m = w → psigma (λ x : m.member, x.key = k)
-  | none := punit
-  end
-
---set_option pp.implicit true
-
-def check_member2 (m : mapd V) (k : K) : check_member_ty m k (find k m) :=
-begin
-refine (
-    @option.rec (V k) (λ (w : option (V k)), check_member_ty m k w)
-    _
-    _
-    (find k m)
-),
-dsimp [check_member_ty],
-exact punit.star,
-dsimp [check_member_ty],
-intros v H, fapply psigma.mk,
-fapply member.mk, exact k, assumption, assumption,
-reflexivity
-end
-
---#print check_member2
-
---set_option pp.implicit true
-
--- def check_member' :=
--- λ (m : @mapd K V) (k : K),
---   @option.rec (V k) (λ (w : option (V k)), option (member m))
---     (λ (H : find k m = none), none)
---     (λ (v : V k) (H : find k m = some v), some (@member.mk m k v H))
---     (find k m)
-
--- #check check_member'
-
-/--
-If we get a member from a map, the key in the member should be the key
-we used for the check_member
--/
-lemma check_member_same_key {m : mapd V} {k : K} {x : m.member}
-  (H : check_member m k = some x)
-  : x.key = k
-:= begin
-admit,
-end
-
-lemma check_member_same {m : mapd V} {x x' : m.member}
-  (H : check_member m (x.key) = some x')
-  : x = x'
-:= begin
-admit
-end
-
-/--
-We can do a total lookup if we know the key is in the map already
--/
-def mfind (k : K) (m : mapd V) (mem : key_in_map k m) : V k
-:= begin 
-destruct (find k m); intros,
-{ exfalso, induction mem,
-  rw a at a_1,
-  contradiction },
-{ assumption }
-end
-
-/--
-
--/
-def lookup_update {m : mapd V} {B} (k : K)
-  (update : B → B)
-  (f : m.member → B) : m.member → B
-  := λ x, if x.key = k
-    then update (f x)
-    else f x
-
-def lookup_modify {m : mapd V} {B : m.member → Type}
-  (k : m.member) (v : B k) (f : ∀ x : m.member, B x)
-  : ∀ x : m.member, B x
-  := λ x, if H : k = x then eq.rec v H else f x
 
 end
 
@@ -373,34 +352,50 @@ inductive liftProp (P : Prop) : Type
   | mk : P → liftProp
 
 @[reducible]
-def insert_member_invert (m : map K V)
-  (k : K) (v : V)
+def insert_member_invert {m : map K V}
+  {k : K} {v : V}
   (x : (insert k v m).member)
-  : (liftProp (k = x.key)) ⊕ m.member
+  : (liftProp (k = x.key)) ⊕ 
+  ((find x.key m).has_value × liftProp (¬ k = x.key))
 := begin
 apply (if H : k = x.key then _ else _),
-apply sum.inl, constructor, assumption,
-apply sum.inr,
-constructor,
-have H' := x.in_map,
-rw insert_char at H',
-rw (dif_neg H) at H', assumption
+{ apply sum.inl, constructor, assumption },
+{ apply sum.inr,
+  constructor, constructor,
+  have H' := x.in_map,
+  rw insert_char at H',
+  rw (dif_neg H) at H', assumption,
+  constructor, assumption
+}
 end
 
 def lookup_insert (m : map K V) (f : ∀ x : m.member, B x.value)
   (k : K) (v : V) (b : B v)
   (x : (insert k v m).member) : B x.value
 := begin
-apply (if H : k = x.key then _ else _),
-{ have H' : @eq.rec_on _ _ (λ _, V) _ H v = x.value, 
-  { have in_map := x.in_map, 
+have H := insert_member_invert x,
+induction H with H H,
+{ induction H with H,
+  induction x,
+  dsimp, dsimp at H, induction H,
   rw mapd.insert_char at in_map,
-  rw (dif_pos H) at in_map,
-  injection in_map,
-  },
-  { admit }
+  rw (dif_pos (eq.refl k)) at in_map,
+  injection in_map, clear in_map,
+  subst h, apply b,
 },
-{ admit }
+{ induction H with H H1,
+  induction H1 with H1,
+  induction x,
+  let H' := member.mk key H.value H.value_ok, 
+  dsimp, dsimp at H, dsimp at H1,
+  rw (find_insert_neq H1) at in_map,
+  rename in_map in_map',
+  have H' := H.value_ok,
+  rw H' at in_map',
+  injection in_map' with H2,
+  clear H1 H' in_map', subst value,
+  apply (f H'),
+ }
 end
 
 end
