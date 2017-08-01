@@ -1,12 +1,21 @@
-/- A simple implementation of key-value maps
+/- An implementation of key-value maps
    using functions
+
+  Includes a dependent map, allowing for mappings into multiple types,
+  as well as a non-dependent map, with only a single value tyep
 -/
 
 universes u v w
 
+/-- 
+The type of Dependent maps. Takes a total mapping from keys to type and
+represents a partial mapping from keys of type K to values of type defined by V -/
 def mapd {K : Type u} (V : K → Type v) : Type (max u v)
   := ∀ k, option (V k)
 
+/--
+A non-dependent map type with a single value type.
+-/
 @[reducible]
 def map (K : Type u) (V : Type v) : Type (max u v)
    := mapd (λ _ : K, V)
@@ -14,19 +23,29 @@ def map (K : Type u) (V : Type v) : Type (max u v)
 namespace mapd
 
 section
-parameters {K : Type u} [decidable_eq K] {V : K → Type v}
+/- We parameterize the key type and require decidable equality on it -/
+parameter {K : Type u} 
+parameter [decidable_eq K]
+parameter {V : K → Type v}
 
+/-- An empty map, all lookups return none-/
 def empty : mapd V := fun _, none
 
+/-- Function to make finds explicit.-/
 def find (k : K) (m : mapd V) : option (V k) := m k
 
+/-- All empty lookups are none -/
 lemma empty_char (k : K) : find k empty = none := rfl
 
+/-- Put an item into the map, shadowing any previous definitions-/
 def insert (k : K) (v : V k) (m : mapd V) : mapd V := 
   λ k' : K, if H : k = k'
        then some (eq.rec_on H v)
        else find k' m
 
+/--
+Relationship between find and insert
+-/
 lemma insert_char (k : K) (v : V k) (m : mapd V) (k' : K) :
   find k' (insert k v m) = if H : k = k'
        then some (eq.rec_on H v)
@@ -36,33 +55,44 @@ lemma insert_char (k : K) (v : V k) (m : mapd V) (k' : K) :
 -- perhaps this is lazy, it should fail if not already there?
 def update := insert
 
+/-- Remove a mapping -/
 def remove (k : K) (m : mapd V) : mapd V :=
   λ k' : K, if H : k = k'
        then none
        else m k'
 
+/-- Relationship between remove and find-/
 lemma remove_char (k : K) (m : mapd V) (k' : K) :
      find k' (remove k m) = if H : k = k'
        then none
        else find k' m
 := rfl
 
+/-- Extensionality for maps-/
 lemma eq_rel (m m' : mapd V) (H : ∀ k, find k m = find k m') : m = m'
 := funext H
 
+/-- Map over all values contained in the map-/
 def fmapd {V' : K → Type w} (f : ∀ k : K, V k → V' k) (m : mapd V) : mapd V'
 := λ k, option_map (f k) (find k m)
 end
 
+/--
+Interaction between fmapd and find
+-/
 lemma fmapd_char {K : Type u} [decidable_eq K] {V : K → Type v}
   {V' : K → Type w} (f : ∀ k : K, V k → V' k) (m : mapd V)
   (k : K) : find k (fmapd f m) = option_map (f k) (find k m)
   := rfl
 
+/-- Map over non-dependent maps-/
 def fmap {K : Type u} [decidable_eq K] {V : Type v}
   {V' : Type w} (f : V → V') (m : map K V) : map K V'
 := λ k, option_map f (find k m)
 
+/--
+Interaction between fmap and find
+-/
 lemma fmap_char {K : Type u} [decidable_eq K] {V : Type v}
   {V' : Type w} (f : V → V') (m : map K V)
   (k : K) : find k (fmap f m) = option_map f (find k m)
@@ -74,8 +104,14 @@ attribute [irreducible] insert
 attribute [irreducible] remove
 
 section
-parameters {K : Type u} [decidable_eq K] {V : K → Type v}
+parameter {K : Type u} 
+parameter [decidable_eq K]
+parameter {V : K → Type v}
 
+/--
+Update the value already contained at key k by function f.
+Has no effect if there is no existing mapping for k
+-/
 def updatef (k : K) (f : V k → V k) (m : mapd V) : mapd V
   := 
   match find k m with
@@ -83,6 +119,9 @@ def updatef (k : K) (f : V k → V k) (m : mapd V) : mapd V
   | some v := insert k (f v) m
   end
 
+/-- Definition of functions over maps that can be reordered, assuming they
+     are about distinct keys
+-/
 def permutable (f : ∀ k : K, V k → mapd V → mapd V) :=
   ∀ (m : mapd V) (k k' : K) (v : V k) (v' : V k'), 
      k ≠ k' → f k v (f k' v' m) = f k' v' (f k v m)
@@ -94,6 +133,7 @@ intros contra,
 apply H, symmetry, assumption
 end
 
+/-- We can reorder inserts over distinct keys -/
 lemma insert_permutable : permutable insert
 := begin
 unfold permutable, intros m k k' v v' Hne,
@@ -109,6 +149,9 @@ apply (if Hkz : k = z then _ else _),
 }
 end
 
+/-- 
+Relationship between find and insert with the same key
+-/
 lemma find_insert_refl (m : mapd V)
   (k : K) (v : V k) : find k (insert k v m) = some v
 := begin
@@ -116,6 +159,10 @@ rw insert_char,
 rw (dif_pos (eq.refl k))
 end
 
+/--
+A membership structure to allow lookups that
+come with a proof of membership
+-/
 structure member (m : mapd V) :=
   (key : K)
   (value : V key)
@@ -148,9 +195,15 @@ apply (if H : k = k' then _ else _),
   intros contra, injection contra, contradiction }
 end
 
+/--
+Definition of when we say a key is in a map
+-/
 inductive key_in_map (k : K) (m : mapd V) : Prop
 | mk : ∀ v : V k, find k m = some v → key_in_map
 
+/-- 
+Get the member, if there is a member at k
+-/
 def check_member (m : mapd V) (k : K) : option (member m) :=
 begin
 destruct (find k m); intros,
@@ -195,6 +248,10 @@ end
 
 -- #check check_member'
 
+/--
+If we get a member from a map, the key in the member should be the key
+we used for the check_member
+-/
 lemma check_member_same_key {m : mapd V} {k : K} {x : m.member}
   (H : check_member m k = some x)
   : x.key = k
@@ -209,6 +266,9 @@ lemma check_member_same {m : mapd V} {x x' : m.member}
 admit
 end
 
+/--
+We can do a total lookup if we know the key is in the map already
+-/
 def mfind (k : K) (m : mapd V) (mem : key_in_map k m) : V k
 := begin 
 destruct (find k m); intros,
@@ -218,6 +278,9 @@ destruct (find k m); intros,
 { assumption }
 end
 
+/--
+
+-/
 def lookup_update {m : mapd V} {B} (k : K)
   (update : B → B)
   (f : m.member → B) : m.member → B
