@@ -317,8 +317,8 @@ apply (if H : k = x.key then _ else _),
 }
 end
 
-def lookup_insert (m : map K V) (f : ∀ x : m.member, B x.value)
-  (k : K) (v : V) (b : B v)
+def lookup_insert {m : map K V}
+  (k : K) (v : V) (b : B v) (f : ∀ x : m.member, B x.value)
   (x : (insert k v m).member) : B x.value
 := begin
 have H := insert_member_invert x,
