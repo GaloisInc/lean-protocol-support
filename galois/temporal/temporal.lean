@@ -1,4 +1,6 @@
 /- A shallow embedding of temporal logic -/
+
+import galois.tactic
 universe variable u
 
 namespace temporal
@@ -350,7 +352,7 @@ apply propext, split; intros H,
       apply H },
     {
         intro n,
-        have a1 := H (n + 1),
+        specialize (H (n + 1)),
         rw delayn_combine, assumption
     }
 },
@@ -362,38 +364,23 @@ apply propext, split; intros H,
 }
 end
 
-/-- Induction over time --/
-lemma temporal_induction {T} : forall (P : tProp T),
-⊩ (P => always (P => (next P)) => always P) :=
+lemma next_delay {T : Type u} {P : tProp T}
+  (n : ℕ) (tr : trace T)
+  (H : ◯ P (delayn n tr))
+  : P (delayn (nat.succ n) tr)
+:= begin
+dsimp [next, nextn] at H,
+rw delayn_combine at H,
+rw add_comm at H, assumption
+end
+
+lemma temporal_induction {T : Type u} (P : tProp T)
+  : ⊩ (P => □ (P => (◯ P)) => □ P) :=
 begin
-simp [always, next],
-intros P tr,
-simp [tImp, tInj2, implies],
-intros p0 pIH n,
-induction n; intros,
-
-    simp,
-    have treq : tr = λ t, tr t,
-    {    apply funext,
-        intro, reflexivity,
-    },
-    exact p0,
-
-    --simp with ltl,
-    have pIHa := pIH a,
-    have pC := pIHa ih_1,
-    have teq : delayn 1 (delayn a tr) =
-                  delayn (nat.succ a) tr,
-    {   apply funext,
-        intro x,
-        simp with ltl,
-        apply congr_arg,
-        rewrite (nat.add_comm a (x + 1)),
-        rewrite (nat.add_assoc),
-        rewrite (nat.add_comm 1 a),
-
-    },
-        rewrite <- teq, apply pC,
+intros tr H0 HS n,
+induction n,
+{ rw delayn_zero, assumption },
+{ specialize (HS a ih_1), apply next_delay, assumption }
 end
 
 lemma temporal_induction' {T : Type u} : ∀ (P : tProp T),
@@ -415,6 +402,40 @@ lemma fair_strengthen_until {T : Type u}
 := begin
 intros tr PQ fairQ  n,
 apply eventually_strengthen_until; apply PQ <|> apply fairQ,
+end
+
+lemma always_implies_eventually {T : Type u}
+  (P Q : tProp T) :
+⊩ □ (P => Q) => ◇ P => ◇ Q
+:= begin
+intros tr PQ evP,
+induction evP with k Hk,
+constructor, apply PQ, assumption
+end
+
+lemma next_eventually {T : Type u} (P : tProp T)
+  : ⊩ ◯ P => ◇ P
+:= begin
+intros tr H, constructor, assumption
+end
+
+lemma eventually_return {T : Type u} (P : tProp T)
+  : ⊩ P => ◇ P
+:= begin
+intros tr H, constructor, rw delayn_zero, assumption
+end
+
+lemma eventually_idempotent {T : Type u} (P : tProp T)
+  : ◇ (◇ P) = ◇ P
+:= begin
+apply funext, intro tr, apply propext, split; intros H,
+{
+induction H with k Hk,
+induction Hk with n Hn,
+rw delayn_combine at Hn,
+constructor, assumption
+},
+{ apply eventually_return, assumption }
 end
 
 end temporal

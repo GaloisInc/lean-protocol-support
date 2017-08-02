@@ -5,7 +5,7 @@ import galois.nat
 
 universes u v w
 
-private
+protected
 def decide (P : Prop) [decidable P] : decidable P := by apply_instance
 
 lemma first_seq (P : ℕ → Prop) [decidable_pred P] (n : ℕ) (Pn : P n)
@@ -58,9 +58,8 @@ apply (always_tautology (◇ P=>first P)),
 apply eventually_first_dec
 end
 
-/-- This is probably true, but I can't prove it yet... --/
-lemma always_or_until {T : Type} (P Q : tProp T) [decidable_pred Q] :
-  ⊩ □ (tOr P Q) => ◇ Q => P 𝓤 Q
+lemma always_weak_until {T : Type u} (P Q : tProp T) [decidable_pred Q] :
+  ⊩ □ (tOr P Q) => P 𝓦 Q
 := begin
 intros tr PQ evQ,
 fapply until_always_mono, 
@@ -70,6 +69,26 @@ fapply until_always_mono,
   { exfalso, apply negQ, assumption },
 },
 { apply not_weakuntil_yes, assumption }
+end
+
+lemma weak_until_induction {T : Type u} (P Q : tProp T)
+  [decidable_pred Q]
+  : ⊩ (P => □ (tNot Q => P => (◯ P)) => ◯ P 𝓦 Q) :=
+begin
+intros tr H0 HS evQ,
+have firstQ := eventually_first_dec _ _ evQ, clear evQ,
+induction firstQ with k Hk, induction Hk with H H',
+constructor, split, assumption,
+intros n H, revert k,
+induction n; intros,
+{ apply HS, apply H', assumption,
+  rw delayn_zero, assumption },
+{ specialize (ih_1 k H H'),
+  have ak := nat.lt_of_succ_lt H_1,
+  specialize (ih_1 ak),
+  specialize (H' _ H_1),
+  apply HS, assumption, 
+  apply next_delay, assumption }
 end
 
 end temporal
