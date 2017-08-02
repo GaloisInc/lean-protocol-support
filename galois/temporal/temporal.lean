@@ -28,6 +28,12 @@ end
 def nextn {T : Type u} (n : ℕ) (P : tProp T) : tProp T
   := λ tr, P (delayn n tr)
 
+lemma nextn_combine {T : Type u} (n k : ℕ) (P : tProp T)
+  : nextn k (nextn n P) = nextn (n + k) P
+:= begin
+unfold nextn, apply funext, intros, rw delayn_combine
+end
+
 /-- Proposition P holds in the next state notation ◯ \ciO --/
 @[ltl]
 def next {T : Type u} : tProp T → tProp T := nextn 1
@@ -337,24 +343,20 @@ end
 
 /-- equivalence between eventually and until tt --/
 lemma eventually_until {T : Type} (P: tProp T) :
-    forall tr, eventually P tr <-> until tt P tr :=
+  ⊩ ◇ P <=> (tt 𝓤 P)
+ :=
 begin
-intro tr,
-split; intro,
-    simp [until],
-    simp [eventually] at a,
-cases a with a_1 a_2,
-{ existsi a_1,
-    simp [tt],
-  exact a_2,
+intro tr, unfold tIff tInj2,
+split; intros H,
+{ induction H with k Hk,
+  unfold until, existsi k, split, assumption,
+  intros, trivial,
 },
-{ simp [until] at a,
-    simp [eventually],
-    cases a,
-    existsi a,
-    cases a_1,
-  assumption,
-},
+{ 
+  induction H with k Hk,
+  induction Hk with Hk1 Hk2,
+  unfold eventually, existsi k, assumption
+}
 end
 
 
@@ -464,16 +466,9 @@ induction n; intros,
         rewrite <- teq, apply pC,
 end
 
-lemma temporal_induction' {T : Type u} : forall (P : tProp T),
-forall trace,
- P trace -> □ (P => (◯ P)) trace -> □ P trace :=
-begin
-intros,
-have ti := @temporal_induction,
-simp [implies] with tImp at ti,
-apply ti;
-assumption
-end
+lemma temporal_induction' {T : Type u} : ∀ (P : tProp T),
+  ∀ trace, P trace -> □ (P => (◯ P)) trace -> □ P trace 
+ := temporal_induction
 
 lemma eventually_strengthen_until {T : Type u}
   (P Q : tProp T)

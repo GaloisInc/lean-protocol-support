@@ -285,12 +285,16 @@ rw x.in_map, simp [option_map],
 simp [option_bind], 
 end
 
+def depv {K : Type u} [decidable_eq K] {V : Type v}
+  (m : map K V) (B : V → Type w)
+  := ∀ x : m.member, B x.value
+
 namespace depv
 section
 parameters {K : Type u} [decidable_eq K] {V : Type v}
            {B : V → Type w}
 
-def lookup_empty : ∀ x : (empty : map K V).member, B (x.value) :=
+def lookup_empty : depv (empty : map K V) B :=
 begin
 intros x, cases x, rw empty_char at in_map,
 contradiction
@@ -318,9 +322,10 @@ apply (if H : k = x.key then _ else _),
 end
 
 def lookup_insert {m : map K V}
-  (k : K) (v : V) (b : B v) (f : ∀ x : m.member, B x.value)
-  (x : (insert k v m).member) : B x.value
+  (k : K) (v : V) (b : B v) (f : depv m B)
+  : depv (insert k v m) B
 := begin
+intros x,
 have H := insert_member_invert x,
 induction H with H H,
 { induction H with H,
