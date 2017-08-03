@@ -1,3 +1,7 @@
+/-
+A labeled transition system built on top of temporal logic
+-/
+
 import .temporal .first
 
 universes u v
@@ -7,13 +11,30 @@ open temporal
 section LTS
 parameters {S : Type u} {L : Type v}
 
+-- TODO: Why can't this be a doc?
+/-
+A labeled trace takes a relation from start state through a label to an end state
+and a trace made up of states paired with labels. In each pair the label represents
+the step that will be taken from its paired state
+-/
 def LTS_trace  (r : S → L → S → Prop)
   (t : trace (S × L)) : Prop :=
   ∀ n : ℕ, r (t n).fst (t n).snd (t n.succ).fst
 
+/--
+Apply a function (usually a predicate) to the label of a state-label pair
+-/
 def inLabel {S} {L} {B} (f : L → B) (x : S × L) : B := f x.snd
+
+/--
+Apply a function (usually a predicate) to the state of a state-label pair
+-/
 def inState {S} {L} {B} (f : S → B) (x : S × L) : B := f x.fst
 
+
+/--
+If we apply a decidable prop to the label, that application is decidable
+-/
 instance inLabel_decidable {S L} {P : L → Prop} [decP : decidable_pred P] :
   decidable_pred (@inLabel S L _ P) :=
 begin
@@ -22,6 +43,9 @@ end
 
 parameter (LTS : S → L → S → Prop)
 
+/--
+A trace is valid if it is a labeled transition system
+-/
 structure valid_trace (t : trace (S × L)) : Prop :=
   (next_step : LTS_trace LTS t)
 

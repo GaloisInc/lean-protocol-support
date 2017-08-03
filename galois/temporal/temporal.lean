@@ -17,22 +17,38 @@ def tProp (T : Type u) := trace T → Prop
 run_cmd mk_simp_attr `ltl
 run_cmd mk_simp_attr `tImp
 
+/--
+Move a trace forward in time by n
+-/
 @[ltl]
 def delayn {T : Type u} (n : ℕ) (tr : trace T) := (λ t : ℕ, tr (t + n))
 
+/--
+If we move forward twice, we can move forward once by the sum
+-/
 lemma delayn_combine {T : Type u} (n k : ℕ) (tr : trace T)
   : delayn k (delayn n tr) = delayn (k + n) tr
 := begin
 apply funext, intros n, simp with ltl,
 end
 
+
+/--
+Delay 0 does nothing
+-/
 lemma delayn_zero {T : Type u} (tr : trace T)
   : delayn 0 tr = tr := rfl
 
+/--
+Lift a prop into ltl at the given time
+-/
 @[ltl]
 def nextn {T : Type u} (n : ℕ) (P : tProp T) : tProp T
   := λ tr, P (delayn n tr)
 
+/--
+We can combine multiple nextn
+-/
 lemma nextn_combine {T : Type u} (n k : ℕ) (P : tProp T)
   : nextn k (nextn n P) = nextn (n + k) P
 := begin
@@ -45,10 +61,16 @@ def next {T : Type u} : tProp T → tProp T := nextn 1
 
 notation `◯` := next
 
+/--
+Nextn maintains decidability
+-/
 instance nextn_decidable {T : Type u} (P : tProp T) [decidable_pred P]
   (n : ℕ) : decidable_pred (nextn n P)
 := begin unfold nextn, apply_instance, end
 
+/--
+next maintains decidability
+-/
 instance next_decidable {T : Type u} (P : tProp T) [decidable_pred P]
   : decidable_pred (◯ P)
 := begin unfold next, apply_instance end
@@ -109,12 +131,6 @@ tInj2 or P Q
 
 infix `\\//` : 50 := tOr
 
--- if running into axiom of choice problems, this one will need a more
--- positive definition TODO: what's the internal only command?
-/-- This is here for posterity, use release --/
-def release_neg {T : Type u} (P Q : tProp T) : tProp T  :=
-tNot ((tNot P) 𝓤 (tNot Q))
-
 /-- same as until, but we don't require Q to occur --/
 @[ltl]
 def release {T : Type u} (P Q : tProp T) : tProp T :=
@@ -128,6 +144,7 @@ def tImp {T : Type u} (P Q : tProp T) : tProp T :=
 tInj2 implies P Q
 
 infixr `=>` : 50 := tImp
+
 
 @[ltl]
 def weak_until {T : Type u} (P Q : tProp T) : tProp T :=
@@ -162,6 +179,7 @@ def later {T : Type u} (P : T -> Prop) (n: nat) : tProp T :=
 @[ltl]
 def now {T : Type u} (P: T -> Prop) := later P 0
 
+/-- now maintains decidability-/
 instance now_decidable {T : Type u} (P : T → Prop) [decidable_pred P]
   : decidable_pred (now P)
 := begin
