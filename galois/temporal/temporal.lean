@@ -175,13 +175,20 @@ def fair {T : Type u} (P : tProp T) := □ (◇ P)
 
 notation `⊩` P := forall tr, P tr
 
+lemma eventually_always_mono {T : Type u} (A B : tProp T)
+  : ⊩ □ (A => B) => ◇ A => ◇ B
+:= begin
+intros tr AB HA, induction HA with k HA,
+unfold eventually, existsi k,
+apply AB, assumption
+end
+
 lemma eventually_mono {T : Type u} (A B : tProp T)
   (AB : ⊩ A => B)
   : ⊩ ◇ A => ◇ B
 := begin
-intros tr HA, induction HA with k HA,
-unfold eventually, existsi k,
-apply AB, assumption
+intros tr HA, apply eventually_always_mono,
+intros n, apply AB, assumption
 end
 
 lemma until_always_mono {T : Type u} {A B P : tProp T}
@@ -438,6 +445,33 @@ constructor, assumption
 { apply eventually_return, assumption }
 end
 
+lemma always_idempotent {T : Type u} (P : tProp T)
+  : □ (□ P) = □ P
+:= begin
+apply funext, intro tr, apply propext, split; intros H,
+{ specialize (H 0), rw delayn_zero at H, assumption },
+{ intros n k, rw delayn_combine, apply H }
+end
+
+
+lemma eventually_cut {T : Type u} {P Q : tProp T}
+  : ⊩ ◇ P => □ (P => ◇ Q) => ◇ Q
+:= begin
+intros tr HP PQ,
+rw ← eventually_idempotent,
+revert HP, apply eventually_always_mono, assumption,
+end
+
+lemma fair_cut {T : Type u} {P Q : tProp T}
+  : ⊩ fair P => □ (P => ◇ Q) => fair Q
+:= begin
+intros tr fairP PQ n,
+apply eventually_cut, apply fairP,
+rw ← always_idempotent at PQ,
+apply PQ,
+end
+
+
 lemma always_eventually_well_founded {T : Type u} {A : Type v}
   {R : A → A → Prop} (wf : well_founded R)
   (meas : T → A) (Q : tProp T)
@@ -459,6 +493,19 @@ induction Hk with Hk Hk,
   simp with ltl,
   },
 { constructor, assumption }
+end
+
+lemma now_until_eventually {T : Type u}
+  {P Q : tProp T}
+  : ⊩ P => (◯ P) 𝓤 Q => ◇ (P //\\ Q)
+:= begin
+intros tr HP Huntil,
+induction Huntil with k Hk,
+induction Hk with H1 H2,
+constructor, constructor; try { assumption },
+cases k,
+{ rw delayn_zero, assumption },
+{ apply next_delay, apply H2, apply nat.self_lt_succ, }
 end
 
 end temporal
