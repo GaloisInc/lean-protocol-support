@@ -1,7 +1,7 @@
 /- A shallow embedding of temporal logic -/
 
 import galois.tactic
-universe variable u
+universe variables u v
 
 namespace temporal
 
@@ -436,6 +436,29 @@ rw delayn_combine at Hn,
 constructor, assumption
 },
 { apply eventually_return, assumption }
+end
+
+lemma always_eventually_well_founded {T : Type u} {A : Type v}
+  {R : A → A → Prop} (wf : well_founded R)
+  (meas : T → A) (Q : tProp T)
+  (tr : trace T)
+  (H : ∀ x : A, □ (now (λ s, meas s = x) => ◇ (tOr (now (λ s, R (meas s) x)) Q)) tr)
+  (z : A) : □ (now (λ s, meas s = z) => ◇ Q) tr
+:= begin
+have wf_ind := λ x y z, @well_founded.induction _ _ wf x z y,
+revert z, 
+apply (@wf_ind (λ (z : A), □ (now (λ (s : T), meas s = z)=>◇ Q) tr)),
+intros x IH n Hn,
+specialize (H x n Hn),
+induction H with k Hk,
+induction Hk with Hk Hk,
+{ unfold now later at Hk,
+  specialize (IH _ Hk (k + n)),
+  rw ← eventually_idempotent,
+  constructor, rw delayn_combine, apply IH,
+  simp with ltl,
+  },
+{ constructor, assumption }
 end
 
 end temporal
