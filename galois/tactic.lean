@@ -1,3 +1,5 @@
+import .option
+
 open tactic lean lean.parser
 open interactive interactive.types expr
 
@@ -19,5 +21,17 @@ meta def specialize (H : parse texpr) : tactic unit :=
      to_remove ← get_local id, 
      tactic.clear to_remove,
      tactic.rename n id
+
+universes u v
+
+def congr_arg_f_equal {A : Sort u} {B : Sort v} {f f' : A → B}
+  {x x' : A} : f = f' → x = x' → f x = f' x'
+:= begin
+intros H, induction H, intros H, induction H, reflexivity
+end
+
+meta def f_equal : tactic unit := do
+  try (apply ``(@congr_arg_f_equal)),
+  tactic.focus [ reflexivity <|> f_equal, try reflexivity ]
 
 end tactic.interactive

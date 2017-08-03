@@ -23,6 +23,16 @@ induction Pxs,
 }
 end
 
+lemma impl_Forall2 {A : Type u} {P Q R : A → Prop} {xs : list A}
+  (Pxs : Forall P xs) (Qxs : Forall Q xs)
+  (impl : ∀ x, P x → Q x → R x)
+  : Forall R xs
+:= begin
+induction Pxs; cases Qxs; constructor,
+  { apply impl; assumption },
+  { apply ih_1, assumption }
+end
+
 lemma impl_Forall {A : Type u} {P Q : A -> Prop}
   (xs : list A)
   (Pxs : Forall P xs)
