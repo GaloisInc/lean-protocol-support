@@ -2,7 +2,7 @@ sudo: required
 cache: 
   apt: true
   directories:
-  - lean
+  - ../lean
 
 addons:
   apt:
@@ -17,6 +17,6 @@ install:
   - .travis/install-lean.sh
 
 script:
-  - lean/bin/leanpkg configure
-  - lean/bin/leanpkg build
+  - ../lean/bin/leanpkg configure
+  - ../lean/bin/leanpkg build
 

@@ -1,5 +1,7 @@
 /- A shallow embedding of temporal logic -/
-universe variable u
+
+import galois.tactic
+universe variables u v
 
 namespace temporal
 
@@ -15,19 +17,47 @@ def tProp (T : Type u) := trace T → Prop
 run_cmd mk_simp_attr `ltl
 run_cmd mk_simp_attr `tImp
 
+@[ltl]
+def delayn {T : Type u} (n : ℕ) (tr : trace T) := (λ t : ℕ, tr (t + n))
+
+lemma delayn_combine {T : Type u} (n k : ℕ) (tr : trace T)
+  : delayn k (delayn n tr) = delayn (k + n) tr
+:= begin
+apply funext, intros n, simp with ltl,
+end
+
+lemma delayn_zero {T : Type u} (tr : trace T)
+  : delayn 0 tr = tr := rfl
+
+@[ltl]
+def nextn {T : Type u} (n : ℕ) (P : tProp T) : tProp T
+  := λ tr, P (delayn n tr)
+
+lemma nextn_combine {T : Type u} (n k : ℕ) (P : tProp T)
+  : nextn k (nextn n P) = nextn (n + k) P
+:= begin
+unfold nextn, apply funext, intros, rw delayn_combine
+end
+
 /-- Proposition P holds in the next state notation ◯ \ciO --/
 @[ltl]
-def next {T : Type u} (P : tProp T) : tProp T :=
-  λ tr : trace T, P (λ t : ℕ, tr (t + 1))
+def next {T : Type u} : tProp T → tProp T := nextn 1
 
 notation `◯` := next
 
+instance nextn_decidable {T : Type u} (P : tProp T) [decidable_pred P]
+  (n : ℕ) : decidable_pred (nextn n P)
+:= begin unfold nextn, apply_instance, end
+
+instance next_decidable {T : Type u} (P : tProp T) [decidable_pred P]
+  : decidable_pred (◯ P)
+:= begin unfold next, apply_instance end
 
 /-- Proposition P always holds notation □ \B --/
 @[ltl]
 def always {T: Type u} (P : tProp T) : tProp T :=
 -- given a trace, P holds no matter how far forward we move the trace
- λ (tr : trace T), ∀ n : ℕ, P (λ t, tr (t + n))
+ λ (tr : trace T), ∀ n : ℕ, P (delayn n tr)
 
 notation `□` := always
 
@@ -36,14 +66,14 @@ notation `□` := always
 def eventually {T: Type u} (P : tProp T) : tProp T :=
 -- given a trace, we can find some n such that advancing
 -- the trace by n allows p to hold on that trace
- λ (tr : trace T), ∃ n : ℕ, P (λ t, tr(t + n))
+ λ (tr : trace T), ∃ n : ℕ, P (delayn n tr)
 
 notation `◇` := eventually
 
 /-- Until, notation \MCU --/
 @[ltl]
 def until {T : Type u} (P Q : tProp T) : tProp T :=
-λ (tr : trace T), ∃ n, (Q (λ t, tr(t + n)) /\ (∀ n', n' < n -> (P (λ t: ℕ, tr(t + n')))))
+λ (tr : trace T), ∃ n, Q (delayn n tr) /\ (∀ n', n' < n -> P (delayn n' tr))
 
 -- \MCU
 infix `𝓤` : 50 := until
@@ -132,79 +162,83 @@ def later {T : Type u} (P : T -> Prop) (n: nat) : tProp T :=
 @[ltl]
 def now {T : Type u} (P: T -> Prop) := later P 0
 
+instance now_decidable {T : Type u} (P : T → Prop) [decidable_pred P]
+  : decidable_pred (now P)
+:= begin
+unfold now later, apply_instance,
+end
+
 /-- Fairness constraints on a trace require that
     something happens infinitely often --/
 @[ltl]
-def fair {T : Type u} (P : T -> Prop) := always (eventually (now P))
+def fair {T : Type u} (P : tProp T) := □ (◇ P)
 
 notation `⊩` P := forall tr, P tr
+
+lemma eventually_always_mono {T : Type u} (A B : tProp T)
+  : ⊩ □ (A => B) => ◇ A => ◇ B
+:= begin
+intros tr AB HA, induction HA with k HA,
+unfold eventually, existsi k,
+apply AB, assumption
+end
 
 lemma eventually_mono {T : Type u} (A B : tProp T)
   (AB : ⊩ A => B)
   : ⊩ ◇ A => ◇ B
 := begin
-intros tr HA, induction HA with k HA,
-unfold eventually, existsi k,
-apply AB, assumption
+intros tr HA, apply eventually_always_mono,
+intros n, apply AB, assumption
 end
 
-
-lemma weak_until_mono {T : Type u} (A B P : tProp T)
-  (AB : ⊩ A => B)
-  : ⊩ A 𝓦 P => B 𝓦 P
+lemma until_always_mono {T : Type u} {A B P : tProp T}
+  : ⊩ □ (A => B) => A 𝓤 P => B 𝓤 P
 := begin
-intros tr AP evQ,
-have H := AP evQ,
-induction H with k Hk, induction Hk with H1 H2,
+intros tr AB AP, induction AP with k Hk,
+induction Hk with H1 H2,
 unfold until, existsi k, split, assumption,
 intros, apply AB, apply H2, assumption
 end
 
+lemma until_mono {T : Type u} {A B P : tProp T}
+  (AB : ⊩ A => B)
+  : ⊩ A 𝓤 P => B 𝓤 P
+:= begin
+intros tr AP,  apply until_always_mono, 
+intros n, apply AB, assumption
+end
+
+lemma weak_until_always_mono {T : Type u} (A B P : tProp T)
+  : ⊩ □ (A => B) => A 𝓦 P => B 𝓦 P
+:= begin
+intros tr AB AP evQ,
+apply until_always_mono, assumption, apply AP, assumption
+end
+
+lemma weak_until_mono {T : Type u} {A B P : tProp T}
+  (AB : ⊩ A => B)
+  : ⊩ A 𝓦 P => B 𝓦 P
+:= begin
+intros tr AP,  apply weak_until_always_mono, 
+intros n, apply AB, assumption
+end
+
+lemma and_imp_l {T : Type u} (P Q : tProp T)
+  : ⊩ (P //\\ Q) => P
+:= begin
+intros tr H, induction H with HP HQ, assumption,
+end
+
+lemma and_imp_r {T : Type u} (P Q : tProp T)
+  : ⊩ (P //\\ Q) => Q
+:= begin
+intros tr H, induction H with HP HQ, assumption,
+end
+
 lemma eventually_and_r {T : Type u} (P Q : tProp T)
  : ⊩ ◇ (P //\\ Q) => ◇ Q
- :=
- begin
-intros tr PQ,
-induction PQ with k Hk,
-induction Hk with Hkl Hkr,
-constructor, assumption,
-end
-
-
-lemma nat.lt_succ_le : forall a b,
-a < nat.succ b ->
-a ≤ b :=
-begin
-intros,
-cases a_1,
-{
-    refl,
-},
-{
-    apply nat.le_trans,
-    apply nat.le_add_right,
-    exact 1,
-    apply a_2
-}
-end
-
-lemma nat.lt_succ_ne_lt : forall a b,
-a < nat.succ b ->
-a ≠ b ->
-a < b :=
-begin
-intros,
-cases  (nat.lt_trichotomy a b),
-{  assumption },
-{ cases a_3,
-    { contradiction},
-    {   exfalso,
-        apply nat.le_lt_antisymm,
-        apply a_1,
-        apply nat.succ_lt_succ,
-        assumption,
-    }
-}
+:= begin
+apply eventually_mono, apply and_imp_r,
 end
 
 /-- Pull out implication from always --/
@@ -231,7 +265,7 @@ intros, intros n, apply a,
 end
 
 /-- pull out top level implication --/
-lemma imp_e : forall {T : Type} (P Q : tProp T),
+lemma imp_e : forall {T : Type u} (P Q : tProp T),
 (⊩ (P => Q)) -> ((⊩ P) -> (⊩ Q)) :=
 begin
 intros,
@@ -240,76 +274,57 @@ intros,
     apply a_1},
 end
 
-/-- always distributes over and --/
-lemma always_and  : forall {T: Type} (P Q : tProp T) tr, always P tr ∧ always Q tr ↔ always (tAnd P Q) tr :=
-begin
-intros,
-split; intros,
-    cases a,
-    simp only [always],
-    intro n,
-    simp only [tAnd, tInj2],
-    split,
-       apply (a n),
-       apply (a_1 n),
-simp only [always],
-simp only [always] at a,
-split; {intro n,
-    simp only [tAnd] at a,
-    have h_n: tAnd P Q (λ (t : ℕ), tr (t + n)),
-        apply a, clear a,
-    simp only [tAnd] at h_n,
-    cases h_n, assumption}
+lemma always_mono {T : Type u} (P Q : tProp T)
+  (H : ⊩ P => Q)
+  : ⊩ □ P => □ Q
+:= begin
+intros tr HP n, apply H, apply HP,
 end
 
-def repeat_next {t : Type} (P : t -> Prop) : nat -> tProp t
+/-- always distributes over and --/
+lemma always_and {T: Type u} (P Q : tProp T) :
+ □ P //\\ □ Q = □ (P //\\ Q)
+:= begin
+apply funext, intros tr, apply propext,
+split; intros H,
+{ induction H with HP HQ,
+  intros n, constructor, apply HP, apply HQ },
+{ constructor,
+  { apply always_mono, apply (and_imp_l _ Q), assumption },
+  { apply always_mono, apply (and_imp_r P _), assumption }
+}
+end
+
+def repeat_next {t : Type u} (P : t -> Prop) : nat -> tProp t
 | 0 := later P 0
 | (nat.succ n') := next (repeat_next n')
 
 /-- lift_at is the same as repeated applictions of next --/
-lemma lift_at_n : forall {T : Type} (P : T -> Prop) (tr: trace T) (n : nat),
-    repeat_next P n tr <-> later P n tr :=
+lemma lift_at_n : forall {T : Type u} (P : T -> Prop),
+    repeat_next P = later P :=
 begin
-intros,
-split; intros;
-    revert tr;
-    induction n; intros,
-        simp [later],
-        apply a,
-
-        simp [later],
-        simp [repeat_next, next] at a_1,
-        revert a_1,
-        apply ih_1,
-
-
-        apply a,
-
-        simp [repeat_next, next],
-        revert a_1,
-        apply ih_1
+intros, apply funext, intros n, 
+apply funext, induction n; intros; simp [repeat_next],
+unfold next nextn,
+rw ih_1, simp [later, delayn],
 end
 
 /-- equivalence between eventually and until tt --/
-lemma eventually_until {T : Type} (P: tProp T) :
-    forall tr, eventually P tr <-> until tt P tr :=
+lemma eventually_until {T : Type u} (P: tProp T) :
+  ◇ P = (tt 𝓤 P)
+ :=
 begin
-intro tr,
-split; intro,
-    simp [until],
-    simp [eventually] at a,
-cases a with a_1 a_2,
-{ existsi a_1,
-    simp [tt],
-  exact a_2,
+apply funext, intro tr, apply propext,
+split; intros H,
+{ induction H with k Hk,
+  unfold until, existsi k, split, assumption,
+  intros, trivial,
 },
-{ simp [until] at a,
-    simp [eventually],
-    cases a,
-    existsi a,
-    cases a_1,
-  assumption,
-},
+{ 
+  induction H with k Hk,
+  induction Hk with Hk1 Hk2,
+  unfold eventually, existsi k, assumption
+}
 end
 
 
@@ -333,133 +348,51 @@ apply exists.intro,
 reflexivity
 end
 
-lemma always_and_next {T : Type} (P : tProp T) :
-forall tr, □ P tr <-> (P //\\ ◯ (□ P)) tr :=
+lemma always_and_next {T : Type u} (P : tProp T) :
+ (□ P) = (P //\\ ◯ (□ P)) :=
 begin
-intros; split; intros,
+apply funext, intros tr,
+apply propext, split; intros H,
 {
-    simp [always, tAnd, tInj2, next],
-    simp [always] at a,
-    split,
+    constructor, 
+    { rw ← (delayn_zero tr),
+      apply H },
     {
-        have a0 := a 0,
-        simp at a0,
-        have treq : tr = λ t, tr t,
-        { apply funext, intro, trivial },
-        rewrite treq, assumption
-    },
-    {
-        intro,
-        have a1 := a (n + 1),
-        apply congr_arg_app,
-        apply a1,
-        apply funext,
-        intro,
-        simp,
-},
-},
-{
-    simp with ltl,
-    simp with ltl at a,
-    cases a,
-    intro,
-    have a2n := a_1 (nat.pred n),
-    apply dite (n = 0); intro,
-    {
-        subst n, simp,
-        apply congr_arg_app,
-        apply a,
-        reflexivity,
-    },
-    {
-        apply congr_arg_app,
-        apply a2n,
-        apply funext,
-        intro,
-        --dsimp,
-        have nex := ne0_succ_exists _ a_2,
-        cases nex,
-        subst n,
-        simp
+        intro n,
+        specialize (H (n + 1)),
+        rw delayn_combine, assumption
     }
+},
+{
+    induction H with H0 HS,
+    intros n, cases n, rw delayn_zero,
+    assumption,
+    apply HS
 }
 end
 
-/-- This is probably true, but I can't prove it yet... --/
-lemma alway_or_until {T : Type} (P Q : tProp T) :
-forall tr, □ (tOr P Q) tr -> □ (◇ Q) tr -> (□ (P 𝓤 Q)) tr  :=
+lemma next_delay {T : Type u} {P : tProp T}
+  (n : ℕ) (tr : trace T)
+  (H : ◯ P (delayn n tr))
+  : P (delayn (nat.succ n) tr)
+:= begin
+dsimp [next, nextn] at H,
+rw delayn_combine at H,
+rw add_comm at H, assumption
+end
+
+lemma temporal_induction {T : Type u} (P : tProp T)
+  : ⊩ (P => □ (P => (◯ P)) => □ P) :=
 begin
-simp with ltl,
-intros,
-have an := a n,
-have a_1n := a_1 n,
-clear a,
-clear a_1,
+intros tr H0 HS n,
 induction n,
-{
-    simp,
-    cases an,
-    {
-        cases a_1n,
-        simp at a_2,
-        existsi a_1,
-        split,
-        { assumption },
-        {
-            intro,
-            dsimp at a,
-               admit
-        }
-    }, admit
-},
-{admit}
+{ rw delayn_zero, assumption },
+{ specialize (HS a ih_1), apply next_delay, assumption }
 end
 
-/-- Induction over time --/
-lemma temporal_induction {T} : forall (P : tProp T),
-⊩ (P => always (P => (next P)) => always P) :=
-begin
-simp [always, next],
-intros P tr,
-simp [tImp, tInj2, implies],
-intros p0 pIH n,
-induction n; intros,
-
-    simp,
-    have treq : tr = λ t, tr t,
-    {    apply funext,
-        intro, reflexivity,
-    },
-    exact p0,
-
-    simp,
-    have pIHa := pIH a,
-    have pC := pIHa ih_1,
-    have teq : (λ (t : ℕ), (λ (t : ℕ), tr (a + t)) (t + 1)) =
-                  (λ (t : ℕ), tr (t + nat.succ a)),
-    {   apply funext,
-        intro x,
-        dsimp,
-        apply congr_arg,
-        rewrite (nat.add_comm a (x + 1)),
-        rewrite (nat.add_assoc),
-        rewrite (nat.add_comm 1 a),
-
-    },
-        rewrite teq at pC,
-    assumption,
-end
-
-lemma temporal_induction' {T : Type u} : forall (P : tProp T),
-forall trace,
- P trace -> □ (P => (◯ P)) trace -> □ P trace :=
-begin
-intros,
-have ti := @temporal_induction,
-simp [implies] with tImp at ti,
-apply ti;
-assumption
-end
+lemma temporal_induction' {T : Type u} : ∀ (P : tProp T),
+  ∀ trace, P trace -> □ (P => (◯ P)) trace -> □ P trace 
+ := temporal_induction
 
 lemma eventually_strengthen_until {T : Type u}
   (P Q : tProp T)
@@ -478,6 +411,103 @@ intros tr PQ fairQ  n,
 apply eventually_strengthen_until; apply PQ <|> apply fairQ,
 end
 
+lemma always_implies_eventually {T : Type u}
+  (P Q : tProp T) :
+⊩ □ (P => Q) => ◇ P => ◇ Q
+:= begin
+intros tr PQ evP,
+induction evP with k Hk,
+constructor, apply PQ, assumption
+end
+
+lemma next_eventually {T : Type u} (P : tProp T)
+  : ⊩ ◯ P => ◇ P
+:= begin
+intros tr H, constructor, assumption
+end
+
+lemma eventually_return {T : Type u} (P : tProp T)
+  : ⊩ P => ◇ P
+:= begin
+intros tr H, constructor, rw delayn_zero, assumption
+end
+
+lemma eventually_idempotent {T : Type u} (P : tProp T)
+  : ◇ (◇ P) = ◇ P
+:= begin
+apply funext, intro tr, apply propext, split; intros H,
+{
+induction H with k Hk,
+induction Hk with n Hn,
+rw delayn_combine at Hn,
+constructor, assumption
+},
+{ apply eventually_return, assumption }
+end
+
+lemma always_idempotent {T : Type u} (P : tProp T)
+  : □ (□ P) = □ P
+:= begin
+apply funext, intro tr, apply propext, split; intros H,
+{ specialize (H 0), rw delayn_zero at H, assumption },
+{ intros n k, rw delayn_combine, apply H }
+end
+
+
+lemma eventually_cut {T : Type u} {P Q : tProp T}
+  : ⊩ ◇ P => □ (P => ◇ Q) => ◇ Q
+:= begin
+intros tr HP PQ,
+rw ← eventually_idempotent,
+revert HP, apply eventually_always_mono, assumption,
+end
+
+lemma fair_cut {T : Type u} {P Q : tProp T}
+  : ⊩ fair P => □ (P => ◇ Q) => fair Q
+:= begin
+intros tr fairP PQ n,
+apply eventually_cut, apply fairP,
+rw ← always_idempotent at PQ,
+apply PQ,
+end
+
+
+lemma always_eventually_well_founded {T : Type u} {A : Type v}
+  {R : A → A → Prop} (wf : well_founded R)
+  (meas : T → A) (Q : tProp T)
+  (tr : trace T)
+  (H : ∀ x : A, □ (now (λ s, meas s = x) => ◇ (tOr (now (λ s, R (meas s) x)) Q)) tr)
+  (z : A) : □ (now (λ s, meas s = z) => ◇ Q) tr
+:= begin
+have wf_ind := λ x y z, @well_founded.induction _ _ wf x z y,
+revert z, 
+apply (@wf_ind (λ (z : A), □ (now (λ (s : T), meas s = z)=>◇ Q) tr)),
+intros x IH n Hn,
+specialize (H x n Hn),
+induction H with k Hk,
+induction Hk with Hk Hk,
+{ unfold now later at Hk,
+  specialize (IH _ Hk (k + n)),
+  rw ← eventually_idempotent,
+  constructor, rw delayn_combine, apply IH,
+  simp with ltl,
+  },
+{ constructor, assumption }
+end
+
+lemma now_until_eventually {T : Type u}
+  {P Q : tProp T}
+  : ⊩ P => (◯ P) 𝓤 Q => ◇ (P //\\ Q)
+:= begin
+intros tr HP Huntil,
+induction Huntil with k Hk,
+induction Hk with H1 H2,
+constructor, constructor; try { assumption },
+cases k,
+{ rw delayn_zero, assumption },
+{ apply next_delay, apply H2, apply nat.self_lt_succ, }
+end
+
 end temporal
 
 namespace temporalExample
@@ -489,8 +519,7 @@ def one_at_one : natTrace :=
 
 lemma nextone : temporal.next (temporal.now (eq 1)) one_at_one:=
 begin
-simp [next,later, now],
-reflexivity
+simp [one_at_one] with ltl
 end
 
 end temporalExample
