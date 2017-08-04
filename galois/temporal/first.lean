@@ -34,8 +34,10 @@ end
 
 namespace temporal
 open list
-/-- If P is decidable we can find all of the times it is true until N-/
 
+/-- If P is decidable and eventually holds, we can find the first time
+    that it holds.
+-/
 lemma eventually_first_dec {T: Type u} (P : tProp T) [decidable_pred P] :
 ⊩ ◇ P => first P :=
 begin
@@ -71,6 +73,10 @@ fapply until_always_mono,
 { apply not_weakuntil_yes, assumption }
 end
 
+/-- An anologue of `temporal_induction`. If we can prove
+    `P` holds now, and if, assuming `Q` doesn't hold,
+    `P` implies `◯ P`, then `◯ P` holds weak-until `Q`.
+-/
 lemma weak_until_induction {T : Type u} (P Q : tProp T)
   [decidable_pred Q]
   : ⊩ (P => □ (tNot Q => P => (◯ P)) => ◯ P 𝓦 Q) :=

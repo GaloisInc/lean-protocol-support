@@ -1,6 +1,7 @@
 /- A shallow embedding of temporal logic -/
 
 import galois.tactic
+import galois.nat.lemmas
 universe variables u v
 
 namespace temporal
@@ -131,13 +132,6 @@ tInj2 or P Q
 
 infix `\\//` : 50 := tOr
 
-/-- same as until, but we don't require Q to occur --/
-@[ltl]
-def release {T : Type u} (P Q : tProp T) : tProp T :=
-(P 𝓤 Q) \\// □ P
--- \MCR
-infix `𝓡` : 50 := release
-
 /-- Lifting of prop implication --/
 @[ltl, tImp]
 def tImp {T : Type u} (P Q : tProp T) : tProp T :=
@@ -152,6 +146,17 @@ def weak_until {T : Type u} (P Q : tProp T) : tProp T :=
 
 -- \MCW
 infix `𝓦` : 50 := weak_until
+
+@[ltl]
+def release {T : Type u} (P Q : tProp T) : tProp T :=
+  Q 𝓦 (Q //\\ P)
+
+-- \MCR
+infix `𝓡` : 50 := release
+
+@[ltl]
+def release' {T : Type u} (P Q : tProp T) : tProp T :=
+  ◇ P => Q 𝓤 (Q //\\ P)
 
 /-- Lifting of iff --/
 @[ltl, tImp]
@@ -224,6 +229,14 @@ lemma until_mono {T : Type u} {A B P : tProp T}
 := begin
 intros tr AP,  apply until_always_mono, 
 intros n, apply AB, assumption
+end
+
+lemma until_always_mono_r {T : Type u} {P A B : tProp T}
+  : ⊩ □ (A => B) => P 𝓤 A => P 𝓤 B
+:= begin
+intros tr AB H, induction H with k Hk,
+induction Hk with H1 H2,
+constructor, split, apply AB, assumption, assumption
 end
 
 lemma weak_until_always_mono {T : Type u} (A B P : tProp T)
@@ -489,7 +502,6 @@ rw ← always_idempotent at PQ,
 apply PQ,
 end
 
-
 lemma always_eventually_well_founded {T : Type u} {A : Type v}
   {R : A → A → Prop} (wf : well_founded R)
   (meas : T → A) (Q : tProp T)
@@ -524,6 +536,81 @@ constructor, constructor; try { assumption },
 cases k,
 { rw delayn_zero, assumption },
 { apply next_delay, apply H2, apply nat.self_lt_succ, }
+end
+
+lemma weak_until_implies_release {T : Type u} {P Q : tProp T}
+  : ⊩ P => (◯ P 𝓦 Q) => Q 𝓡 P
+:= begin
+intros tr HP HPimpQ evPQ,
+have evQ := eventually_and_r _ _ _ evPQ,
+specialize (HPimpQ evQ),
+induction HPimpQ with k Hk, induction Hk with H1 H2,
+unfold until, existsi k,
+split, constructor, 
+cases k,
+{ rw delayn_zero, assumption },
+{ apply next_delay, apply H2, apply nat.self_lt_succ, },
+assumption,
+intros, cases n',
+{ rw delayn_zero, assumption },
+{ apply next_delay, apply H2, apply nat.lt_of_succ_lt, assumption },
+end
+
+lemma release'_implies_release {T : Type u} {P Q : tProp T}
+  : ⊩ release' Q P => Q 𝓡 P
+:= begin
+intros tr H evPQ,
+have evQ := eventually_and_r _ _ _ evPQ,
+apply (H evQ),
+end
+
+lemma until_next {T : Type u} {P Q : tProp T}
+: ⊩ (P𝓤(P//\\Q)) => (P//\\◯ P𝓤Q)
+:= begin
+intros tr QRP,
+induction QRP with k Hk, induction Hk with H1 H2,
+induction H1 with HP HQ,
+unfold until, existsi k, split, assumption,
+intros, constructor, 
+{ apply H2, assumption },
+{ unfold next nextn, rw delayn_combine,
+rw add_comm,
+apply (if H : n' + 1 = k then _ else _),
+rw H, assumption, apply H2,
+apply nat.lt_succ_ne_lt,
+apply nat.succ_lt_succ, assumption, assumption, }
+end
+
+lemma release'_implies_weak_until {T : Type u} {P Q : tProp T}
+  : ⊩ release' Q P => ((P //\\ ◯ P) 𝓦 Q)
+:= begin
+intros tr QRP evQ,
+specialize (QRP evQ), apply until_next, assumption
+end
+
+/- The below fact is true, because of the following counterexample:
+   We could have a trace where Q holds at time 0 and P never holds.
+   Then `release' Q P` does not hold, but
+   `((P //\\ ◯ P) 𝓦 Q)` does.
+-/
+lemma not_weak_until_implies_release'
+  : ∃ (T : Type) (P Q : tProp T), ¬ (⊩ ((P //\\ ◯ P) 𝓦 Q) => release' Q P)
+:= begin
+existsi (bool × bool),
+existsi (λ tr : trace (bool × bool), ((tr 0).fst : Prop)),
+existsi (λ tr : trace (bool × bool), ((tr 0).snd : Prop)),
+intros contra,
+specialize (contra (λ n, (bool.ff, if n = 0 then bool.tt else bool.ff))),
+simp [implies] with ltl at contra,
+have H : ((∃ (n : ℕ), ↑(ite (n = 0) bool.tt bool.ff)) →
+   (∃ (n : ℕ), (∀ (n' : ℕ), n' < n → false) ∧ ↑(ite (n = 0) bool.tt bool.ff))),
+intros H, clear H,
+existsi 0, split, intros, rw nat.lt_zero_iff_false at a, contradiction,
+rw (if_pos (eq.refl 0)), constructor,
+specialize (contra H), clear H,
+have H : (∃ (n : ℕ), ↑(ite (n = 0) bool.tt bool.ff)),
+existsi 0, rw (if_pos (eq.refl 0)), constructor,
+specialize (contra H), induction contra, contradiction,
 end
 
 end temporal
