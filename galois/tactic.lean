@@ -13,6 +13,7 @@ meta def specialize_get_name : expr → tactic name
 | (local_const _ n _ _) := pure n
 | _ := fail "Not an application of a local constant"
 
+/-- The analogue of Coq's `specialize` tactic -/
 meta def specialize (H : parse texpr) : tactic unit :=
   do result ← i_to_expr H,
      id ← specialize_get_name result,
@@ -30,6 +31,7 @@ def congr_arg_f_equal {A : Sort u} {B : Sort v} {f f' : A → B}
 intros H, induction H, intros H, induction H, reflexivity
 end
 
+/-- The analogue of Coq's `f_equal` tactic -/
 meta def f_equal : tactic unit :=
   try (do apply ``(@congr_arg_f_equal),
   tactic.focus [ reflexivity <|> f_equal, try reflexivity ])
@@ -40,6 +42,10 @@ meta def apply_in_aux : expr → tactic expr
      apply_in_aux (e.instantiate_var x')
 | e := pure e
 
+/-- The analogue of Coq's `apply _ in _` tactic.
+    Usage: `apply e in H` in Coq corresponds to
+           `apply_in H e` using this tactic in Lean
+ -/
 meta def apply_in (H : parse ident) (e : parse texpr) 
   : tactic unit := do
   e' ← i_to_expr e,
