@@ -1,4 +1,4 @@
-import aim.aggregator.network_monad
+import .network_monad
 
 namespace network
 section
