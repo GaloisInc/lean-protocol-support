@@ -300,7 +300,7 @@ lemma size_decreases' {ag : agents.member} (a_ip : ip)
   : strictly_smaller next' (s.local_state ag) 
   ∨ la = agent_label.update_own_state ∧ ∃ x, next' = ag.value.loop x
 := begin
-apply_in H size_decreases,
+apply_in H network.size_decreases,
 cases (s.local_state ag); dsimp at H;
   try { left, assumption },
 { right, induction H with H1 H2, 
@@ -380,10 +380,10 @@ unfold inLocalState inState implies,
 intros n agnext Hk,
 -- Don't just use fairness! Need to use the "first"
 -- version of fairness
-apply_in Hk agent_does_invert,
+apply_in Hk network.agent_does_invert,
 induction Hk with la p, induction p with X upd,
 clear X,
-have H := agent_update_invert' a trvalid upd,
+have H := network.agent_update_invert' a trvalid upd,
 induction H,
 simp at Hagl Hupd,
 apply_in Hagl size_decreases',
