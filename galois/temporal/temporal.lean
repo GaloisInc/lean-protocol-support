@@ -2,7 +2,11 @@
 
 import galois.tactic
 import galois.nat.lemmas
+import galois.subset.subset
+
 universe variables u v
+
+open subset
 
 namespace temporal
 
@@ -10,7 +14,8 @@ namespace temporal
 def trace (T : Type u) : Type u := nat -> T
 
 /--Type of Propositions over traces --/
-def tProp (T : Type u) := trace T → Prop
+@[reducible]
+def tProp (T : Type u) := subset (trace T)
 
 /- This defines a simp attribute named ltl
    later we can say "simp with ltl" in order
@@ -118,20 +123,6 @@ def first {T : Type u} (P: tProp T) : tProp T := tNot P 𝓤 P
 def tInj2 {T: Type u} (R : Prop -> Prop -> Prop) (P Q : tProp T) :=
 λ (tr : trace T), R (P tr) (Q tr)
 
-/-- Prop and on tProp, notation //\\ --/
-@[ltl]
-def tAnd {T: Type u} (P Q : tProp T) : tProp T  :=
-tInj2 and P Q
-
-infix `//\\` : 50 := tAnd
-
-/-- Prop or on tProp, notation \\// --/
-@[ltl]
-def tOr {T: Type u} (P Q : tProp T) : tProp T :=
-tInj2 or P Q
-
-infix `\\//` : 50 := tOr
-
 /-- Lifting of prop implication --/
 @[ltl, tImp]
 def tImp {T : Type u} (P Q : tProp T) : tProp T :=
@@ -139,41 +130,12 @@ tInj2 implies P Q
 
 infixr `=>` : 50 := tImp
 
-
-@[ltl]
-def weak_until {T : Type u} (P Q : tProp T) : tProp T :=
-  ◇ Q => (P 𝓤 Q)
-
--- \MCW
-infix `𝓦` : 50 := weak_until
-
-@[ltl]
-def release {T : Type u} (P Q : tProp T) : tProp T :=
-  Q 𝓦 (Q //\\ P)
-
--- \MCR
-infix `𝓡` : 50 := release
-
-@[ltl]
-def release' {T : Type u} (P Q : tProp T) : tProp T :=
-  ◇ P => Q 𝓤 (Q //\\ P)
-
 /-- Lifting of iff --/
 @[ltl, tImp]
 def tIff {T : Type u} (P Q : tProp T) : tProp T :=
 tInj2 iff P Q
 
 infixr `<=>` : 50 := tIff
-
-/-- True --/
-@[ltl]
-def tt {T : Type u} : tProp T :=
-λ (tr : trace T), true
-
-/-- False --/
-@[ltl]
-def ff {T : Type u} : tProp T :=
-λ (tr : trace T), false
 
 /-- P holds at the nth step of some trace --/
 @[ltl]
@@ -207,8 +169,8 @@ apply AB, assumption
 end
 
 lemma eventually_mono {T : Type u} (A B : tProp T)
-  (AB : ⊩ A => B)
-  : ⊩ ◇ A => ◇ B
+  (AB : A ≤ B)
+  : ◇ A ≤ ◇ B
 := begin
 intros tr HA, apply eventually_always_mono,
 intros n, apply AB, assumption
@@ -224,8 +186,8 @@ intros, apply AB, apply H2, assumption
 end
 
 lemma until_mono {T : Type u} {A B P : tProp T}
-  (AB : ⊩ A => B)
-  : ⊩ A 𝓤 P => B 𝓤 P
+  (AB : A ≤ B)
+  : (A 𝓤 P) ≤ (B 𝓤 P)
 := begin
 intros tr AP,  apply until_always_mono, 
 intros n, apply AB, assumption
@@ -239,35 +201,20 @@ induction Hk with H1 H2,
 constructor, split, apply AB, assumption, assumption
 end
 
-lemma weak_until_always_mono {T : Type u} (A B P : tProp T)
-  : ⊩ □ (A => B) => A 𝓦 P => B 𝓦 P
-:= begin
-intros tr AB AP evQ,
-apply until_always_mono, assumption, apply AP, assumption
-end
-
-lemma weak_until_mono {T : Type u} {A B P : tProp T}
-  (AB : ⊩ A => B)
-  : ⊩ A 𝓦 P => B 𝓦 P
-:= begin
-intros tr AP,  apply weak_until_always_mono, 
-intros n, apply AB, assumption
-end
-
 lemma and_imp_l {T : Type u} (P Q : tProp T)
-  : ⊩ (P //\\ Q) => P
+  : ⊩ (P ∩ Q) => P
 := begin
 intros tr H, induction H with HP HQ, assumption,
 end
 
 lemma and_imp_r {T : Type u} (P Q : tProp T)
-  : ⊩ (P //\\ Q) => Q
+  : ⊩ (P ∩ Q) => Q
 := begin
 intros tr H, induction H with HP HQ, assumption,
 end
 
 lemma eventually_and_r {T : Type u} (P Q : tProp T)
- : ⊩ ◇ (P //\\ Q) => ◇ Q
+ : ⊩ ◇ (P ∩ Q) => ◇ Q
 := begin
 apply eventually_mono, apply and_imp_r,
 end
@@ -306,15 +253,26 @@ intros,
 end
 
 lemma always_mono {T : Type u} (P Q : tProp T)
-  (H : ⊩ P => Q)
-  : ⊩ □ P => □ Q
+  (H : P ≤ Q)
+  : □ P ≤ □ Q
 := begin
 intros tr HP n, apply H, apply HP,
 end
 
+lemma nextn_mono {T : Type u} {P Q : tProp T}
+  (H : P ≤ Q) (n : ℕ)
+  : nextn n P ≤ nextn n Q
+:= begin
+unfold nextn, intros x H', apply H, assumption
+end
+
+lemma next_mono {T : Type u} {P Q : tProp T}
+ (H : P ≤ Q) : ◯ P ≤ ◯ Q
+ := nextn_mono H 1
+
 /-- always distributes over and --/
 lemma always_and {T: Type u} (P Q : tProp T) :
- □ P //\\ □ Q = □ (P //\\ Q)
+ □ P ∩ □ Q = □ (P ∩ Q)
 := begin
 apply funext, intros tr, apply propext,
 split; intros H,
@@ -380,7 +338,7 @@ reflexivity
 end
 
 lemma always_and_next {T : Type u} (P : tProp T) :
- (□ P) = (P //\\ ◯ (□ P)) :=
+ (□ P) = (P ∩ ◯ (□ P)) :=
 begin
 apply funext, intros tr,
 apply propext, split; intros H,
@@ -424,23 +382,6 @@ end
 lemma temporal_induction' {T : Type u} : ∀ (P : tProp T),
   ∀ trace, P trace -> □ (P => (◯ P)) trace -> □ P trace 
  := temporal_induction
-
-lemma eventually_strengthen_until {T : Type u}
-  (P Q : tProp T)
-  : ⊩ ◇ Q => (P 𝓦 Q) => (P 𝓤 Q)
-:= begin
-intros tr PWQ fairQ, apply fairQ, assumption,
-end
-
-lemma fair_strengthen_until {T : Type u}
-  (P Q : tProp T) :
-  ⊩ □ (P 𝓦 Q)
-  => □ (◇ Q)
-  => □ (P 𝓤 Q)
-:= begin
-intros tr PQ fairQ  n,
-apply eventually_strengthen_until; apply PQ <|> apply fairQ,
-end
 
 lemma always_implies_eventually {T : Type u}
   (P Q : tProp T) :
@@ -506,7 +447,7 @@ lemma always_eventually_well_founded {T : Type u} {A : Type v}
   {R : A → A → Prop} (wf : well_founded R)
   (meas : T → A) (Q : tProp T)
   (tr : trace T)
-  (H : ∀ x : A, □ (now (λ s, meas s = x) => ◇ (tOr (now (λ s, R (meas s) x)) Q)) tr)
+  (H : ∀ x : A, □ (now (λ s, meas s = x) => ◇ ((now (λ s, R (meas s) x)) ∪ Q)) tr)
   (z : A) : □ (now (λ s, meas s = z) => ◇ Q) tr
 := begin
 have wf_ind := λ x y z, @well_founded.induction _ _ wf x z y,
@@ -527,7 +468,7 @@ end
 
 lemma now_until_eventually {T : Type u}
   {P Q : tProp T}
-  : ⊩ P => (◯ P) 𝓤 Q => ◇ (P //\\ Q)
+  : ⊩ P => (◯ P) 𝓤 Q => ◇ (P ∩ Q)
 := begin
 intros tr HP Huntil,
 induction Huntil with k Hk,
@@ -538,34 +479,8 @@ cases k,
 { apply next_delay, apply H2, apply nat.self_lt_succ, }
 end
 
-lemma weak_until_implies_release {T : Type u} {P Q : tProp T}
-  : ⊩ P => (◯ P 𝓦 Q) => Q 𝓡 P
-:= begin
-intros tr HP HPimpQ evPQ,
-have evQ := eventually_and_r _ _ _ evPQ,
-specialize (HPimpQ evQ),
-induction HPimpQ with k Hk, induction Hk with H1 H2,
-unfold until, existsi k,
-split, constructor, 
-cases k,
-{ rw delayn_zero, assumption },
-{ apply next_delay, apply H2, apply nat.self_lt_succ, },
-assumption,
-intros, cases n',
-{ rw delayn_zero, assumption },
-{ apply next_delay, apply H2, apply nat.lt_of_succ_lt, assumption },
-end
-
-lemma release'_implies_release {T : Type u} {P Q : tProp T}
-  : ⊩ release' Q P => Q 𝓡 P
-:= begin
-intros tr H evPQ,
-have evQ := eventually_and_r _ _ _ evPQ,
-apply (H evQ),
-end
-
 lemma until_next {T : Type u} {P Q : tProp T}
-: ⊩ (P𝓤(P//\\Q)) => (P//\\◯ P𝓤Q)
+: ⊩ (P𝓤(P ∩ Q)) => (P ∩ ◯ P𝓤Q)
 := begin
 intros tr QRP,
 induction QRP with k Hk, induction Hk with H1 H2,
@@ -581,36 +496,11 @@ apply nat.lt_succ_ne_lt,
 apply nat.succ_lt_succ, assumption, assumption, }
 end
 
-lemma release'_implies_weak_until {T : Type u} {P Q : tProp T}
-  : ⊩ release' Q P => ((P //\\ ◯ P) 𝓦 Q)
+lemma not_eventually_implies_always_not {T : Type u} (P : tProp T)
+  : ⊩ tNot (◇ P) => □ (tNot P)
 := begin
-intros tr QRP evQ,
-specialize (QRP evQ), apply until_next, assumption
-end
-
-/- The below fact is true, because of the following counterexample:
-   We could have a trace where Q holds at time 0 and P never holds.
-   Then `release' Q P` does not hold, but
-   `((P //\\ ◯ P) 𝓦 Q)` does.
--/
-lemma not_weak_until_implies_release'
-  : ∃ (T : Type) (P Q : tProp T), ¬ (⊩ ((P //\\ ◯ P) 𝓦 Q) => release' Q P)
-:= begin
-existsi (bool × bool),
-existsi (λ tr : trace (bool × bool), ((tr 0).fst : Prop)),
-existsi (λ tr : trace (bool × bool), ((tr 0).snd : Prop)),
-intros contra,
-specialize (contra (λ n, (bool.ff, if n = 0 then bool.tt else bool.ff))),
-simp [implies] with ltl at contra,
-have H : ((∃ (n : ℕ), ↑(ite (n = 0) bool.tt bool.ff)) →
-   (∃ (n : ℕ), (∀ (n' : ℕ), n' < n → false) ∧ ↑(ite (n = 0) bool.tt bool.ff))),
-intros H, clear H,
-existsi 0, split, intros, rw nat.lt_zero_iff_false at a, contradiction,
-rw (if_pos (eq.refl 0)), constructor,
-specialize (contra H), clear H,
-have H : (∃ (n : ℕ), ↑(ite (n = 0) bool.tt bool.ff)),
-existsi 0, rw (if_pos (eq.refl 0)), constructor,
-specialize (contra H), induction contra, contradiction,
+intros tr contra n contra',
+apply contra, constructor, assumption,
 end
 
 end temporal
