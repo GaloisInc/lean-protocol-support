@@ -232,7 +232,7 @@ end
 
 
 lemma eventually_strengthen_until {T : Type u}
-  (P Q : tProp T)
+  {P Q : tProp T}
   [decidable_pred Q]
   : ⊩ ◇ Q => (P 𝓦 Q) => (P 𝓤 Q)
 := begin

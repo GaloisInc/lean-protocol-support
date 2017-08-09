@@ -1,5 +1,6 @@
 import galois.network.network_implementation
        galois.temporal.fixpoint
+       galois.temporal.classical
 
 universes u
 
@@ -413,7 +414,8 @@ lemma agent_advances_helper1
          )
 := begin
 intros tr trvalid trfair n Hnow,
-have H := local_state_stays_constant_ltl _ _ _ _ _ Hnow (trfair a n),
+have H := local_state_stays_constant_ltl _ _ _ _ _ Hnow,
+apply_in H (eventually_strengthen_until _ (trfair a n)),
 have H' := now_until_eventually _ Hnow H,
 clear Hnow H,
 apply eventually_cut, assumption,
@@ -491,37 +493,23 @@ inductive will_poll {a : agent} : act a.state_type → Prop
   (cont : poll_result ports sockets bound → act a.state_type),
   will_poll (act.poll ports sockets bound cont)
 
-def agent_in_state_blocks_until_not_functional (a_ip : ip) 
+section
+parameters (a_ip : ip) 
   (a : agent)
-  (P : poll_receive_label → Prop) Q :=
-  now (inState (@will_poll a)) //\\
-   (now (inLabel (agent_does a_ip (λ _, true)))
-   𝓡
-   (now (inLabel (agent_does a_ip (receives_or_timeout P))) => ◇ Q))
-
-
-/-- `agent_in_state_blocks_until_not a_ip a s P` holds
-     if the agent `a` is in a state `s` such that it will poll
-     next time that it takes a step, and if when it does so
-     it either timeouts or receives a result that satisfies `P`,
-     then it will necessarily eventually return to some state `s'`
-     satisfying `agent_in_state_blocks_until_not a_ip a s' P`,
-     no matter what global context it is in.
-
-     The idea is that if this property holds, and message fairness
-     holds, then assuming message fairness, if there is a message
-     such that its reception will never satisfy P, then an agent
-     that blocks until not P will eventually receive this message
-     satisfying not P.
--/
-def agent_in_state_blocks_until_not (a_ip : ip) 
-  (a : agent)
-  (s : act a.state_type)
   (P : poll_receive_label → Prop)
-  := 
-    ⊩ valid_trace (can_possibly_step a_ip a) =>
-      now (inState (eq s)) =>
-      greatest_fixpoint (agent_in_state_blocks_until_not_functional a_ip a P)
+
+lemma blocks_until_not_never_receives_always_polls
+  : ⊩ valid_trace (can_possibly_step a_ip a)
+    => (◇ (now (inLabel (agent_does a_ip polls))) 
+        𝓦 (now (inLabel (agent_does a_ip (receives P)))))
+    => □ (tNot (now (inLabel (agent_does a_ip (receives P)))))
+    => fair (now (inState (@will_poll a)))
+:= begin
+intros tr valid nows,
+admit
+end
+
+end
 
 /--
    As Joey and I discussed, the way this proof should go is as follows:
@@ -537,17 +525,21 @@ def agent_in_state_blocks_until_not (a_ip : ip)
    eventually do receive the message, a contradiction.
 -/
 theorem blocking_agent_eventually_receives_message {agents : map ip agent}
-  (a : agents.member) 
-  (s : act a.value.state_type) (mess : message_t)
-  (Hblock : agent_in_state_blocks_until_not a.key a.value s 
-      (eq (poll_receive_label.receive_message mess)))
-  : ⊩ valid_trace LTS 
+  (a : agents.member) (mess : (socket × message_t))
+  : ⊩ valid_trace (@LTS agents)
     => fairness_spec
     => message_fairness_spec
-    => now (inLocalState a (eq s))
+    => (◇ (now (inLabel (agent_does a.key polls))) 
+        𝓦 (now (inLabel (agent_does a.key (receives_message mess.snd)))))
+    => □ (tNot (now (inLabel (agent_does a.key (receives_message mess.snd)))))
     => now (inState (λ ss : system_state, 
-         mess ∈ (ss.global_state a.key).messages.map prod.snd))
-    => ◇ (now (inLabel (agent_does a.key (receives_message mess))))
-  := sorry
+         mess ∈ (ss.global_state a.key).messages))
+    => ◇ (now (inLabel (agent_does a.key (receives_message mess.snd))))
+:= begin
+intros tr valid fair mfair nowstate messstate H,
+apply classical.not_always_not_implies_eventually,
+intros contra,
+admit
+end
 
 end network

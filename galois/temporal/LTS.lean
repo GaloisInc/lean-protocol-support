@@ -2,7 +2,7 @@
 A labeled transition system built on top of temporal logic
 -/
 
-import .temporal .first
+import .fixpoint
 
 universes u v
 
