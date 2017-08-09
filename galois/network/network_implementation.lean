@@ -1,3 +1,5 @@
+-- author: Ben Sherman
+
 import galois.map.fmap_func
 import galois.temporal.first
 import galois.temporal.LTS

@@ -313,16 +313,18 @@ end
 lemma greatest_fixpointn_fixed 
   {F : subset A → subset A}
   (Fcont : chain_cocont F)
-  (Fmono : monotone F)
   : F (greatest_fixpointn F) = greatest_fixpointn F
 := begin
 apply included_eq, apply greatest_fixpointn_prefixed,
+apply chain_cocont_mono,
 assumption,
 unfold greatest_fixpointn,
 rw Fcont, intros x Hx,
 intros n, dsimp [function.comp],
 specialize (Hx n.succ), apply Hx,
-intros, apply iterate_mono_tt_n; assumption,
+intros, apply iterate_mono_tt_n,
+apply chain_cocont_mono, assumption,
+assumption
 end
 
 lemma le_greatest_fixpoint {P : subset A}
@@ -428,7 +430,6 @@ apply included_eq,
 apply le_greatest_fixpoint,
 rw (greatest_fixpointn_fixed Fcoc),
 apply (included_refl (greatest_fixpointn F)),
-apply chain_cocont_mono, assumption,
 apply (greatest_fixpoint_le _ _), 
 apply chain_cocont_mono, assumption,
 intros Q HQ, intros x Qx,

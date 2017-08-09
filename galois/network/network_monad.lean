@@ -1,4 +1,5 @@
 /-
+author: Ben Sherman
 
 This file introduces a class `network_monad` that extends monad with
 operations for communicating over sockets.  These sockets can send and
