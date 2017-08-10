@@ -7,9 +7,15 @@ namespace subset
 section
 parameter {A : Type u}
 
+/-- Given a function over subsets, the greatest fixpoint
+    for that function is the union of all sets that might
+    be produced by applying the fixpoint-/
 def greatest_fixpoint (F : subset A → subset A) : subset A
   := union_st (λ P, P ≤ F P)
 
+/-- Given a function over subsets, the greatest fixpoint
+    for that function is the intersection of all sets that might
+    be produced by applying the fixpoint-/
 def least_fixpoint (F : subset A → subset A) : subset A
 := intersection_st (λ P, F P ≤ P)
 
@@ -17,6 +23,9 @@ section
 parameters (F : subset A → subset A) (Fmono : monotone F)
 include Fmono
 
+/-- Applying F to a greatest fixpoint of F results in
+    a set that includes the greatest fixpoint 
+    this should likely be an internal only lemma -/
 lemma greatest_fixpoint_postfixed 
   : greatest_fixpoint F ≤ F (greatest_fixpoint F)
 := begin
@@ -25,6 +34,8 @@ apply a, assumption, clear a_1 tr,
 intros x H, constructor; assumption,
 end
 
+/-- Applying F to a greatest fixpoint of F results in
+    the same set --/
 lemma greatest_fixpoint_fixed 
   : greatest_fixpoint F = F (greatest_fixpoint F)
 := begin
