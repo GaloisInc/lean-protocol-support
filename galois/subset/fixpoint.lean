@@ -47,6 +47,7 @@ apply included_eq,
 }
 end
 
+/-- Applying a function to the fixpoint is no smaller than the fixpoint -/
 lemma least_fixpoint_prefixed 
   : F (least_fixpoint F) ≤ least_fixpoint F
 := begin
@@ -55,6 +56,7 @@ intros x H P HP, apply HP, revert x H,
 apply Fmono, intros x H, apply H, dsimp, assumption
 end
 
+/-- Applying a function to the fixpoint does not change the set -/
 lemma least_fixpoint_fixed
   : F (least_fixpoint F) = least_fixpoint F
 := begin
@@ -81,9 +83,12 @@ constructor; intros z Hz;
 specialize (H z Hz); induction H with H1 H2; assumption
 end
 
-def finitary (F : subset A → subset A) :=
-  ∀ x, F x = union_ix_st (λ xs, from_list xs ≤ x) (λ xs, F (from_list xs))
+/-- A function F from subset to subset is finitary if
+    an arbitrary application can be described as the union of some number of applications to finite arguments -/
+def finitary (F : subset A → subset A) : Prop :=
+  ∀ x, F x = union_ix_st (λ xs : list A, from_list xs ≤ x) (λ xs, F (from_list xs))
 
+/-- Finitary functions are monotone -/
 lemma finitary_monotone (F : subset A → subset A)
   (Ffin : finitary F) : monotone F :=
 begin
@@ -94,6 +99,7 @@ induction H,
 constructor, apply included_trans; assumption,
 assumption,
 end
+
 
 def chain_cont (F : subset A → subset A) :=
   ∀ (f : ℕ → subset A),
@@ -201,14 +207,20 @@ rw imp_and, rw ← chain_cocont_intersection,
 rw imp_and at PQ, rw ← PQ, assumption, assumption
 end
 
-
+/-- Repeatedly apply a function f starting with x. -/
 def iterate {A : Type u} (f : A → A) (x : A) : ℕ → A
 | 0 := x
 | (nat.succ n) := f (iterate n)
 
+/-- The least fixpoint is described by the union of all sets
+    indexed by the number of iterations
+-/
 def least_fixpointn (F : subset A → subset A) : subset A
   := union_ix (iterate F ff)
 
+/-- The greatest fixpoint is described by the intersection of all sets
+    indexed by the number of iterations
+-/
 def greatest_fixpointn (F : subset A → subset A) : subset A
   := intersection_ix (iterate F tt)
 
@@ -431,7 +443,7 @@ apply iterate_mono_ff_n,
 apply chain_cont_mono, assumption, assumption
 end
 
-
+/-- The fixpoint defined by greatest_fixpointn is actually a greatest fixpoint-/
 lemma greatest_fixpointn_same
   {F : subset A → subset A}
   (Fcoc : chain_cocont F)
@@ -452,7 +464,7 @@ apply chain_cocont_mono, assumption,
 tactic.swap, rw (HQx n) at Qx,
 assumption, apply tt_top
 end
-
+/-- The fixpoint defined by least_fixpointn is actually a least fixpoint-/
 lemma least_fixpointn_same
   {F : subset A → subset A}
   (Fchain_cont : chain_cont F)
