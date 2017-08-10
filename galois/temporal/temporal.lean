@@ -496,11 +496,15 @@ apply nat.lt_succ_ne_lt,
 apply nat.succ_lt_succ, assumption, assumption, }
 end
 
-lemma not_eventually_implies_always_not {T : Type u} (P : tProp T)
-  : ⊩ tNot (◇ P) => □ (tNot P)
+lemma not_eventually_always_not {T : Type u} (P : tProp T)
+  : tNot (◇ P) = □ (tNot P)
 := begin
-intros tr contra n contra',
-apply contra, constructor, assumption,
+apply included_eq,
+{ intros tr contra n contra',
+apply contra, constructor, assumption, },
+{ intros tr H contra, 
+  induction contra with k Hk,
+  apply (H k), assumption }
 end
 
 end temporal

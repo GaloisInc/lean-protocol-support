@@ -1,3 +1,5 @@
+-- author: Ben Sherman
+
 import galois.network.network_monad
 
 namespace network

@@ -126,6 +126,18 @@ lemma curry {T : Type u} {P Q R : tProp T}
 intros tr HP HQ, apply H, constructor; assumption
 end
 
+lemma weak_until_unfold {T : Type u} (P Q : tProp T)
+  [decidable_pred Q]
+  : P 𝓦 Q = (Q ∪ (P ∩ ◯ (P 𝓦 Q)))
+:= begin
+have H : P 𝓦 Q = until_fixpoint P Q (P 𝓦 Q),
+unfold weak_until,
+symmetry, apply greatest_fixpointn_fixed,
+apply continuous_chain_cocont,
+apply until_fixpoint_continuous,
+apply H
+end
+
 lemma weak_until_not_always_lemma 
   {T : Type u} (P Q : tProp T) (n : ℕ)
   : ⊩ □ (tNot Q)
@@ -241,8 +253,33 @@ have H := eventually_first_dec _ _ evQ,
 clear evQ,
 unfold first at H,
 induction H with k Hk, induction Hk with Hkl Hkr,
-constructor, split, assumption,
-admit
+constructor, split, assumption, clear Hkl,
+revert tr,
+induction k; intros,
+{ exfalso, apply nat.not_lt_zero, assumption, },
+{
+cases n' with n' n',
+specialize (Hkr _ a_1),
+specialize (PWQ 1),
+simp [iterate] at PWQ,
+unfold until_fixpoint at PWQ,
+induction PWQ with H H,
+exfalso, apply Hkr, assumption,
+induction H with Hl Hr,
+rw delayn_zero, assumption,
+rw ← (@delayn_combine _ 1 n'),
+apply ih_1, rw weak_until_unfold at PWQ,
+induction PWQ with H H,
+exfalso, apply Hkr, tactic.swap,
+rw delayn_zero, assumption,
+apply nat.zero_lt_succ,
+induction H with Hl Hr,
+assumption,
+intros,
+rw delayn_combine, apply Hkr,
+rw nat.succ_lt_succ_iff, assumption,
+rw ← nat.succ_lt_succ_iff, assumption,
+}
 end
 
 lemma fair_strengthen_until {T : Type u}

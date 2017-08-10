@@ -1,3 +1,5 @@
+-- author: Ben Sherman
+
 import galois.network.network_implementation
        galois.temporal.fixpoint
        galois.temporal.classical
@@ -494,21 +496,19 @@ inductive will_poll {a : agent} : act a.state_type → Prop
   will_poll (act.poll ports sockets bound cont)
 
 section
-parameters (a_ip : ip) 
-  (a : agent)
+parameters {agents : map ip agent}
+  (a : agents.member)
   (P : poll_receive_label → Prop)
 
 lemma blocks_until_not_never_receives_always_polls
-  : ⊩ valid_trace (can_possibly_step a_ip a)
-    => (◇ (now (inLabel (agent_does a_ip polls))) 
-        𝓦 (now (inLabel (agent_does a_ip (receives P)))))
-    => □ (tNot (now (inLabel (agent_does a_ip (receives P)))))
-    => fair (now (inState (@will_poll a)))
+  : ⊩ valid_trace (@LTS agents)
+    => (◇ (now (inLabel (agent_does a.key polls))) 
+        𝓦 (now (inLabel (agent_does a.key (receives P)))))
+    => □ (tNot (now (inLabel (agent_does a.key (receives P)))))
+    => fair (now (inLabel (agent_does a.key polls)))
 := begin
-intros tr valid nows,
-admit
-end
-
+intros tr valid nows never,
+apply weak_until_not_always; assumption,
 end
 
 /--
@@ -531,15 +531,23 @@ theorem blocking_agent_eventually_receives_message {agents : map ip agent}
     => message_fairness_spec
     => (◇ (now (inLabel (agent_does a.key polls))) 
         𝓦 (now (inLabel (agent_does a.key (receives_message mess.snd)))))
-    => □ (tNot (now (inLabel (agent_does a.key (receives_message mess.snd)))))
     => now (inState (λ ss : system_state, 
          mess ∈ (ss.global_state a.key).messages))
     => ◇ (now (inLabel (agent_does a.key (receives_message mess.snd))))
 := begin
-intros tr valid fair mfair nowstate messstate H,
+intros tr valid fair mfair nowstate H,
 apply classical.not_always_not_implies_eventually,
 intros contra,
-admit
+have H' := blocks_until_not_never_receives_always_polls 
+  _ _ _ valid nowstate contra,
+specialize (mfair a mess H'),
+rw ← (delayn_zero tr) at H,
+specialize (mfair 0 H),
+revert mfair,
+rw ← not_eventually_always_not at contra,
+assumption,
+end
+
 end
 
 end network
