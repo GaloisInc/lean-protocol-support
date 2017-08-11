@@ -17,9 +17,17 @@ inductive poll_receive_label : Type
 | drop_connection : poll_receive_label
 | receive_message : message_t → poll_receive_label
 
+instance poll_receive_label_decidable_eq 
+  : decidable_eq poll_receive_label
+  := by tactic.mk_dec_eq_instance
+
 inductive poll_label : Type
 | timeout : poll_label
 | receive : time → remote_name → poll_receive_label → poll_label
+
+instance poll_label_decidable_eq 
+  : decidable_eq poll_label
+  := by tactic.mk_dec_eq_instance
 
 inductive agent_label : Type
   | update_own_state : agent_label
@@ -27,40 +35,11 @@ inductive agent_label : Type
   | send_message : remote_name → message_t → agent_label
   | poll : poll_label → agent_label
 
-
-/-- I'm trying to see how the decidable equality tactic
-   might work
--/
-def send_message_sf : simp_function [remote_name, message_t]
-  agent_label 
-  := agent_label.send_message
-
-lemma send_message_sf_inj :
-  ∀ xs ys, send_message_sf.ap xs = send_message_sf.ap ys → xs = ys
-:= begin
-intros xs ys H, unfold send_message_sf at H,
-dsimp [hlist] at xs ys,
-cases xs with x xs, cases xs with x1 x2,
-cases ys with y ys, cases ys with y1 y2,
-induction x2, induction y2,
-injection H, f_equal, assumption, f_equal,
-assumption,
-end
-
 /-- Decidable equality is straightforward, but currently it's
     difficult for me to automate.
 -/
-instance agent_label_decidable_eq : decidable_eq agent_label :=
-begin
-intros x y,
-induction x; induction y;
-  try { apply decidable.is_false, contradiction },
-{ apply decidable.is_true, reflexivity },
-{ apply decidable_eq_inj, tactic.interactive.constructor_inj, 
-  assumption, apply_instance },
-{ admit },
-{ admit }
-end
+instance agent_label_decidable_eq : decidable_eq agent_label
+  := by tactic.mk_dec_eq_instance
 
 inductive next_state_label : Type 1
   | agent_update : ip → agent_label → next_state_label

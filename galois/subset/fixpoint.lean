@@ -18,9 +18,6 @@ def continuous_inh :=
   ∀ (Ix : Type) [inhabited Ix] (f : Ix → subset A), 
     F (intersection_ix f) = intersection_ix (F ∘ f)
 
-def subcontinuous :=
-  ∀ (Ix : Type) (f : Ix → subset A), 
-    F (intersection_ix f) ≤ intersection_ix (F ∘ f)
 end
 
 section
@@ -293,23 +290,16 @@ unfold continuous_inh, intros Ix inh f, apply included_eq,
   induction H with Hl Hr, assumption, }
 end
 
-lemma or_subcontinuous_r (P : subset A)
-  : subcontinuous (bunion P)
-:= begin
-unfold subcontinuous, intros Ix f,
-intros x H ix, dsimp [function.comp],
-  induction H with H H,
-  apply or.inl, assumption,
-  apply or.inr, apply H,
-end
-
 lemma or_continuous_r (P : subset A)
   [decP : decidable_pred P]
   : continuous (bunion P)
 := begin
 unfold continuous, intros Ix f,
 apply included_eq,
-{ apply or_subcontinuous_r },
+{ intros x H ix, dsimp [function.comp],
+  induction H with H H,
+  apply or.inl, assumption,
+  apply or.inr, apply H, },
 { intros x Hx,
   have H := decP x, induction H with HP HP,
   { apply or.inr, intros n,
