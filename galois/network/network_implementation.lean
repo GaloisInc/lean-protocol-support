@@ -149,8 +149,8 @@ def next_agent_poll_state_from_label (a_ip : ip) (a : agent)
        match list.member_st_decide 
          (λ s : socket_info, s.server = a_ip ∧ s.new) incoming.sockets with
       | (sum.inl m) := 
-         let m' := list.member_st_to_member m in
-         let s := list.get_member m' in
+         let m' := m.to_member in
+         let s := m'.value in
          match list.check_member s.port ports with
          | (some portidx) := some (cont (poll_result.new_connection elapsed_fin portidx s.socket)
             , lookup_updatef a_ip (λ inc, {inc with sockets := list.update_member ({s with new := false}) _ m'})
@@ -164,8 +164,8 @@ def next_agent_poll_state_from_label (a_ip : ip) (a : agent)
       -- OOPS, need to fix: to receive message, I should already have been
       -- informed of the new connection that the message has transferred over
         match list.member_st_decide (λ p : socket × message_t, p.snd = mess) incoming.messages with
-        | (sum.inl idx) := let idx' := list.member_st_to_member idx in
-          let p := list.get_member idx' in
+        | (sum.inl idx) := let idx' := idx.to_member in
+          let p := idx'.value in
               match list.check_member p.fst sockets with --any other checks necessary?
               | (some sockidx) := some
               (cont (poll_result.message elapsed_fin sockidx mess)
@@ -235,9 +235,9 @@ def poll_result_to_label {ports : list port} {sockets : list socket}
 | (poll_result.new_connection elapsed prt sock) := 
     poll_label.receive elapsed.val sock poll_receive_label.new_connection
 | (poll_result.drop_connection elapsed sock) := 
-    poll_label.receive elapsed.val (list.get_member sock) poll_receive_label.drop_connection
+    poll_label.receive elapsed.val sock.value poll_receive_label.drop_connection
 | (poll_result.message elapsed sock mess) :=  
-   poll_label.receive elapsed.val (list.get_member sock)
+   poll_label.receive elapsed.val sock.value
      (poll_receive_label.receive_message mess)
 
 open temporal

@@ -24,7 +24,7 @@ end
 lemma nextn_continuous {T : Type u} (n : ℕ)
   : continuous (@nextn T n)
 := begin
-unfold continuous, intros Ix inh f,
+unfold continuous, intros Ix f,
 apply included_eq,
 { intros x H, intros ix,
   dsimp [function.comp], apply H, },
@@ -36,9 +36,9 @@ lemma next_continuous {T : Type u}
   : continuous (@next T) := nextn_continuous 1
 
 lemma always_fixpoint_continuous {T : Type u} (P : tProp T)
-  : continuous (always_fixpoint P)
+  : continuous_inh (always_fixpoint P)
 := begin
-unfold continuous, intros Ix inh f,
+unfold continuous_inh, intros Ix inh f,
 unfold always_fixpoint,
 rw next_continuous,
 unfold has_inter.inter, rw and_continuous_r,
@@ -56,9 +56,9 @@ end
 
 lemma until_fixpoint_continuous {T : Type u} (P Q : tProp T)
   [decidable_pred Q]
-  : continuous (until_fixpoint P Q)
+  : continuous_inh (until_fixpoint P Q)
 := begin
-unfold continuous, intros Ix inh f,
+unfold continuous_inh, intros Ix inh f,
 unfold until_fixpoint,
 rw next_continuous,
 unfold has_inter.inter, rw and_continuous_r,
@@ -242,7 +242,6 @@ have H := decQ tr, induction H with HQ HQ,
 { apply or.inl, assumption }
 end
 
-
 lemma eventually_strengthen_until {T : Type u}
   {P Q : tProp T}
   [decidable_pred Q]
@@ -307,6 +306,55 @@ induction HS with HS HS,
   constructor, assumption,
   unfold next nextn, apply ih_1, assumption,
   apply HSr }
+end
+
+lemma release_induction {T : Type u} (P Q : tProp T)
+  [decQ : decidable_pred Q]
+  : ⊩ (P => □ (tNot Q => P => (◯ P)) => Q 𝓡 P)
+:= begin
+intros tr H0 HS,
+apply weak_until_implies_release, assumption,
+apply weak_until_induction; assumption
+end
+
+lemma next_weak_until_always_loop_lemma {T : Type u}
+  (P Q : tProp T)
+: ⊩ □ (P=>◯ P𝓦Q) => □ (Q=>◯ P) => □ (P=>◯ P)
+:= begin
+intros tr PuntilQ QimpP n HP,
+specialize (PuntilQ n HP),
+specialize (PuntilQ 1), simp [iterate] at PuntilQ,
+unfold until_fixpoint at PuntilQ,
+induction PuntilQ with H H, apply QimpP, assumption,
+induction H with H H, assumption,
+end
+
+lemma next_weak_until_always_loop {T : Type u}
+  (P Q : tProp T)
+: ⊩ P => □ (P => ◯ P 𝓦 Q) => □ (Q => ◯ P) => □ P
+:= begin
+intros tr HP PuntilQ QimpP,
+apply temporal_induction, assumption,
+clear HP,
+apply next_weak_until_always_loop_lemma; assumption
+end
+
+lemma now_continuous {T : Type u}
+  : continuous (@now T)
+:= begin
+unfold continuous now later intersection_ix,
+dsimp [function.comp], intros,
+apply funext, intros tr, unfold now later,
+end
+
+lemma now_cocontinuous {T : Type u}
+  : cocontinuous (@now T)
+:= begin
+unfold cocontinuous now later intersection_ix,
+dsimp [function.comp], intros,
+apply funext, intros tr, unfold now later,
+apply propext, split; intros H; induction H;
+constructor; assumption,
 end
 
 end temporal

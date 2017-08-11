@@ -41,6 +41,16 @@ begin
 intros x, apply decP,
 end
 
+lemma inState_mono {S} {L} : subset.monotone (@inState S L Prop)
+:= begin
+intros P Q PQ x Hx, apply PQ, apply Hx
+end
+
+lemma inLabel_mono {S} {L} : subset.monotone (@inLabel S L Prop)
+:= begin
+intros P Q PQ x Hx, apply PQ, apply Hx
+end
+
 parameter (LTS : S → L → S → Prop)
 
 /--
@@ -99,7 +109,7 @@ end
 lemma prod_eta {A B} (x : A × B) : (x.fst, x.snd) = x
 := begin induction x, reflexivity end
 
-lemma invariant_holds_while (P : S → Prop) (Q : S × L → Prop)
+lemma invariant_holds_while {P : S → Prop} {Q : S × L → Prop}
   [decidable_pred Q]
   (H : ∀ s l s', LTS s l s' → ¬ Q (s, l) → P s → P s')
   : ⊩ valid_trace => now (inState P)

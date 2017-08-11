@@ -6,6 +6,22 @@ import galois.network.network_implementation
 
 universes u
 
+/-- reflexive-transitive closure of a relation -/
+inductive RTclosure {A : Type u} (R : A → A → Prop) (x : A) : A → Prop
+  | refl {} : RTclosure x
+  | step {} : ∀ {y z : A}, R y z → RTclosure y → RTclosure z
+
+namespace RTclosure
+
+def stepL {A : Type u} {R : A → A → Prop} {x y : A} (r : R x y)
+  : ∀ {z : A}, RTclosure R y z → RTclosure R x z
+:= begin
+intros z s, induction s, apply step, assumption, apply refl,
+apply step; assumption,
+end
+
+end RTclosure
+
 namespace network
 
 open temporal
@@ -13,7 +29,7 @@ open temporal
 section
 parameter {agents : map ip agent}
 
-instance decidable_agent_does (a_ip : ip) {P}
+instance decidable_agent_does (a_ip : ip) P
   [decidable_pred P] : decidable_pred (agent_does a_ip P)
 := begin 
 intros l, induction l with a_ip' l,
@@ -172,10 +188,10 @@ apply prove_always,
 intros, apply return_implies_starts_loop; assumption,
 end
 
-/- It feels like it should be possible to auto-generate something like
-   this, which says when one term is directly a strict subterm of another
-   (using if strictly_smaller^+ x y, then we can make a recursive call
-   from x to y)
+/-- It feels like it should be possible to auto-generate something like
+    this, which says when one term is directly a strict subterm of another
+    (using if strictly_smaller^+ x y, then we can make a recursive call
+    from x to y)
 -/
 inductive strictly_smaller {A : Type u} (a : act A) : act A → Prop
 | connect : ∀ (rn : remote_name) (cont : socket → act A)
@@ -187,7 +203,7 @@ inductive strictly_smaller {A : Type u} (a : act A) : act A → Prop
       (x : poll_result ports sockets bound) (H : cont x = a), 
       strictly_smaller (act.poll ports sockets bound cont)
 
-/- Indeed, this relation is well-founded -/
+/-- Indeed, this relation is well-founded -/
 lemma strictly_smaller_wf {A : Type u} : well_founded (@strictly_smaller A)
 := begin
 constructor,
@@ -198,19 +214,24 @@ intros x, induction x; constructor; intros,
 { cases a_1, subst y, apply ih_1 }
 end
 
+def may_step_to {A : Type u} (x y : act A) := RTclosure strictly_smaller y x
+
+inductive has_state {a : agent} (P : a.state_type → Prop) (z : act a.state_type) : Prop
+| mk : ∀ (st : a.state_type), P st → may_step_to (a.loop st) z → has_state
+
 /-- When an agent takes a step, if the code it had to run was an
     `act.return`, it returns to the top of its loop, and otherwise,
     it "proceeds" down its current code, that is, its new state for the
     code it will run is strictly smaller than it just was, since we're
     using the continuation-passing representation.
 -/
-lemma size_decreases {ag : agents.member} (a_ip : ip)
+lemma size_decreases {ag : agents.member}
   {la : agent_label}
   {next' : act ag.value.state_type}
   {updatef : global_state_t → global_state_t}
   {s : system_state}
-  (H : next_agent_state_from_label a_ip ag.value (s.local_state ag)
-        (s.global_state a_ip) la = some (next', updatef))
+  (H : next_agent_state_from_label ag.key ag.value (s.local_state ag)
+        (s.global_state ag.key) la = some (next', updatef))
   : (match (s.local_state ag) with 
   | act.return x := la = agent_label.update_own_state ∧ next' = ag.value.loop x
   | _ := strictly_smaller next' (s.local_state ag)
@@ -262,10 +283,10 @@ induction la; simp [next_agent_state_from_label] at H,
         try { contradiction },
       { -- new connection 
         cases (list.member_st_decide 
-         (λ s : socket_info, s.server = a_ip ∧ s.new) (s.global_state a_ip).sockets);
+         (λ s : socket_info, s.server = ag.key ∧ s.new) (s.global_state ag.key).sockets);
            dsimp [next_agent_poll_state_from_label] at H;
            try { contradiction },
-        cases (list.check_member ((list.get_member (list.member_st_to_member a_3)).port) ports);
+        cases (list.check_member ((a_3.to_member).value.port) ports);
            dsimp [next_agent_poll_state_from_label] at H;
            try { contradiction },
         injection H with H', clear H, injection H' with H1 H2,
@@ -273,10 +294,10 @@ induction la; simp [next_agent_state_from_label] at H,
       },
       { -- new message
         cases ((list.member_st_decide 
-          (λ (p : socket × message_t), p.snd = a_3) ((s.global_state a_ip).messages)));
+          (λ (p : socket × message_t), p.snd = a_3) ((s.global_state ag.key).messages)));
           dsimp [next_agent_poll_state_from_label] at H;
           try { contradiction },
-        cases (list.check_member ((list.get_member (list.member_st_to_member a_4)).fst) sockets);
+        cases (list.check_member (a_4.to_member.value.fst) sockets);
           dsimp [next_agent_poll_state_from_label] at H;
           try { contradiction },
         injection H with H', clear H, injection H' with H1 H2,
@@ -289,13 +310,13 @@ induction la; simp [next_agent_state_from_label] at H,
 }
 end
 
-lemma size_decreases' {ag : agents.member} (a_ip : ip)
+lemma size_decreases' {ag : agents.member}
   {la : agent_label}
   {next' : act ag.value.state_type}
   {updatef : global_state_t → global_state_t}
   {s : system_state}
-  (H : next_agent_state_from_label a_ip ag.value (s.local_state ag)
-        (s.global_state a_ip) la = some (next', updatef))
+  (H : next_agent_state_from_label ag.key ag.value (s.local_state ag)
+        (s.global_state ag.key) la = some (next', updatef))
   : strictly_smaller next' (s.local_state ag) 
   ∨ la = agent_label.update_own_state ∧ ∃ x, next' = ag.value.loop x
 := begin
@@ -355,13 +376,109 @@ lemma local_state_stays_constant_ltl (a : agents.member)
 := begin
 intros tr validtr n Pst,
 unfold inLocalState,
-apply (invariant_holds_while LTS _ _ _ (delayn n tr)),
+apply (invariant_holds_while LTS _ (delayn n tr)),
 apply valid_trace_always, assumption, assumption,
 apply_instance,
 intros,
 have H := local_state_stays_constant _ a_1 a_2,
 rw ← H, assumption,
 end
+
+lemma size_decreases_label : ∀ 
+  {a : mapd.member agents}
+  {ss ss' : system_state}
+  {l : next_state_label}
+  (HLTS : LTS ss l ss')
+  (nogo : ¬ (agent_does (a.key) (eq agent_label.update_own_state)) l)
+  (H : agent_does (a.key) (λ (_x : agent_label), true) l)
+  , strictly_smaller (ss'.local_state a) (ss.local_state a)
+:= begin
+intros,
+apply_in H agent_does_invert,
+induction H with la Hla, induction Hla with tt Hla,
+clear tt, subst l,
+apply_in HLTS agent_update_invert_st',
+induction HLTS,
+have H' := size_decreases' Hagl,
+induction H',
+{ subst ss', dsimp, rw lookup_update_refl, assumption },
+{ induction a_1 with H1 H2, subst la,
+  exfalso, apply nogo, constructor, reflexivity }
+end
+
+lemma stuck_in_loop_iter {a : agents.member}
+  (s : act a.value.state_type)
+  : ⊩ valid_trace LTS
+   => now (inLocalState a (eq s))
+   => (◯ (now (inLocalState a (may_step_to s)))
+     𝓦
+     now (inLabel (agent_does a.key (eq agent_label.update_own_state))))
+:= begin
+intros tr valid now,
+apply invariant_holds_while; try { assumption },
+tactic.swap, apply now_mono, tactic.swap, assumption,
+unfold inLocalState inState,
+apply inState_mono, clear now valid tr,
+intros x Hx, subst s, constructor, 
+intros ss l ss' HLTS nogo,
+unfold may_step_to,
+have H := decide (agent_does a.key (λ _, true) l), 
+induction H with H H,
+{ have H := local_state_stays_constant _ HLTS H,
+  rw H, intros x, assumption
+},
+{ apply (RTclosure.stepL _),
+  apply (size_decreases_label HLTS nogo H),
+}
+end
+
+lemma starts_loop_inter {a : agents.member}
+  : now (inLocalState a starts_loop)
+  = subset.union_ix (λ z : a.value.state_type, 
+     now (inLocalState a (eq (a.value.loop z))))
+:= begin
+rw ← now_cocontinuous, f_equal,
+apply funext, intros x,
+unfold inLocalState inState,
+unfold starts_loop,
+apply propext, split; intros H; induction H,
+constructor, trivial, unfold inState, symmetry, assumption,
+constructor, symmetry, assumption,
+end
+
+/-- Plan: use next_weak_until_always_loop
+   with lemmas:
+   stuck_in_loop_iter
+   return_implies_starts_loop_ltl
+-/
+lemma stuck_in_loop {a : agents.member}
+  : ⊩ valid_trace LTS
+   => now (inLocalState a starts_loop)
+   => □ (subset.union_ix (λ z, 
+      (now (inLocalState a (may_step_to (a.value.loop z))))))
+:= begin
+rw starts_loop_inter,
+intros tr valid now,
+apply (next_weak_until_always_loop _ _ _ _ _ _),
+tactic.swap, revert now,
+apply subset.union_ix_mono,
+intros H, apply now_mono, apply inState_mono,
+intros x Hx, rw Hx, apply RTclosure.refl,
+tactic.swap,
+intros n, 
+-- it's not yet in the right shape to apply the below lemma
+-- apply stuck_in_loop_iter,
+admit, tactic.swap,
+intros n HP,
+apply (@next_mono _ (temporal.now (inLocalState a starts_loop)) _ _ _ _),
+rw starts_loop_inter,
+apply subset.union_ix_mono, intros ix,
+apply now_mono, apply inState_mono,
+intros x Hx, rw Hx, apply RTclosure.refl,
+apply return_implies_starts_loop_ltl,
+assumption, apply HP
+end
+
 
 /-- If we take a step, then either our "next" code will be strictly
     smaller than it just was, or we will be at the top of a loop
@@ -524,28 +641,41 @@ end
    Combining this with the `H` specified above, we find that we
    eventually do receive the message, a contradiction.
 -/
-theorem blocking_agent_eventually_receives_message {agents : map ip agent}
-  (a : agents.member) (mess : (socket × message_t))
+theorem blocking_agent_eventually_receives_message
   : ⊩ valid_trace (@LTS agents)
     => fairness_spec
     => message_fairness_spec
     => (◇ (now (inLabel (agent_does a.key polls))) 
-        𝓦 (now (inLabel (agent_does a.key (receives_message mess.snd)))))
-    => now (inState (λ ss : system_state, 
+        𝓦 (now (inLabel (agent_does a.key (receives P)))))
+    => now (inState (λ ss : system_state, ∃ mess : socket × message_t,
+         P (poll_receive_label.receive_message mess.snd) ∧
          mess ∈ (ss.global_state a.key).messages))
-    => ◇ (now (inLabel (agent_does a.key (receives_message mess.snd))))
+    => ◇ (now (inLabel (agent_does a.key (receives P))))
 := begin
 intros tr valid fair mfair nowstate H,
 apply classical.not_always_not_implies_eventually,
 intros contra,
 have H' := blocks_until_not_never_receives_always_polls 
   _ _ _ valid nowstate contra,
+induction H with mess Hmess,
+induction Hmess with Hmess1 Hmess2,
 specialize (mfair a mess H'),
-rw ← (delayn_zero tr) at H,
-specialize (mfair 0 H),
-revert mfair,
+rw ← (delayn_zero tr) at Hmess2,
+specialize (mfair 0 Hmess2),
 rw ← not_eventually_always_not at contra,
-assumption,
+apply contra,
+revert mfair, rw delayn_zero,
+apply eventually_mono,
+intros x H,
+unfold now later inLabel at H,
+unfold now later inLabel,
+apply_in H agent_does_invert,
+induction H with la Hla,
+induction Hla with Hlal Hlar,
+rw Hlar,
+constructor,
+induction Hlal,
+constructor, rw ← a_1, assumption
 end
 
 end

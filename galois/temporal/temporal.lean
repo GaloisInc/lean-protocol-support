@@ -139,18 +139,36 @@ infixr `<=>` : 50 := tIff
 
 /-- P holds at the nth step of some trace --/
 @[ltl]
-def later {T : Type u} (P : T -> Prop) (n: nat) : tProp T :=
+def later {T : Type u} (P : subset T) (n: nat) : tProp T :=
 λ (tr : trace T), P (tr n)
 
 /-- P holds at the first step of trace --/
 @[ltl]
 def now {T : Type u} (P: T -> Prop) := later P 0
 
+/-- later maintains decidability-/
+instance later_decidable {T : Type u} (P : T → Prop) 
+  (n : ℕ) [decidable_pred P]
+  : decidable_pred (later P n)
+:= begin
+unfold later, apply_instance,
+end
+
 /-- now maintains decidability-/
 instance now_decidable {T : Type u} (P : T → Prop) [decidable_pred P]
   : decidable_pred (now P)
 := begin
-unfold now later, apply_instance,
+unfold now, apply_instance,
+end
+
+lemma later_mono (T : Type u) (n : ℕ) : monotone (λ P, @later T P n) :=
+begin
+intros P Q PQ tr, apply PQ,
+end
+
+lemma now_mono (T : Type u) : monotone (@now T) :=
+begin
+unfold monotone now, apply later_mono,
 end
 
 /-- Fairness constraints on a trace require that

@@ -2,7 +2,7 @@ import galois.tactic
        galois.list.preds
 
 universes u v
-def subset (A : Type u) := A → Prop
+def subset (A : Sort u) := A → Prop
 
 namespace subset
 section
@@ -87,9 +87,6 @@ induction H with P FP Px,
 constructor, apply H, assumption, assumption
 end
 
-def monotone (F : subset A → subset A) :=
-  ∀ P Q, P ≤ Q → F P ≤ F Q
-
 lemma tt_top (P : subset A) : P ≤ tt :=
 begin intros x H, constructor end
 
@@ -127,6 +124,13 @@ apply union_ix_st_mono, intros x H', apply H',
 assumption
 end
 
+lemma intersection_ix_mono {Ix : Type v} {F G : Ix → subset A}
+  (H : ∀ ix : Ix, F ix ≤ G ix)
+  : intersection_ix F ≤ intersection_ix G
+:= begin
+intros x H' ix, apply H, apply H'
+end
+
 
 lemma imp_or (P Q : subset A)
   : (P ≤ Q) = (P ∪ Q = Q)
@@ -150,6 +154,22 @@ apply propext, split; intros H,
   assumption }
 end
 
+lemma and_distr_l {A : Type u} (P Q R : subset A)
+ : (P ∩ Q) ∪ (P ∩ R) = P ∩ (Q ∪ R)
+:= begin
+apply included_eq; intros x Hx,
+induction Hx with H H, induction H with H H',
+constructor, assumption, apply or.inl, assumption,
+induction H with H H', constructor, assumption,
+apply or.inr, assumption,
+induction Hx with H H', induction H' with H' H',
+apply or.inl, constructor; assumption,
+apply or.inr, constructor; assumption
 end
+
+end
+
+def monotone {A : Type u} {B : Type v} (F : subset A → subset B) :=
+  ∀ P Q, P ≤ Q → F P ≤ F Q
 
 end subset

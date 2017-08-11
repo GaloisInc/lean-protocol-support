@@ -1,8 +1,27 @@
 import .subset
 
-universes u
+universes u v
 
 namespace subset
+
+section
+parameters {A : Type u} {B : Type v} (F : subset A → subset B)
+def cocontinuous :=
+  ∀ (Ix : Type) (f : Ix → subset A), 
+    F (union_ix f) = union_ix (F ∘ f)
+
+def continuous :=
+  ∀ (Ix : Type) (f : Ix → subset A), 
+    F (intersection_ix f) = intersection_ix (F ∘ f)
+
+def continuous_inh :=
+  ∀ (Ix : Type) [inhabited Ix] (f : Ix → subset A), 
+    F (intersection_ix f) = intersection_ix (F ∘ f)
+
+def subcontinuous :=
+  ∀ (Ix : Type) (f : Ix → subset A), 
+    F (intersection_ix f) ≤ intersection_ix (F ∘ f)
+end
 
 section
 parameter {A : Type u}
@@ -131,8 +150,7 @@ lemma chain_cont_union {F : subset A → subset A}
 unfold chain_cont at H,
 specialize (H (subset.simple_chain P Q) (simple_chain_mono PQ)),
 transitivity (F (union_ix (subset.simple_chain P Q))),
--- f_equal -- TODO: FIX, the tactic isn't working here
-apply congr_arg,
+f_equal,
 apply included_eq, rw imp_or at PQ, rw PQ,
 intros x Qx, apply (union_ix_st.mk 1),
 trivial, dsimp [subset.simple_chain], assumption,
@@ -224,20 +242,9 @@ tactic.swap, assumption, clear H x,
 intros x H, apply H,
 end
 
-def cocontinuous (F : subset A → subset A) :=
-  ∀ (Ix : Type) [inhabited Ix] (f : Ix → subset A), 
-    F (union_ix f) = union_ix (F ∘ f)
-
-def continuous (F : subset A → subset A) :=
-  ∀ (Ix : Type) [inhabited Ix] (f : Ix → subset A), 
-    F (intersection_ix f) = intersection_ix (F ∘ f)
-
-def subcontinuous (F : subset A → subset A) :=
-  ∀ (Ix : Type) [inhabited Ix] (f : Ix → subset A), 
-    F (intersection_ix f) ≤ intersection_ix (F ∘ f)
 
 lemma continuous_chain_cocont {F : subset A → subset A}
-  (H : continuous F) : chain_cocont F :=
+  (H : continuous_inh F) : chain_cocont F :=
 begin
 intros f fmono, apply H
 end
@@ -249,9 +256,9 @@ intros f fmono, apply H
 end
 
 lemma and_continuous_r (P : subset A) 
-  : continuous (bintersection P)
+  : continuous_inh (bintersection P)
 := begin
-unfold continuous, intros Ix inh f, apply included_eq,
+unfold continuous_inh, intros Ix inh f, apply included_eq,
 { intros x H ix, dsimp [function.comp],
   induction H with Hl Hr, constructor, assumption,
   apply Hr  },
@@ -266,7 +273,7 @@ end
 lemma or_subcontinuous_r (P : subset A)
   : subcontinuous (bunion P)
 := begin
-unfold subcontinuous, intros Ix inh f,
+unfold subcontinuous, intros Ix f,
 intros x H ix, dsimp [function.comp],
   induction H with H H,
   apply or.inl, assumption,
@@ -277,7 +284,7 @@ lemma or_continuous_r (P : subset A)
   [decP : decidable_pred P]
   : continuous (bunion P)
 := begin
-unfold continuous, intros Ix inh f,
+unfold continuous, intros Ix f,
 apply included_eq,
 { apply or_subcontinuous_r },
 { intros x Hx,
