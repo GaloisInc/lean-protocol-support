@@ -409,17 +409,13 @@ end
 lemma stuck_in_loop_iter {a : agents.member}
   (s : act a.value.state_type)
   : ⊩ valid_trace LTS
-   => now (inLocalState a (eq s))
+   => now (inLocalState a (may_step_to s))
    => (◯ (now (inLocalState a (may_step_to s)))
      𝓦
      now (inLabel (agent_does a.key (eq agent_label.update_own_state))))
 := begin
 intros tr valid now,
 apply invariant_holds_while; try { assumption },
-tactic.swap, apply now_mono, tactic.swap, assumption,
-unfold inLocalState inState,
-apply inState_mono, clear now valid tr,
-intros x Hx, subst s, constructor, 
 intros ss l ss' HLTS nogo,
 unfold may_step_to,
 have H := decide (agent_does a.key (λ _, true) l), 
@@ -432,7 +428,7 @@ induction H with H H,
 }
 end
 
-lemma starts_loop_inter {a : agents.member}
+lemma starts_loop_union {a : agents.member}
   : now (inLocalState a starts_loop)
   = subset.union_ix (λ z : a.value.state_type, 
      now (inLocalState a (eq (a.value.loop z))))
@@ -446,7 +442,11 @@ constructor, trivial, unfold inState, symmetry, assumption,
 constructor, symmetry, assumption,
 end
 
-/-- Plan: use next_weak_until_always_loop
+/-- Once an agent hits the start of its loop,
+    it will always be in some code "descended" from
+    its loop.
+
+   High-level description: use next_weak_until_always_loop
    with lemmas:
    stuck_in_loop_iter
    return_implies_starts_loop_ltl
@@ -457,7 +457,7 @@ lemma stuck_in_loop {a : agents.member}
    => □ (subset.union_ix (λ z, 
       (now (inLocalState a (may_step_to (a.value.loop z))))))
 := begin
-rw starts_loop_inter,
+rw starts_loop_union,
 intros tr valid now,
 apply (next_weak_until_always_loop _ _ _ _ _ _),
 tactic.swap, revert now,
@@ -466,12 +466,20 @@ intros H, apply now_mono, apply inState_mono,
 intros x Hx, rw Hx, apply RTclosure.refl,
 tactic.swap,
 intros n, 
+rw next_cocontinuous,
+rw subset.tImp_cocontinuous_l,
+intros s Hnow,
 -- it's not yet in the right shape to apply the below lemma
 -- apply stuck_in_loop_iter,
-admit, tactic.swap,
+apply weak_until_mono, tactic.swap,
+apply stuck_in_loop_iter,
+apply valid_trace_always, assumption,
+assumption, intros x Hx,
+constructor, trivial, assumption,
+tactic.swap,
 intros n HP,
 apply (@next_mono _ (temporal.now (inLocalState a starts_loop)) _ _ _ _),
-rw starts_loop_inter,
+rw starts_loop_union,
 apply subset.union_ix_mono, intros ix,
 apply now_mono, apply inState_mono,
 intros x Hx, rw Hx, apply RTclosure.refl,

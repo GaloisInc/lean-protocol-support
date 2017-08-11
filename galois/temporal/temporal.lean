@@ -120,15 +120,8 @@ def first {T : Type u} (P: tProp T) : tProp T := tNot P 𝓤 P
 
 
 @[ltl, tImp]
-def tInj2 {T: Type u} (R : Prop -> Prop -> Prop) (P Q : tProp T) :=
-λ (tr : trace T), R (P tr) (Q tr)
-
-/-- Lifting of prop implication --/
-@[ltl, tImp]
-def tImp {T : Type u} (P Q : tProp T) : tProp T :=
-tInj2 implies P Q
-
-infixr `=>` : 50 := tImp
+def tInj2 {T: Type u} (R : Prop -> Prop -> Prop) (P Q : subset T) :=
+λ (tr : T), R (P tr) (Q tr)
 
 /-- Lifting of iff --/
 @[ltl, tImp]
@@ -250,8 +243,7 @@ end
 lemma always_tImp : forall {T : Type u} (P Q : tProp T),
 (⊩ □ (P => Q)) -> (⊩ □ P => □ Q) :=
 begin
-simp with ltl,
-intros, unfold implies, intros, apply a, apply a_1
+intros, intros H n, apply a, apply H,
 end
 
 lemma always_tautology {T : Type u} (P : tProp T) :
@@ -261,13 +253,10 @@ intros, intros n, apply a,
 end
 
 /-- pull out top level implication --/
-lemma imp_e : forall {T : Type u} (P Q : tProp T),
+lemma imp_e : ∀ {T : Type u} (P Q : tProp T),
 (⊩ (P => Q)) -> ((⊩ P) -> (⊩ Q)) :=
 begin
-intros,
- {simp [tImp, tInj2, implies] at a,
-    apply a,
-    apply a_1},
+intros, apply a, apply a_1
 end
 
 lemma always_mono {T : Type u} (P Q : tProp T)

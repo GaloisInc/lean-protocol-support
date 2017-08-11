@@ -10,6 +10,10 @@ def cocontinuous :=
   ∀ (Ix : Type) (f : Ix → subset A), 
     F (union_ix f) = union_ix (F ∘ f)
 
+def cocontinuous_inh :=
+  ∀ (Ix : Type) [inhabited Ix] (f : Ix → subset A), 
+    F (union_ix f) = union_ix (F ∘ f)
+
 def continuous :=
   ∀ (Ix : Type) (f : Ix → subset A), 
     F (intersection_ix f) = intersection_ix (F ∘ f)
@@ -290,6 +294,19 @@ unfold continuous_inh, intros Ix inh f, apply included_eq,
   induction H with Hl Hr, assumption, }
 end
 
+lemma and_cocontinuous_r (P : subset A) 
+  : cocontinuous (bintersection P)
+:= begin
+unfold cocontinuous, intros Ix f, apply included_eq,
+{ intros x H, dsimp [function.comp],
+  induction H with Hl Hr, induction Hr, 
+  constructor, trivial, constructor; assumption,
+},
+{ intros x H, induction H, induction a_1, constructor,
+  assumption, constructor; assumption
+}
+end
+
 lemma or_continuous_r (P : subset A)
   [decP : decidable_pred P]
   : continuous (bunion P)
@@ -306,6 +323,24 @@ apply included_eq,
     specialize (Hx n), induction Hx with Hl Hr,
     contradiction, assumption },
   { apply or.inl, assumption }
+}
+end
+
+lemma or_cocontinuous_r (P : subset A)
+  : cocontinuous_inh (bunion P)
+:= begin
+unfold cocontinuous_inh, intros Ix inh f,
+apply included_eq,
+{ intros x H, dsimp [function.comp],
+  induction H with H H,
+  constructor, trivial, apply or.inl,
+  assumption, apply inh.default,
+  induction H, constructor, trivial,
+  apply or.inr, assumption },
+{ intros x Hx,
+  induction Hx with ix _ H', induction H',
+  apply or.inl, assumption,
+  apply or.inr, constructor, trivial, assumption,
 }
 end
 
@@ -534,6 +569,17 @@ intros x H,
   intros P x H, induction H with Hl Hr, apply Hr,
   }
 end
+
+lemma tImp_cocontinuous_l {Ix : Type} 
+  (P : Ix → subset A) (Q : subset A)
+  : (union_ix P => Q) = intersection_ix (λ ix, P ix => Q)
+:= begin 
+apply included_eq; intros x Hx,
+{ intros n Pn, apply Hx,
+  constructor, trivial, assumption },
+{ intros H, induction H, apply Hx, assumption }
+end
+
 
 end
 

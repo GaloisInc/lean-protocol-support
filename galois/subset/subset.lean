@@ -26,6 +26,12 @@ def bintersection (P Q : subset A) := λ x, P x ∧ Q x
 /-- The union of two subsets contains all members of both-/
 def bunion (P Q : subset A) := λ x, P x ∨ Q x
 
+/-- Lifting of prop implication --/
+def tImp {T : Type u} (P Q : subset T) : subset T :=
+  λ x, P x → Q x
+
+infixr `=>` : 50 := tImp
+
 
 instance : has_union (subset A)
   := ⟨ bunion ⟩
@@ -189,7 +195,7 @@ apply propext, split; intros H,
   assumption }
 end
 
-lemma and_distr_l {A : Type u} (P Q R : subset A)
+lemma and_distr_l (P Q R : subset A)
  : (P ∩ Q) ∪ (P ∩ R) = P ∩ (Q ∪ R)
 := begin
 apply included_eq; intros x Hx,
@@ -200,6 +206,12 @@ apply or.inr, assumption,
 induction Hx with H H', induction H' with H' H',
 apply or.inl, constructor; assumption,
 apply or.inr, constructor; assumption
+end
+
+lemma inter_comm (P Q : subset A) : P ∩ Q = Q ∩ P
+:= begin 
+apply funext, intros x, simp [has_inter.inter],
+unfold bintersection, rw and_comm,
 end
 
 end

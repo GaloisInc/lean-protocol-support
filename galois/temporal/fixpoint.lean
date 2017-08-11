@@ -67,6 +67,37 @@ rw or_continuous_r,
 reflexivity,
 end
 
+lemma nextn_cocontinuous {T : Type u} (n : ℕ)
+  : cocontinuous (@nextn T n)
+:= begin
+unfold cocontinuous, intros Ix f,
+apply included_eq,
+{ intros x H, induction H, constructor; assumption },
+{ intros x H, induction H, constructor; assumption }
+end
+
+lemma next_cocontinuous {T : Type u}
+  : cocontinuous (@next T)
+:= nextn_cocontinuous 1
+
+lemma until_fixpoint_cocontinuous_l {T : Type u}
+  {Ix : Type} [inhabited Ix] (P : Ix → tProp T)
+  (Q : tProp T)
+  : until_fixpoint (union_ix P) Q 
+  = λ x, union_ix (λ ix, until_fixpoint (P ix) Q x)
+:= begin
+apply funext, intros X,
+unfold until_fixpoint,
+rw inter_comm,
+unfold has_inter.inter,
+rw and_cocontinuous_r,
+unfold has_union.union,
+rw or_cocontinuous_r,
+dsimp [function.comp],
+f_equal, apply funext, intros ix,
+f_equal, apply inter_comm,
+end
+
 def weak_until {T : Type u} (P Q : tProp T) : tProp T :=
   greatest_fixpointn (until_fixpoint P Q)
 
