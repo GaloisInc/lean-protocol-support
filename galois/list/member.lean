@@ -106,4 +106,35 @@ def check_member {A : Type u} [decidable_eq A]
   | (sum.inr _) := none
   end
 
+lemma el_member_value {A : Type u}
+  (x : A) (xs : list A) (m : el_member x xs)
+  : m.to_member.value = x
+:= begin 
+induction m; simp [member.value, el_member.to_member],
+assumption
+end
+
+lemma member_st_P_value {A : Type u}
+  {P : A → Prop} {xs : list A}
+  (m : member_st P xs)
+  : P m.to_member.value
+:= begin
+induction m; simp [member_st.to_member, member.value];
+assumption,
+end
+
+def check_member_ok {A : Type u} [decidable_eq A]
+  (x : A) (xs : list A)
+  (m : xs.member)
+  (H : check_member x xs = some m)
+  : m.value = x
+:= begin
+unfold check_member at H,
+cases (el_member_decide x xs);
+  dsimp [check_member] at H;
+  try {contradiction},
+injection H with H', clear H,subst m,
+apply el_member_value,
+end
+
 end list

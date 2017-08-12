@@ -11,6 +11,10 @@ inductive RTclosure {A : Type u} (R : A → A → Prop) (x : A) : A → Prop
   | refl {} : RTclosure x
   | step {} : ∀ {y z : A}, R y z → RTclosure y → RTclosure z
 
+inductive RTclosure' {A : Type u} (R : A → A → Prop) (x z : A) : Prop
+  | refl {} : x = z → RTclosure'
+  | step {} : ∀ {y : A}, R y z → RTclosure R x y → RTclosure'
+
 namespace RTclosure
 
 def stepL {A : Type u} {R : A → A → Prop} {x y : A} (r : R x y)
@@ -18,6 +22,14 @@ def stepL {A : Type u} {R : A → A → Prop} {x y : A} (r : R x y)
 := begin
 intros z s, induction s, apply step, assumption, apply refl,
 apply step; assumption,
+end
+
+def invert {A : Type u} {R : A → A → Prop} {x z : A}
+  (r : RTclosure R x z) :
+  RTclosure' R x z
+:= begin
+induction r, left, reflexivity,
+right, assumption, assumption
 end
 
 end RTclosure
@@ -47,7 +59,7 @@ end
 
 inductive next_state_from_label_ind' (ag : agents.member) (s : system_state) (la : agent_label) (s' : system_state) : Prop
 | mk : ∀ (next' : act ag.value.state_type) (updatef : global_state_t → global_state_t)
-       (Hagl : next_agent_state_from_label ag.key ag.value (s.local_state ag) ((s.global_state ag.key)) la = some (next', updatef))
+       (Hagl : next_agent_state_from_label ag.key ag.value ((s.global_state ag.key)) (s.local_state ag) la = some (next', updatef))
        (Hupd : s' = {local_state := lookup_update ag next' (s.local_state)
                     , global_state := updatef (s.global_state)})
       , next_state_from_label_ind'
@@ -219,6 +231,26 @@ def may_step_to {A : Type u} (x y : act A) := RTclosure strictly_smaller y x
 inductive has_state {a : agent} (P : a.state_type → Prop) (z : act a.state_type) : Prop
 | mk : ∀ (st : a.state_type), P st → may_step_to (a.loop st) z → has_state
 
+lemma return_update_own_state
+  {ag : agents.member}
+  (a_next : act ag.value.state_type)
+  (la : agent_label)
+  {s : @system_state agents}
+  ans
+  (H : next_agent_state_from_label ag.key ag.value
+        (s.global_state ag.key) a_next la = some ans)
+  : (match a_next with 
+  | act.return x := la = agent_label.update_own_state
+  | _ := true
+  end : Prop)
+:= begin
+induction la;
+  simp [next_agent_state_from_label] at H;
+  induction a_next;
+  try { trivial <|> contradiction },
+dsimp, reflexivity
+end
+
 /-- When an agent takes a step, if the code it had to run was an
     `act.return`, it returns to the top of its loop, and otherwise,
     it "proceeds" down its current code, that is, its new state for the
@@ -229,83 +261,43 @@ lemma size_decreases {ag : agents.member}
   {la : agent_label}
   {next' : act ag.value.state_type}
   {updatef : global_state_t → global_state_t}
-  {s : system_state}
-  (H : next_agent_state_from_label ag.key ag.value (s.local_state ag)
-        (s.global_state ag.key) la = some (next', updatef))
-  : (match (s.local_state ag) with 
+  {s : @system_state agents}
+  {a_next : act ag.value.state_type}
+  (H : next_agent_state_from_label ag.key ag.value
+        (s.global_state ag.key) a_next la = some (next', updatef))
+  : (match a_next with 
   | act.return x := la = agent_label.update_own_state ∧ next' = ag.value.loop x
-  | _ := strictly_smaller next' (s.local_state ag)
+  | _ := strictly_smaller next' a_next
   end : Prop)
   := begin
-generalize Hla : la = la',
-induction la; simp [next_agent_state_from_label] at H,
-{ cases (s.local_state ag); 
-    dsimp [next_agent_state_from_label] at H;
-    try { contradiction }; dsimp,
-  injection H with H', clear H,
-  injection H' with H1 H2, clear H', split;
-   symmetry; assumption },
-{ cases (s.local_state ag); 
-    dsimp [next_agent_state_from_label] at H;
-    try { contradiction }; dsimp,
-  apply (if Hs : a = a_1 then _ else _),
-  { rw (if_pos Hs) at H,
-    injection H with H',
-    clear H, injection H' with H1 H2, clear H',
-    apply strictly_smaller.connect, assumption
-  },
-  { rw (if_neg Hs) at H, contradiction
-  },
+rename H H', have H := H',
+apply_in H label_dlabel_equiv,
+induction H with la H,
+induction la; dsimp [next_agent_state_from_dlabel] at H;
+  dsimp,
+{ injection H with H', clear H,
+  split, apply (return_update_own_state (act.return new_state)),
+  assumption,
+  symmetry, assumption },
+{ injection H with H', clear H,
+  apply strictly_smaller.connect, assumption
 },
-{ cases (s.local_state ag); 
-    dsimp [next_agent_state_from_label] at H;
-    try { contradiction }; dsimp,
-  apply (if Heq : (a = a_2 ∧ a_1 = a_3) then _ else _),
-  { rw (if_pos Heq) at H,
-    injection H with H',
-    clear H, injection H' with H1 H2, clear H',
-    apply strictly_smaller.send_message, assumption
-  },
-  { rw (if_neg Heq) at H, contradiction
-  },
+{ injection H with H',
+  clear H, apply strictly_smaller.send_message, assumption
 },
-{ cases (s.local_state ag); 
-    dsimp [next_agent_state_from_label] at H;
-    try { contradiction }; dsimp,
-  induction a; simp [next_agent_poll_state_from_label] at H,
-  { injection H with H', clear H, injection H' with H1 H2,
-    clear H', apply strictly_smaller.poll, assumption
-  },
-  { apply (if He : a < bound then _ else _),
-    { rw (dif_pos He) at H,
-      induction a_3; 
-        dsimp [next_agent_poll_state_from_label] at H;
-        try { contradiction },
-      { -- new connection 
-        cases (list.member_st_decide 
-         (λ s : socket_info, s.server = ag.key ∧ s.new) (s.global_state ag.key).sockets);
-           dsimp [next_agent_poll_state_from_label] at H;
-           try { contradiction },
-        cases (list.check_member ((a_3.to_member).value.port) ports);
-           dsimp [next_agent_poll_state_from_label] at H;
-           try { contradiction },
-        injection H with H', clear H, injection H' with H1 H2,
-        clear H' H2, apply strictly_smaller.poll, assumption
+{ induction a; dsimp at H,
+  { injection H with H H', subst next',
+  apply strictly_smaller.poll, reflexivity, },
+  { induction a; 
+        dsimp at H,
+      { -- new connection
+        injection H with H1 H2, clear H, subst next',
+        constructor, reflexivity,
       },
       { -- new message
-        cases ((list.member_st_decide 
-          (λ (p : socket × message_t), p.snd = a_3) ((s.global_state ag.key).messages)));
-          dsimp [next_agent_poll_state_from_label] at H;
-          try { contradiction },
-        cases (list.check_member (a_4.to_member.value.fst) sockets);
-          dsimp [next_agent_poll_state_from_label] at H;
-          try { contradiction },
-        injection H with H', clear H, injection H' with H1 H2,
-        clear H' H2, apply strictly_smaller.poll, assumption
+        injection H with H1 H2, clear H, subst next',
+        constructor, reflexivity,
       }
-    },
-    { rw (dif_neg He) at H, contradiction
-    },    
   }
 }
 end
@@ -315,8 +307,8 @@ lemma size_decreases' {ag : agents.member}
   {next' : act ag.value.state_type}
   {updatef : global_state_t → global_state_t}
   {s : system_state}
-  (H : next_agent_state_from_label ag.key ag.value (s.local_state ag)
-        (s.global_state ag.key) la = some (next', updatef))
+  (H : next_agent_state_from_label ag.key ag.value
+        (s.global_state ag.key) (s.local_state ag) la = some (next', updatef))
   : strictly_smaller next' (s.local_state ag) 
   ∨ la = agent_label.update_own_state ∧ ∃ x, next' = ag.value.loop x
 := begin
