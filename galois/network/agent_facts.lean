@@ -3,6 +3,7 @@
 import galois.network.network_implementation
        galois.temporal.fixpoint
        galois.temporal.classical
+       galois.temporal.LTS
 
 universes u
 
@@ -187,7 +188,7 @@ subst next', dsimp, rw lookup_update_refl,
 end
 
 def inLocalState (a : agents.member) (P : act a.value.state_type → Prop)
-  : system_state × next_state_label → Prop
+  : sigma (λ _ : system_state, next_state_label) → Prop
   := inState (λ s, P (s.local_state a))
 
 
@@ -227,6 +228,34 @@ intros x, induction x; constructor; intros,
 end
 
 def may_step_to {A : Type u} (x y : act A) := RTclosure strictly_smaller y x
+
+def may_step_to_bind_ty {A : Type u} (f : A → act A)
+  (z : act A) : act A → Prop
+| (act.return x) := may_step_to (f x) z
+| (act.connect rn cont) := ∃ sock, may_step_to (cont sock) z
+| (act.send_message rn mess cont) := may_step_to cont z
+| (act.poll ports sockets bound cont) :=
+   ∃ result, may_step_to (cont result) z
+
+def may_step_to_bind {A : Type u} (x : act A) (f : A → act A)
+  (z : act A)
+  (H : may_step_to (x >>= f) z)
+  : z = (x >>= f) ∨ may_step_to_bind_ty f z x
+:= begin
+apply_in H RTclosure.invert,
+induction H with H y H H',
+{ left, assumption },
+{ right,
+induction x; simp [may_step_to_bind_ty];
+  simp [bind, act_bind] at H,
+{
+constructor; assumption,
+},
+{ admit },
+{ admit },
+{ admit },
+}
+end
 
 inductive has_state {a : agent} (P : a.state_type → Prop) (z : act a.state_type) : Prop
 | mk : ∀ (st : a.state_type), P st → may_step_to (a.loop st) z → has_state
@@ -546,7 +575,7 @@ end
 
 lemma inLocalState_meas_same (a : agents.member) (ag_next : act a.value.state_type)
   : inLocalState a (λ s, ag_next = s) 
-  = λ s, (λ s' : system_state × next_state_label, s'.fst.local_state a) s = ag_next
+  = λ s, (λ s' : sigma (λ _ : system_state, next_state_label), s'.fst.local_state a) s = ag_next
 := begin
 apply funext, intros x, dsimp [inLocalState, inState], apply propext,
 split; intros; symmetry; assumption

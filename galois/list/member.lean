@@ -38,6 +38,11 @@ def to_el_member {A : Type u}
   : ∀ {xs : list A} (m : member xs), el_member m.value xs
 | (x :: xs) here := el_member.here
 | (x :: xs) (there m) := el_member.there (to_el_member m)
+
+def to_member_st {A : Type u}
+  : ∀ {xs : list A} (m : member xs) (P : A → Prop) (Pm : P m.value), member_st P xs
+| (x :: xs) here _ Px := member_st.here Px
+| (x :: xs) (there m) _ Px := member_st.there (to_member_st m _ Px)
 end member
 
 namespace member_st
@@ -56,7 +61,7 @@ end el_member
 
 inductive void : Type
 
-def member_st_decide {A : Type u} 
+def member_st_decide' {A : Type u} 
   (P : A → Prop) [decidable_pred P]
   (xs : list A)
   : member_st P xs ⊕ (member_st P xs → void)
@@ -77,23 +82,81 @@ induction xs,
 }
 end
 
-def el_member_decide {A : Type u} [decidable_eq A]
-  (x : A) (xs : list A)
-  : el_member x xs ⊕ (el_member x xs → void)
-:=
-begin
-induction xs,
-{ right, 
-  intros H, cases H },
-{ induction ih_1,
-  { left, 
-    apply el_member.there, assumption
+def member_st_decide {A : Type u} 
+  (P : A → Prop) [decidable_pred P]
+  : ∀ (xs : list A)
+  , member_st P xs ⊕ (member_st P xs → void)
+| [] := begin right, intros x, cases x end
+| (x :: xs) := if H : P x
+    then sum.inl (@member_st.here _ _ x xs H)
+    else match member_st_decide xs with
+      | (sum.inr f) := sum.inr 
+        begin
+          intros contra, cases contra,
+          contradiction, apply f, assumption
+        end
+      | (sum.inl m) := sum.inl (member_st.there m)
+      end
+
+lemma member_st_decide_present {A : Type u}
+  {P : A → Prop} [decP : decidable_pred P]
+  {xs : list A}
+  (m : member_st P xs)
+  : psigma (λ m' : member_st P xs, 
+     member_st_decide P xs = sum.inl m')
+:= begin
+induction m; clear xs; rename xs_1 xs,
+{ constructor, unfold member_st_decide,
+    rw (dif_pos a),
+},
+{ have H := decP x, induction H,
+  { induction ih_1 with mxs Pmxs, 
+    constructor,
+    unfold member_st_decide,
+    rw (dif_neg a_1), rw Pmxs,
+    dsimp [member_st_decide], reflexivity,
   },
-  { apply (@decidable.by_cases (x = a)); intros,
-    { subst a, left, apply el_member.here },
-    { right, intros contra, cases contra,
-      contradiction, apply a_2, assumption
-    }
+  { constructor,
+    unfold member_st_decide,
+    rw (dif_pos a_1),
+  }
+}
+end
+
+def el_member_decide {A : Type u} [decidable_eq A]
+  (z : A) : ∀ (xs : list A)
+  , el_member z xs ⊕ (el_member z xs → void)
+| [] := begin right, intros x, cases x end
+| (x :: xs) := if H : z = x
+    then begin induction H, exact sum.inl el_member.here end
+    else match el_member_decide xs with
+      | (sum.inr f) := sum.inr 
+        begin
+          intros contra, clear _match, cases contra,
+          contradiction, apply f, assumption
+        end
+      | (sum.inl m) := sum.inl (el_member.there m)
+      end
+
+lemma el_member_decide_present {A : Type u} [deceqA : decidable_eq A]
+  {z : A} {xs : list A}
+  (m : el_member z xs)
+  : psigma (λ m', el_member_decide z xs = sum.inl m')
+:= begin
+induction m; clear z xs; rename xs_1 xs,
+{ constructor, unfold el_member_decide,
+    rw (dif_pos (eq.refl x)),
+},
+{ have H := deceqA y x, induction H,
+  { induction ih_1 with mxs Pmxs, 
+    constructor,
+    unfold el_member_decide,
+    rw (dif_neg a_1), rw Pmxs,
+    dsimp [el_member_decide], reflexivity,
+  },
+  { induction a_1, constructor,
+    unfold el_member_decide,
+    rw (dif_pos (eq.refl _)),
   }
 }
 end
@@ -123,7 +186,7 @@ induction m; simp [member_st.to_member, member.value];
 assumption,
 end
 
-def check_member_ok {A : Type u} [decidable_eq A]
+lemma check_member_ok {A : Type u} [decidable_eq A]
   (x : A) (xs : list A)
   (m : xs.member)
   (H : check_member x xs = some m)
@@ -135,6 +198,19 @@ cases (el_member_decide x xs);
   try {contradiction},
 injection H with H', clear H,subst m,
 apply el_member_value,
+end
+
+lemma check_member_present {A : Type u} [decidable_eq A]
+  (xs : list A)
+  (m : xs.member)
+  : psigma (λ m', check_member m.value xs = some m')
+:= begin
+have m' := m.to_el_member,
+have H := el_member_decide_present m',
+unfold check_member,
+induction H with m'' Hm'',
+rw Hm'', dsimp [check_member],
+constructor, reflexivity
 end
 
 end list

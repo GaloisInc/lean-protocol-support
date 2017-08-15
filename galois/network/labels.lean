@@ -1,7 +1,6 @@
 -- author: Ben Sherman
 
 import galois.network.network_monad
-import galois.tactic
 
 universes u v
 
@@ -69,5 +68,16 @@ inductive receives_or_timeout (P : poll_receive_label → Prop) (l : agent_label
 
 def receives_message (m : message_t) : agent_label → Prop :=
   receives (eq (poll_receive_label.receive_message m))
+
+def poll_result_to_label {ports : list port} {sockets : list socket}
+  {timeout : time} : poll_result ports sockets timeout → poll_label
+| poll_result.timeout := poll_label.timeout
+| (poll_result.new_connection elapsed prt sock) := 
+    poll_label.receive elapsed.val sock poll_receive_label.new_connection
+| (poll_result.drop_connection elapsed sock) := 
+    poll_label.receive elapsed.val sock.value poll_receive_label.drop_connection
+| (poll_result.message elapsed sock mess) :=  
+   poll_label.receive elapsed.val sock.value
+     (poll_receive_label.receive_message mess)
 
 end network
