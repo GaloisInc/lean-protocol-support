@@ -1,5 +1,4 @@
 /- Defines very basic lemmas for vector -/
-import data.vector
 
 universe variables u
 

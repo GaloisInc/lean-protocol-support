@@ -1,7 +1,6 @@
 /- This defines init and last on vectors. -/
-import data.vector
 import galois.list.init
-import galois.vector.simplify_eq
+import .simplify_eq
 
 universe variables u
 
@@ -28,8 +27,8 @@ def init : vector α n → vector α (n-1)
 def last : vector α (nat.succ n) → α
 | ⟨l,p⟩ := list.last l (eq_succ_implies_non_nil p)
 
-
-theorem init_append_last_self {n : ℕ} (x : vector α (nat.succ n)) : init x ++ [last x] = x :=
+theorem init_append_last_self {n : ℕ} (x : vector α (nat.succ n)) 
+: init x ++ vector.cons (last x) vector.nil = x :=
 begin
   cases x with v p,
   simp [init, last, cons, nil, append, list.init_append_last_self v (eq_succ_implies_non_nil p)],

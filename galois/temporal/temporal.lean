@@ -535,7 +535,7 @@ induction Hk with H1 H2,
 constructor, constructor; try { assumption },
 cases k,
 { rw delayn_zero, assumption },
-{ apply next_delay, apply H2, apply nat.self_lt_succ, }
+{ apply next_delay, apply H2, apply nat.le_refl, }
 end
 
 lemma weak_until_implies_release {T : Type u} {P Q : tProp T}
@@ -549,7 +549,7 @@ unfold until, existsi k,
 split, constructor, 
 cases k,
 { rw delayn_zero, assumption },
-{ apply next_delay, apply H2, apply nat.self_lt_succ, },
+{ apply next_delay, apply H2, apply nat.le_refl, },
 assumption,
 intros, cases n',
 { rw delayn_zero, assumption },
@@ -605,7 +605,8 @@ simp [implies] with ltl at contra,
 have H : ((∃ (n : ℕ), ↑(ite (n = 0) bool.tt bool.ff)) →
    (∃ (n : ℕ), (∀ (n' : ℕ), n' < n → false) ∧ ↑(ite (n = 0) bool.tt bool.ff))),
 intros H, clear H,
-existsi 0, split, intros, rw nat.lt_zero_iff_false at a, contradiction,
+existsi 0, split,
+{ intros, have h := nat.not_lt_zero n', contradiction, },
 rw (if_pos (eq.refl 0)), constructor,
 specialize (contra H), clear H,
 have H : (∃ (n : ℕ), ↑(ite (n = 0) bool.tt bool.ff)),

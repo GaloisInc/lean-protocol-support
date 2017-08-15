@@ -1,4 +1,3 @@
-import data.vector
 import galois.list.map_accum_lemmas
 import galois.vector.zero_length_lemmas
 
@@ -37,10 +36,10 @@ theorem map_accumr₂_append1
   (x : vector α n) (a : α)
   (y : vector β n) (b : β)
   (c : γ)
-: map_accumr₂ f (x ++ [a]) (y ++ [b]) c =
+: map_accumr₂ f (x ++ cons a nil) (y ++ cons b nil) c =
   let r := f a b c in
-  let z := map_accumr₂ f x y (r^.fst) in
-  ⟨ z^.fst, z^.snd ++ [r^.snd]⟩ :=
+  let z := map_accumr₂ f x y (r.fst) in
+  ⟨ z.fst, z.snd ++ cons r.snd nil⟩ :=
 begin
   -- Reduce to proof about list.map_accumr₂ and use corresponding theorem
   cases x with xv xp,

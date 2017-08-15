@@ -1,4 +1,3 @@
-import data.vector
 import galois.list.rotate
 
 namespace vector

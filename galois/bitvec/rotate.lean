@@ -1,4 +1,3 @@
-import data.bitvec
 import galois.vector.rotate
 
 namespace bitvec

@@ -17,7 +17,7 @@ This is a total version of nth.
 def fin_nth {α : Type u} : Π (l : list α), fin l.length →  α
 | [] ⟨x, pr⟩ :=
 begin
-  simp [nat.lt_zero_iff_false] at pr,
+  simp [nat.lt_is_succ_le, nat.add_succ, nat.not_succ_le_zero] at pr,
   contradiction
 end
 | (h::r) ⟨0, pr⟩ := h
@@ -33,13 +33,12 @@ structure found_member {α : Type u} (x : α) (xs : list α) : Type :=
   (idx : fin xs.length)
   (lookup_eq : fin_nth _ idx = x)
 
-lemma no_member_nil {α : Type u}
-  (H : fin (@nil α).length) : false
-:= begin
-cases H,
-simp [length] at is_lt,
-rw nat.lt_zero_iff_false at is_lt,
-contradiction
+lemma no_member_nil {α : Type u} (H : fin (@nil α).length) : false := 
+begin
+  cases H,
+  simp [length] at is_lt,
+  simp [nat.lt_is_succ_le, nat.add_succ, nat.not_succ_le_zero] at is_lt,
+  contradiction
 end
 
 namespace fin

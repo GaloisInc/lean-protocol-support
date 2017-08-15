@@ -5,7 +5,7 @@ namespace rat
 
 def of_nat.f (n : ℕ) (rec : Π(m:ℕ), m < n → ℚ) : ℚ :=
   if pr : n > 0 then
-    let pr2 : 1 < 2 := (by simp [nat.succ_lt_succ_iff, nat.zero_lt_succ_iff_true]) in
+    let pr2 : 1 < 2 := dec_trivial in
     if n = 1 then
       1
     else if (n % 2) = 0 then

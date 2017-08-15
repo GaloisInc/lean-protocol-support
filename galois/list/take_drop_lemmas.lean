@@ -29,7 +29,7 @@ begin
     intros l pr,
     cases l with a l,
     { simp },
-    { simp [nat.add_succ, nat.succ_le_zero_iff_false] at pr,
+    { simp [nat.add_succ, nat.not_succ_le_zero] at pr,
       contradiction,
     }
   },

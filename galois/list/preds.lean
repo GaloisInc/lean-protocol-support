@@ -64,7 +64,7 @@ lemma concat_Forall {A : Type u} {P : A -> Prop}
 begin
 induction xs,
 { dsimp, assumption },
-{ simp [concat], 
+{ simp [append], 
   have Hxs' := Forall_invert Hxs,
   clear Hxs,
   dsimp at Hxs',
@@ -73,6 +73,7 @@ induction xs,
   apply ih_1, assumption }
 end
 
+/-
 def In {a:Type u} (i:a) := Exists (eq i)
 
 @[simp]
@@ -206,7 +207,7 @@ apply Exists.here, refl
 end
 
 lemma In_reverse_In : forall {T} (i :T) l, 
-In i l <-> In i (list.reverse l) :=
+In i l <-> In i l.reverse :=
 begin
 intros;
 split;
@@ -238,6 +239,7 @@ intros; induction l,
     }
 }
 end
+-/
 
 instance Exists_decidable {A} (P : A -> Prop)
   [decidable_pred P] : decidable_pred (list.Exists P)
@@ -260,6 +262,7 @@ induction xs,
 }
 end
 
+/-
 instance In_decidable {A} [decidable_eq A]
   (x : A)
   : decidable_pred (list.In x)
@@ -267,5 +270,6 @@ instance In_decidable {A} [decidable_eq A]
 unfold list.In,
 apply list.Exists_decidable
 end
+-/
 
 end list

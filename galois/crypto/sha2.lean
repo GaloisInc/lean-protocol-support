@@ -1,6 +1,3 @@
-import data.bitvec
-import data.vector
-import data.list
 import galois.bitvec.join
 import galois.bitvec.rotate
 
@@ -169,7 +166,7 @@ namespace sha256
   let len : bitvec 64 := list.foldl (λ n a, bitvec.add n 8) 0 msg,
       hi : bitvec 32 := vector.drop 32 (bitvec.ushr len 32),
       lo : bitvec 32 := vector.drop 32 len
-  in words_to_chunks 32 hi lo (bytes_to_words (list.concat msg 0x80))
+  in words_to_chunks 32 hi lo (bytes_to_words (msg ++ [0x80]))
 
   definition sha256 (msg : list (bitvec 8)) : bitvec 256 :=
   bitvec_of_hash 32 (hash_chunks_32 hash0 (preprocess msg))
@@ -246,7 +243,7 @@ namespace sha512
   let len : bitvec 128 := list.foldl (λ n a, bitvec.add n 8) 0 msg,
       hi : bitvec 64 := vector.drop 64 (bitvec.ushr len 64),
       lo : bitvec 64 := vector.drop 64 len
-  in words_to_chunks 64 hi lo (bytes_to_words (list.concat msg 0x80))
+  in words_to_chunks 64 hi lo (bytes_to_words (msg ++ [0x80]))
 
   definition sha512 (msg : list (bitvec 8)) : bitvec 512 :=
   bitvec_of_hash 64 (hash_chunks_64 hash0 (preprocess msg))

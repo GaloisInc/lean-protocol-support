@@ -6,7 +6,7 @@ namespace list
 
   definition rol1 : list T → list T
   | nil        := nil
-  | (cons a l) := concat l a
+  | (cons a l) := l ++ [a]
 
   definition ror1_aux : T → list T → list T
   | a nil        := cons a nil
@@ -25,11 +25,24 @@ namespace list
   | l 0        := l
   | l (succ n) := ror1 (ror l n)
 
-  theorem ror1_concat (l : list T) (a : T) : ror1 (concat l a) = cons a l :=
-  list.rec_on l rfl (λ b l' H, (congr_arg (ror1_aux b) H))
+  theorem ror1_concat (l : list T) (a : T) 
+  : ror1 (l ++ [a]) = a::l :=
+  begin
+    induction l,
+    case list.nil { refl, },
+    case list.cons h r ind {
+      simp [ror1, ind, ror1_aux],
+    },
+  end
 
   theorem ror1_rol1 (l : list T) : ror1 (rol1 l) = l :=
-  list.cases_on l rfl (λ a l', ror1_concat l' a)
+  begin
+    induction l,
+    case list.nil { refl, },
+    case list.cons h r ind {
+      simp [rol1, ror1_concat],
+    }
+  end
 
   theorem rol1_ror1_aux (a : T) (l : list T) : rol1 (ror1_aux a l) = cons a (rol1 l) :=
   list.cases_on l rfl (λ b l', rfl)
@@ -38,7 +51,13 @@ namespace list
   list.rec_on l rfl (λ a l' H, eq.trans (rol1_ror1_aux _ _) (congr_arg (cons a) H))
 
   theorem length_rol1 (l : list T) : length (rol1 l) = length l :=
-  list.cases_on l rfl length_concat
+  begin
+    induction l,
+    case list.nil { refl, },
+    case list.cons h r ind {
+      simp [rol1],
+    }
+  end
 
   theorem length_rol (l : list T) (n : ℕ) : length (rol l n) = length l :=
   nat.rec_on n rfl (λ a H, eq.trans (length_rol1 _) H)

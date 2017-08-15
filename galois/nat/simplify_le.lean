@@ -6,6 +6,8 @@ This module defines operations for simplifying comparisons between
 natural numbers.
 -/
 
+import data.nat.basic
+
 namespace nat
 
 ------------------------------------------------------------------------
@@ -22,14 +24,6 @@ begin
     },
     { contradiction, },
   },
-end
-
--- Reduce succ x ≤ succ y
-protected theorem succ_le_succ_iff (x y : ℕ) : succ x ≤ succ y ↔ x ≤ y :=
-begin
-  apply iff.intro,
-  exact nat.le_of_succ_le_succ,
-  exact nat.succ_le_succ,
 end
 
 ------------------------------------------------------------------------
@@ -58,8 +52,12 @@ begin
   case nat.succ n ind {
     intros a m,
     cases a,
-    case nat.zero { simp [nat.zero_sub, zero_lt_succ, succ_le_zero_iff_false], },
-    case nat.succ { simp [add_succ, nat.succ_lt_succ_iff, nat.succ_le_succ_iff, ind], },
+    case nat.zero { 
+      simp [nat.zero_sub, zero_lt_succ, not_succ_le_zero],
+    },
+    case nat.succ { 
+      simp [add_succ, nat.succ_lt_succ_iff, nat.succ_le_succ_iff, ind], 
+    },
   },
 end
 
@@ -68,11 +66,11 @@ protected lemma lt_sub_iff (a m n : ℕ) : a < m - n ↔ a + n < m :=
 begin
   revert n,
   induction m with m ind,
-  {  simp [nat.lt_zero_iff_false, nat.zero_sub],
+  { simp [nat.lt_is_succ_le, add_succ, nat.not_succ_le_zero, nat.zero_sub],
   },
   { intro n,
     cases n with n,
-    { simp [zero_lt_succ_iff_true], },
+    { simp, },
     { simp [nat.succ_lt_succ_iff, ind],
     },
   },
@@ -114,7 +112,7 @@ begin
   intro m,
   induction m with m ind,
   { intros n p p_lt_n p_lt_zero,
-    simp [lt_zero_iff_false] at p_lt_zero,
+    simp [nat.lt_is_succ_le, not_succ_le_zero] at p_lt_zero,
     contradiction,
   },
   {
