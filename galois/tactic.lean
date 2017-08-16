@@ -1,4 +1,7 @@
 import .option
+import galois.list.member
+
+universes u v
 
 open tactic lean lean.parser
 open interactive interactive.types expr
@@ -23,8 +26,6 @@ meta def coq_specialize (H : parse texpr) : tactic unit :=
      tactic.clear to_remove,
      tactic.rename n id
 
-universes u v
-
 def congr_arg_f_equal {A : Sort u} {B : Sort v} {f f' : A → B}
   {x x' : A} : f = f' → x = x' → f x = f' x'
 := begin
@@ -33,6 +34,7 @@ end
 
 /-- The analogue of Coq's `f_equal` tactic -/
 meta def f_equal : tactic unit :=
+  tactic.focus1 $
   try (do apply ``(@congr_arg_f_equal),
   tactic.focus [ reflexivity <|> f_equal, try reflexivity ])
 
@@ -47,7 +49,7 @@ meta def apply_in_aux : expr → tactic expr
            `apply_in H e` using this tactic in Lean
  -/
 meta def apply_in (H : parse ident) (e : parse texpr) 
-  : tactic unit := do
+  : tactic unit := focus1 $ do
   e' ← i_to_expr e,
   ty_e ← infer_type e' >>= whnf,
   goal ← apply_in_aux ty_e,
