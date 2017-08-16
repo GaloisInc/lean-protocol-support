@@ -7,40 +7,19 @@ to true or false.
 
 namespace nat
 
--- Commute bit0 and succ
-protected
-theorem bit0_succ (x : ℕ) : bit0 (succ x) = succ (succ (bit0 x)) :=
-begin
-  simp [bit0, add_succ, succ_add]
-end
-
--- Commute bit1 and succ
-protected
-theorem bit1_succ (x : ℕ) : bit1 (succ x) = succ (succ (bit1 x)) :=
-begin
-  simp [bit1, nat.bit0_succ],
-end
-
-section succ_simplification_lemmas
-
+/- Simplify 0 = succ n to false -/
 @[simp]
-theorem zero_eq_succ (x : ℕ) : (0 = succ x) ↔ false :=
+theorem not_zero_eq_succ (x : ℕ) : ¬ (0 = succ x) :=
 begin
-  simp [bit0],
-  induction x,
   contradiction,
-  contradiction
 end
 
+/- Simplify succ n = 0 to false -/
 @[simp]
-theorem succ_eq_zero (x : ℕ) : (succ x = 0) ↔ false :=
+theorem not_succ_eq_zero (n : ℕ) : ¬ (nat.succ n = 0) :=
 begin
-  simp [bit0],
-  induction x,
   contradiction,
-  contradiction
 end
-
 
 -- Simplify successor of two values.
 @[simp]
@@ -56,7 +35,19 @@ begin
   }
 end
 
-end succ_simplification_lemmas
+-- Commute bit0 and succ
+protected
+theorem bit0_succ (x : ℕ) : bit0 (succ x) = succ (succ (bit0 x)) :=
+begin
+  simp [bit0, add_succ, succ_add]
+end
+
+-- Commute bit1 and succ
+protected
+theorem bit1_succ (x : ℕ) : bit1 (succ x) = succ (succ (bit1 x)) :=
+begin
+  simp [bit1, nat.bit0_succ],
+end
 
 section literal_simplification_literals
 

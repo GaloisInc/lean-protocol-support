@@ -1,4 +1,5 @@
 /- This file contains lemmas for take and drop -/
+import galois.nat.simplify_eq
 import galois.nat.simplify_le
 import data.list.basic
 
@@ -60,6 +61,15 @@ theorem drop_nil
 : ∀ (n : ℕ), drop n nil = (nil : list α)
 | 0 := rfl
 | (nat.succ n) := rfl
+
+@[simp]
+theorem drop_cons (n : ℕ) (e : α) (l : list α)
+: drop n (e :: l) = if n = 0 then (e :: l) else drop (n-1) l :=
+begin
+  cases n,
+  simp,
+  simp,
+end
 
 @[simp]
 theorem drop_succ_cons (n : ℕ) (e : α) (l : list α)
