@@ -59,9 +59,9 @@ apply (if Hip : a_ip = a_ip' then _ else _),
 end
 
 inductive next_state_from_label_ind' (ag : agents.member) (s : system_state) (la : agent_label) (s' : system_state) : Prop
-| mk : ∀ ms (next' : ag.value.state_type) (updatef : global_state_t → global_state_t)
-       (Hagl : next_agent_state_from_label ag.key ag.value ((s.global_state ag.key)) (ag.value.loop (s.local_state ag)) la 
-          = some ((ms, next'), updatef))
+| mk : ∀ (next' : ag.value.state_type) (updatef : global_state_t → global_state_t)
+       (Hagl : next_agent_state_from_label ag (s.local_state ag) ((s.global_state ag.key)) la
+          = some (next', updatef))
        (Hupd : s' = {local_state := lookup_update ag next' (s.local_state)
                     , global_state := updatef (s.global_state)})
       , next_state_from_label_ind'
@@ -100,7 +100,6 @@ apply_in Hag2 option_bind_some,
 induction Hag2 with p1 p2,
 induction p1 with next' updatef,
 induction p2 with H1 H2,
-induction next' with ms next',
 dsimp [next_state_from_label] at H2,
 injection H2 with H2', clear H2,
 constructor; try {assumption},
@@ -247,7 +246,7 @@ inductive can_possibly_step (a_ip : ip) (a : agent)
 section
 parameters {agents : map ip agent}
   (a : agents.member)
-  (P : poll_receive_label → Prop)
+  (P : message_t → Prop)
 
 lemma blocks_until_not_never_receives_always_polls
   : ⊩ valid_trace (@LTS agents)
@@ -280,7 +279,7 @@ theorem blocking_agent_eventually_receives_message
     => (◇ (now (inLabel (agent_does a.key polls))) 
         𝓦 (now (inLabel (agent_does a.key (receives P)))))
     => now (inState (λ ss : system_state, ∃ mess : socket × message_t,
-         P (poll_receive_label.receive_message mess.snd) ∧
+         P mess.snd ∧
          mess ∈ (ss.global_state a.key).messages))
     => ◇ (now (inLabel (agent_does a.key (receives P))))
 := begin

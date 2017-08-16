@@ -7,7 +7,6 @@ universes u v
 namespace network
 
 inductive act (A : Type u) : Type u
---| connect : remote_name → (socket → A) → act
 -- return a poll result and the amount of time elapsed
 | poll : Π (ports : list port) (sockets : list socket) (bound : time), 
      (poll_result ports sockets bound → (list (socket × message_t) × A)) → act
@@ -29,23 +28,18 @@ structure agent : Type 1 :=
   (loop : state_type → act state_type)
 
 
-section
-parameters (ag : agent)
+inductive dlabel {A : Type u} : act A → Type u
+| poll : ∀ (ports : list port) (sockets : list socket) (bound : time) cont
+    (r : poll_result ports sockets bound),
+    dlabel (act.poll ports sockets bound cont)
 
-parameter {poll_receive_label_impl : list port → list socket → Type}
+namespace dlabel
+def cont_result {A : Type u} : ∀ {next : act A} (la : dlabel next), 
+   list (socket × message_t) × A
+| (act.poll ports sockets bound cont) (dlabel.poll ._ ._ ._ ._ r) := cont r
 
-inductive poll_dlabel (ports : list port) (sockets : list socket) (bound : ℕ) : Type
-| timeout {} : poll_dlabel
-| receive {} : ∀ (elapsed_fin : fin bound) (rn : remote_name),
-    poll_receive_label_impl ports sockets
-    → poll_dlabel
-
-inductive dlabel : act ag.state_type → Type
-| poll : ∀ (ports : list port) (sockets : list socket) (bound : time) 
-    cont (ms : list (socket × message_t)),
-    poll_dlabel ports sockets bound
-    → dlabel (act.poll ports sockets bound cont)
-
-end
+def messages {A : Type u} {next : act A} (la : dlabel next) : list (socket × message_t)
+  := la.cont_result.fst
+end dlabel
 
 end network

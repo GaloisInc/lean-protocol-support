@@ -7,20 +7,8 @@ universes u v
 
 namespace network
 
-structure socket_info :=
-  (client : ip)
-  (server : ip)
-  (port : port)
-  -- whether the receiver has not yet been notified yet that the socket exists
-  -- (it is TRUE if it hasn't notified the receiver yet)
-  (new : bool)
-
-def socket_info.socket (s : socket_info) : socket
-  := (s.client, s.port)
-
 structure incoming_items :=
   (messages : list (socket × message_t))
-  (sockets : list socket_info)
 
 def lookup_updatef {A : Type u} [decidable_eq A] {B : A → Type v}
   (a : A) (f : B a → B a) (m : ∀ a, B a) (x : A) : B x
@@ -40,43 +28,36 @@ unfold lookup_update lookup_updatef,
 rw (dif_pos (eq.refl a)),
 end
 
-section
-parameter {agents : map ip agent}
-
 @[reducible]
 def global_state_t := ip → incoming_items
 
-structure system_state : Type 1 :=
-  (local_state : ∀ a : agents.member, a.value.state_type)
-  (global_state : global_state_t)
-
 def initial_incoming_items : incoming_items
-  := { sockets := []
-     , messages := [] }
+  := { messages := [] }
 
-def next_agent_poll_state_from_label (a_ip : ip) {A : Type u}
+def precondition (P : Prop) [decP : decidable P] : option (plift P) :=
+  match decP with
+  | decidable.is_true H := some (plift.up H)
+  | decidable.is_false contra := none
+  end
+
+def poll_label.to_poll_result
   (ports : list port) (sockets : list socket) (bound : time)
   (incoming : incoming_items)
-  (cont : poll_result ports sockets bound → A)
-  : poll_label → option (A × (global_state_t → global_state_t))
-| (poll_label.receive elapsed rn mess) :=
--- OOPS, need to fix: to receive message, I should already have been
--- informed of the new connection that the message has transferred over
-  if H : elapsed < bound 
-    then let elapsed_fin : fin bound := ⟨ elapsed, H ⟩ in
-  match list.member_st_decide (λ p : socket × message_t, p.snd = mess) incoming.messages with
-  | (sum.inl idx) := let idx' := idx.to_member in
-    let p := idx'.value in
-        match list.check_member p.fst sockets with --any other checks necessary?
-        | (some sockidx) := some
-        (cont (poll_result.message elapsed_fin sockidx mess)
-        , lookup_updatef a_ip (λ inc, {inc with messages := list.remove_member _ idx'}))
-        | none := none
-        end
-  | (sum.inr contra) := none
-  end
-     else none
-| poll_label.timeout := some (cont poll_result.timeout, id)
+  : poll_label → option (poll_result ports sockets bound)
+| poll_label.timeout := some poll_result.timeout
+| (poll_label.receive elapsed rn mess) := do
+  plift.up H ← precondition (elapsed < bound),
+  idx ← list.check_member_st (λ p : socket × message_t, p.snd = mess) incoming.messages,
+  sockidx ← list.check_member idx.to_member.value.fst sockets, --any other checks necessary?
+  some (poll_result.message ⟨ elapsed, H ⟩ sockidx mess)
+
+def agent_label.to_dlabel
+  (incoming : incoming_items) {ag : agent}
+: ∀ (a_next : act ag.state_type), agent_label → option (dlabel a_next)
+| (act.poll ports sockets bound cont) (agent_label.poll plabel ms) := do
+   r ← plabel.to_poll_result ports sockets bound incoming,
+   guard ((cont r).fst = ms),
+   some (dlabel.poll ports sockets bound cont r)
 
 def add_message (rn : remote_name) (m : message_t) (a_ip : ip)
   : global_state_t → global_state_t :=
@@ -87,176 +68,92 @@ def option_filter {A : Type u}
 | (some x) := if P x then some x else none
 | none := none
 
+lemma option_filter_some {A : Type u}
+  {P : A → Prop} [decP : decidable_pred P] {mx : option A} {x : A}
+  (H : option_filter P mx = some x)
+  : mx = some x ∧ P x
+:= begin
+cases mx; simp [option_filter] at H,
+contradiction,
+have H' := decP a, induction H' with H' H',
+{ rw (if_neg H') at H, contradiction, },
+{ rw (if_pos H') at H, injection H with H'', clear H,
+  subst x, constructor, reflexivity, assumption }
+end
+
+def guard_option_filter {A : Type}
+  {P : Prop} [decP : decidable P] (mx : option A) :
+  (do guard P, mx) = option_filter (λ _, P) mx
+:= begin
+induction mx; induction decP; try { reflexivity }
+end
+
+lemma option_filter_true {A : Type u}
+  {P : A → Prop} [decP : decidable_pred P] {x : A}
+  (H : P x)
+  : option_filter P (some x) = some x
+:= begin
+unfold option_filter, rw (if_pos H),
+end
+
+def dlabel_to_label {A} : ∀ {a_next : act A}, dlabel a_next → agent_label
+| (act.poll ports sockets bound cont) (dlabel.poll ._ ._ ._ ._ r) :=
+  agent_label.poll (poll_result_to_label r) ((cont r).fst)
+
 section
-parameters (a_ip : ip) (a : agent) (incoming : incoming_items)
+parameter {agents : map ip agent}
 
-def next_agent_state_from_label
-  : act a.state_type → agent_label → 
-    option ((list (socket × message_t) × a.state_type) × (global_state_t → global_state_t))
-| (act.poll ports sockets bound after) (agent_label.poll plabel ms) :=
-  option_filter (λ x, x.fst.fst = ms)
-    (next_agent_poll_state_from_label a_ip
-              ports sockets bound incoming after plabel)
+structure system_state : Type 1 :=
+  (local_state : ∀ a : agents.member, a.value.state_type)
+  (global_state : global_state_t)
 
-inductive poll_receive_dlabel (ports : list port) (sockets : list socket)
-    : Type
-| receive_message {} : ∀ (mess : incoming.messages.member) (sock : sockets.member),
-    mess.value.fst = sock.value → 
-    poll_receive_dlabel
+section
+parameters (a_ip : ip) (ag : agent) (incoming : incoming_items)
 
-def dlabel' {a} := @dlabel a poll_receive_dlabel
+def apply_message_updates (ms : list (socket × message_t)) 
+   (updatef : global_state_t → global_state_t)
+  : global_state_t → global_state_t 
+  := let fs := (list.map (λ p : socket × message_t, let (sock, mess) := p in 
+      add_message (a_ip, sock.snd) mess sock.fst) ms) in
+     list.foldr function.comp updatef fs
 
-def next_agent_state_poll_dlabel {A} {ports : list port} {sockets : list socket}
+def next_agent_state_poll_dlabel {A : Type} {ports : list port} {sockets : list socket}
   {bound : time} (cont : poll_result ports sockets bound → A)
-  : @poll_dlabel poll_receive_dlabel ports sockets bound 
-  → A × (global_state_t → global_state_t)
-| poll_dlabel.timeout := (cont poll_result.timeout, id)
-| (poll_dlabel.receive elapsed_fin rn (poll_receive_dlabel.receive_message mess sock _)) 
-  := (cont (poll_result.message elapsed_fin sock mess.value.snd)
-        , lookup_updatef a_ip (λ inc, {inc with messages := list.remove_member _ mess}))
+  : poll_result ports sockets bound 
+  → option (global_state_t → global_state_t)
+| poll_result.timeout := some id
+| (poll_result.message elapsed_fin sock mess) := do
+    midx ← incoming.messages.check_member (sock.value, mess),
+    some (lookup_updatef a_ip (λ inc, {inc with messages := list.remove_member _ midx}))
 
 def next_agent_state_from_dlabel
-  : ∀ (a_next : act a.state_type) (la : dlabel' a_next)
-  , (list (socket × message_t) × a.state_type) × (global_state_t → global_state_t)
-| (act.poll ports sockets bound cont) (dlabel.poll ._ ._ ._ ._ ms plabel)
-    := next_agent_state_poll_dlabel cont plabel
-
-def dlabel_to_label {a_next : act a.state_type} (la : dlabel' a_next)
-  : agent_label
-:= begin
-cases la,
-apply agent_label.poll,
-induction a_1,
-  { -- timeout
-    exact poll_label.timeout,
-  },
-  { -- receive
-    apply (poll_label.receive elapsed_fin.val rn),
-    induction a_1,
-    apply mess.value.snd
-  },
-assumption
-end
-
-lemma dlabel_to_label_some {a_next : act a.state_type} (la : dlabel' a_next)
-  : next_agent_state_from_label a_next (dlabel_to_label la) 
-    = some (next_agent_state_from_dlabel _ la)
-:= begin
-induction la; dsimp [dlabel_to_label, next_agent_state_from_dlabel];
-  simp [next_agent_state_from_label],
-induction a_1; dsimp [dlabel_to_label, next_agent_state_poll_dlabel];
-  simp [next_agent_poll_state_from_label],
-rw (dif_pos elapsed_fin.is_lt),
-induction a_1; dsimp [dlabel_to_label, next_agent_state_from_dlabel];
-  simp [next_agent_receive_from_label],
-{ have H := list.member_st_decide_present sock,
-  induction H with sock' Psock',
-  rw Psock',
-  dsimp [next_agent_receive_from_label],
-  /- there seems to generally be a missing fact/invariant here -/
-  admit },
-{ have H : mess.value.snd = mess.value.snd := rfl,
-  have H' := mess.to_member_st (λ x, x.snd = mess.value.snd) H,
-  clear H,
-  have H := list.member_st_decide_present H',
-  induction H with mess' Pmess', rw Pmess',
-  clear H',
-  dsimp [next_agent_receive_from_label],
-  /- there also seems to be some missing facts/invariants here -/
-  admit }
-end
-
-/-- Any step that we can take with a regular label, we can take 
-    with a dependent label. Therefore, it is sound to reason based
-    on the dependent-label traces.
--/
-lemma label_dlabel_equiv {a_next : act a.state_type}
-  : ∀ {ans l}, next_agent_state_from_label a_next l = some ans
-  → psigma (λ l' : dlabel' a_next, next_agent_state_from_dlabel a_next l' = ans)
-:= begin
-intros ans l H,
-induction l; simp [next_agent_state_from_label] at H,
-cases a_next;
-    dsimp [next_agent_state_from_label] at H,
-  cases a_1;
-    dsimp [next_agent_poll_state_from_label] at H,
-  { injection H with H', clear H, subst ans,
-    fapply psigma.mk, constructor, assumption,
-    apply poll_dlabel.timeout,
-    reflexivity,
-  },
-  { apply (if He : a_1 < bound then _ else _),
-    { rw (dif_pos He) at H,
-      induction a_5; dsimp [next_agent_receive_from_label] at H;
-         try {contradiction},
-      { -- new connection 
-        cases (list.member_st_decide (λ (s : socket_info), s.server = a_ip ∧ ↑(s.new)) 
-            (incoming.sockets));
-           dsimp [next_agent_receive_from_label] at H;
-           try { contradiction },
-        destruct (list.check_member ((a_5.to_member).value.port) ports), intros X,
-           rw X at H,
-           dsimp [next_agent_receive_from_label] at H,
-           contradiction,
-        intros p Hp, rw Hp at H,
-           dsimp [next_agent_receive_from_label] at H,
-        injection H with H'', clear H,
-        subst ans,
-        apply_in Hp list.check_member_ok,
-        fapply psigma.mk, constructor, assumption,
-        apply poll_dlabel.receive, exact ⟨ _, He ⟩,
-        assumption, fapply poll_receive_dlabel.new_connection,
-        assumption, assumption, dsimp,
-        symmetry, assumption,
-        dsimp [next_agent_state_from_dlabel],
-        reflexivity,
-      },
-      { -- receive message
-        cases (list.member_st_decide (λ (p : socket × message_t), p.snd = a_5) 
-            (incoming.messages));
-          dsimp [next_agent_receive_from_label] at H;
-          try { contradiction },
-        destruct (list.check_member ((list.member.value (list.member_st.to_member a_6)).fst) sockets),
-          intros X, rw X at H,
-          dsimp [next_agent_receive_from_label] at H,
-          contradiction,
-        intros p Hp, rw Hp at H,
-           dsimp [next_agent_receive_from_label] at H,
-        injection H with H', clear H, subst ans,
-        apply_in Hp list.check_member_ok,
-        fapply psigma.mk, constructor, assumption,
-        apply poll_dlabel.receive, exact ⟨ _, He ⟩,
-        assumption, fapply poll_receive_dlabel.receive_message,
-        exact a_6.to_member, assumption,
-        symmetry, assumption,
-        dsimp [next_agent_state_poll_dlabel, 
-          next_agent_state_from_dlabel, next_agent_state_from_dlabel,
-          next_agent_state_receive_dlabel],
-        f_equal, f_equal, f_equal,
-        apply list.member_st_P_value a_6,
-      }
-    },
-    { rw (dif_neg He) at H, contradiction
-    },
-  }
-end
+  : ∀ {a_next : act ag.state_type} (la : dlabel a_next)
+  , option (ag.state_type × (global_state_t → global_state_t))
+| (act.poll ports sockets bound cont) (dlabel.poll ._ ._ ._ ._ r) := do
+    updatef ← next_agent_state_poll_dlabel cont r,
+    let (ms, new_state) := cont r,
+    some (new_state, apply_message_updates ms updatef)
 
 end
+
+def next_agent_state_from_label
+   (ag : agents.member) (ag_state : ag.value.state_type)
+   (ag_incoming : incoming_items)
+   (aupdate : agent_label)
+   : option (ag.value.state_type × (global_state_t → global_state_t)) := do
+  option_bind (aupdate.to_dlabel ag_incoming (ag.value.loop ag_state)) $ λ la,
+  next_agent_state_from_dlabel ag.key _ ag_incoming la
 
 def next_state_from_label (system : system_state) 
   : next_state_label → option system_state
 | (next_state_label.agent_update a_ip aupdate) := do
-  a ← agents.check_member a_ip,
-  option_bind (next_agent_state_from_label a_ip a.value
-      (system.global_state a_ip) (a.value.loop (system.local_state a)) aupdate)
-   $ λ p, let ((ms, new_state), updatef) := p in
-   let fs := (list.map (λ p : socket × message_t, let (sock, mess) := p in 
-      add_message (a_ip, sock.snd) mess sock.fst) ms) in
-   let updatef' : global_state_t → global_state_t := 
-          list.foldr function.comp updatef fs in
-    some 
-        { local_state  := lookup_update a new_state system.local_state
-        , global_state := updatef' system.global_state }
+  ag ← agents.check_member a_ip,
+  let incoming := system.global_state ag.key,
+  option_bind (next_agent_state_from_label ag (system.local_state ag) incoming aupdate)
+     $ λ p, let (new_state, updatef) := p in
+   some  { local_state  := lookup_update ag new_state system.local_state
+        , global_state := updatef system.global_state }
+  
 
 open temporal
 

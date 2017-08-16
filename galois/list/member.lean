@@ -98,6 +98,15 @@ def member_st_decide {A : Type u}
       | (sum.inl m) := sum.inl (member_st.there m)
       end
 
+def check_member_st {A : Type u} 
+  (P : A → Prop) [decidable_pred P]
+  (xs : list A) : option (member_st P xs)
+  := match member_st_decide P xs with
+  | sum.inl r := some r
+  | sum.inr contra := none
+  end
+
+
 lemma member_st_decide_present {A : Type u}
   {P : A → Prop} [decP : decidable_pred P]
   {xs : list A}
