@@ -1,4 +1,3 @@
-import data.list
 import galois.nat.simplify_eq
 
 universe variable u

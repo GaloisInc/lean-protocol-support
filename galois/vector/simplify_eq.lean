@@ -1,6 +1,5 @@
 /- Defines basic lemmas for equality  -/
 
-import data.vector
 import galois.list.simplify_eq
 import galois.list.take_drop_lemmas
 import galois.subtype

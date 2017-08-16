@@ -120,8 +120,8 @@ begin intros x H, constructor end
 lemma ff_bot (P : subset A) : ff ≤ P :=
 begin intros x H, exfalso, apply H, end
 
-definition from_list' (l : list A) : subset A:= 
-fun x :A, list.In x l 
+definition from_list' (l : list A) : subset A := 
+fun x :A, x ∈ l 
 
 /-- Create a subset of items contained in a list -/
 inductive from_list : list A → subset A

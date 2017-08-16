@@ -17,7 +17,7 @@ meta def specialize_get_name : expr → tactic name
 | _ := fail "Not an application of a local constant"
 
 /-- The analogue of Coq's `specialize` tactic -/
-meta def specialize (H : parse texpr) : tactic unit :=
+meta def coq_specialize (H : parse texpr) : tactic unit :=
   do result ← i_to_expr H,
      id ← specialize_get_name result,
      n ← get_unused_name id none,

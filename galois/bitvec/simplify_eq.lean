@@ -1,9 +1,7 @@
 /- This module defines lemmas to simplify equalities between literals. -/
-import data.bitvec
 import galois.vector
 
 namespace bitvec
-
 
 open vector
 
@@ -20,13 +18,14 @@ end
 
 @[simp]
 theorem adc_empty (x y : bitvec 0) (c : bool)
-: adc x y c = [c] :=
+: adc x y c = cons c nil :=
 begin
   simp [adc, map_accumr₂_nil, adc_match_def],
 end
 
 theorem adc_append1 {n : ℕ} (x : bitvec n) (a : bool) (y : bitvec n) (b : bool) (c : bool)
-: adc (x ++ [a]) (y ++ [b]) c = adc x y (bitvec.carry a b c) ++ [bitvec.xor3 a b c] :=
+: adc (x ++ cons a nil) (y ++ cons b nil) c 
+  = adc x y (bitvec.carry a b c) ++ cons (bitvec.xor3 a b c) nil :=
 begin
   apply vector.eq,
   simp [adc, map_accumr₂_append1, adc_match_def]
@@ -58,7 +57,7 @@ begin
   }
 end
 
-theorem adc_eq {n : ℕ} (x : bitvec n) (b : bool) : adc x x b = x ++ [b] :=
+theorem adc_eq {n : ℕ} (x : bitvec n) (b : bool) : adc x x b = x ++ cons b nil :=
 begin
   revert b,
   induction n with n ind,
@@ -84,13 +83,14 @@ begin
   refl
 end
 
-theorem one_to_repeat (n : ℕ) : (1 : bitvec (succ n)) = repeat ff n ++ [tt] :=
+theorem one_to_repeat (n : ℕ) 
+: (1 : bitvec (succ n)) = repeat ff n ++ cons tt nil :=
 begin
   trivial,
 end
 
 theorem bit0_to_repeat {n : ℕ} (x : bitvec (succ n))
-: bit0 x = vector.total_tail x ++ [ff] :=
+: bit0 x = vector.total_tail x ++ cons ff nil :=
 begin
   unfold bit0,
   unfold has_add.add bitvec.add,
@@ -99,7 +99,7 @@ begin
 end
 
 theorem bit1_to_repeat {n : ℕ} (x : bitvec (succ n))
-: bit1 x = vector.total_tail x ++ [tt] :=
+: bit1 x = vector.total_tail x ++ cons tt nil :=
 begin
   unfold bit1,
   unfold has_add.add bitvec.add,

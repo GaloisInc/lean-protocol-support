@@ -1,5 +1,4 @@
 /- This defines a simple type for bytes. -/
-import data.bitvec
 
 -- A byte is a 8-bit bitvecotr
 definition byte := bitvec 8

@@ -1,5 +1,3 @@
-import data.vector
-
 universe variables u
 
 namespace vector
@@ -17,7 +15,7 @@ begin
 end
 
 theorem repeat_succ_to_append {α : Type} (x : α) (n : ℕ)
-  : repeat x (nat.succ n) = repeat x n ++ [x] :=
+  : repeat x (nat.succ n) = repeat x n ++ cons x nil :=
 begin
   induction n with n ind,
   { apply vector.eq,

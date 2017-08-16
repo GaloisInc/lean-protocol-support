@@ -140,7 +140,7 @@ def later {T : Type u} (P : subset T) (n: nat) : tProp T :=
 def now {T : Type u} (P: T -> Prop) := later P 0
 
 /-- later maintains decidability-/
-instance later_decidable {T : Type u} (P : T → Prop) 
+instance later_decidable {T : Type u} (P : T → Prop)
   (n : ℕ) [decidable_pred P]
   : decidable_pred (later P n)
 := begin
@@ -200,7 +200,7 @@ lemma until_mono {T : Type u} {A B P : tProp T}
   (AB : A ≤ B)
   : (A 𝓤 P) ≤ (B 𝓤 P)
 := begin
-intros tr AP,  apply until_always_mono, 
+intros tr AP,  apply until_always_mono,
 intros n, apply AB, assumption
 end
 
@@ -299,7 +299,7 @@ def repeat_next {t : Type u} (P : t -> Prop) : nat -> tProp t
 lemma lift_at_n : forall {T : Type u} (P : T -> Prop),
     repeat_next P = later P :=
 begin
-intros, apply funext, intros n, 
+intros, apply funext, intros n,
 apply funext, induction n; intros; simp [repeat_next],
 unfold next nextn,
 rw ih_1, simp [later, delayn],
@@ -316,7 +316,7 @@ split; intros H,
   unfold until, existsi k, split, assumption,
   intros, trivial,
 },
-{ 
+{
   induction H with k Hk,
   induction Hk with Hk1 Hk2,
   unfold eventually, existsi k, assumption
@@ -350,7 +350,7 @@ begin
 apply funext, intros tr,
 apply propext, split; intros H,
 {
-    constructor, 
+    constructor,
     { rw ← (delayn_zero tr),
       apply H },
     {
@@ -387,7 +387,7 @@ induction n,
 end
 
 lemma temporal_induction' {T : Type u} : ∀ (P : tProp T),
-  ∀ trace, P trace -> □ (P => (◯ P)) trace -> □ P trace 
+  ∀ trace, P trace -> □ (P => (◯ P)) trace -> □ P trace
  := temporal_induction
 
 lemma always_implies_eventually {T : Type u}
@@ -458,7 +458,7 @@ lemma always_eventually_well_founded {T : Type u} {A : Type v}
   (z : A) : □ (now (λ s, meas s = z) => ◇ Q) tr
 := begin
 have wf_ind := λ x y z, @well_founded.induction _ _ wf x z y,
-revert z, 
+revert z,
 apply (@wf_ind (λ (z : A), □ (now (λ (s : T), meas s = z)=>◇ Q) tr)),
 intros x IH n Hn,
 specialize (H x n Hn),
@@ -483,7 +483,7 @@ induction Hk with H1 H2,
 constructor, constructor; try { assumption },
 cases k,
 { rw delayn_zero, assumption },
-{ apply next_delay, apply H2, apply nat.self_lt_succ, }
+{ apply next_delay, apply H2, apply nat.le_refl, }
 end
 
 lemma until_next {T : Type u} {P Q : tProp T}
@@ -493,7 +493,7 @@ intros tr QRP,
 induction QRP with k Hk, induction Hk with H1 H2,
 induction H1 with HP HQ,
 unfold until, existsi k, split, assumption,
-intros, constructor, 
+intros, constructor,
 { apply H2, assumption },
 { unfold next nextn, rw delayn_combine,
 rw add_comm,
@@ -509,7 +509,7 @@ lemma not_eventually_always_not {T : Type u} (P : tProp T)
 apply included_eq,
 { intros tr contra n contra',
 apply contra, constructor, assumption, },
-{ intros tr H contra, 
+{ intros tr H contra,
   induction contra with k Hk,
   apply (H k), assumption }
 end

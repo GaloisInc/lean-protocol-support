@@ -2,6 +2,7 @@
 -- Vaguely following an approach taken in this paper:
 -- https://arxiv.org/pdf/1401.7886.pdf
 -- author: Ben Sherman
+import data.list.basic
 
 import galois.list.preds
 import galois.tactic
@@ -18,7 +19,7 @@ universe variable u
     perfect left subtrees increase as the roots of those subtrees
     move towards the root of the entire tree.
     (the "lp" in "lptree" is for left-perfect)
-    
+
     Effectively, an `lptree unit` is a binary natural number,
     and for any `lptree A`, this corresponding binary natural number
     indicates the number of items of type A in the tree.
@@ -72,7 +73,7 @@ def list_to_lptree {A : Type u} : list A -> lptree A :=
 -/
 inductive tree (A : Type) : Type
 | leaf (item : A) : tree
-| node (item : A) (l r : tree) : tree 
+| node (item : A) (l r : tree) : tree
 
 def twice {A} (f : A -> A -> A)
   (x y : A × A) : A × A :=
@@ -80,7 +81,7 @@ def twice {A} (f : A -> A -> A)
      (f a b, f p q).
 
 def untwice_tree {A} (f : A -> A -> A)
-  : tree (A × A) -> tree A 
+  : tree (A × A) -> tree A
 | (tree.leaf (x, y)) := tree.node (f x y) (tree.leaf x) (tree.leaf y)
 | (tree.node (x, y) l r) := tree.node (f x y) (untwice_tree l) (untwice_tree r)
 
@@ -105,7 +106,7 @@ def lptree_to_tree_helper
 | A f (lptree.cons mx t') := (match mx with
     | some x := list.cons (tree.leaf x)
     | none := λ zs, zs
-    end) 
+    end)
       (list.map (untwice_tree f) (lptree_to_tree_helper (twice f) t'))
 
 /-- Given a rightmost subtree, and a list of left subtrees
@@ -124,7 +125,7 @@ def assemble_left_subtrees {A} (f : A -> A -> A)
     when the lptree is empty.
 -/
 def lptree_to_tree {A} (f : A -> A -> A)
-  (t : lptree A) : option (tree A) := 
+  (t : lptree A) : option (tree A) :=
   match lptree_to_tree_helper f t with
   | [] := none
   | (x :: xs) := some (assemble_left_subtrees f x xs)
@@ -137,7 +138,7 @@ lemma lptree_nonzero_subtrees {A} (t : lptree A)
   (f : A -> A -> A)
   (H : lptree_to_tree_helper f t ≠ [])
   : Issome (lptree_to_tree f t)
-  := 
+  :=
 begin
 unfold lptree_to_tree,
 revert H,
@@ -151,7 +152,7 @@ lemma map_not_nil {A B} xs (f : A -> B)
 begin
 cases xs,
 { contradiction },
-{ simp [list.map] with empt, contradiction }
+{ simp [list.map], }
 end
 
 
@@ -162,11 +163,10 @@ lemma lptree_nonzero_tree {A} (t : lptree A)
 begin
 apply lptree_nonzero_subtrees,
 induction tnonzero with A x t A ma t tnonzero IHtnonzero,
-{ dsimp, simp [lptree_to_tree_helper] with empt, contradiction },
+{ dsimp, simp [lptree_to_tree_helper], },
 { simp [lptree_to_tree_helper],
-  cases ma; simp [lptree_to_tree_helper._match_1] with empt,
+  cases ma; simp [lptree_to_tree_helper._match_1],
   { apply map_not_nil, apply IHtnonzero },
-  { contradiction }
 }
 end
 
@@ -185,10 +185,10 @@ def depair {A} : list (A × A) -> list A
 | ((x, y) :: zs) := y :: x :: depair zs
 
 /-- Enumerate the leaves of an lptree from right to left
-    (i.e., going up towards larger left-perfect subtrees 
+    (i.e., going up towards larger left-perfect subtrees
 -/
 def lptree_leaves : ∀ {A}, lptree A -> list A
-| A lptree.nil := [] 
+| A lptree.nil := []
 | A (lptree.cons mx t) := (match mx with
   | none := λ zs, zs
   | (some x) := list.cons x
@@ -225,7 +225,7 @@ def left_subtrees_leaves' {A}
 
 lemma left_subtrees_leaves_same {A}
   (f : A -> A -> A) (ts : list (tree A))
-  : ∀ t : tree A, 
+  : ∀ t : tree A,
     left_subtrees_leaves f ts t = tree_leaves t ++ left_subtrees_leaves' ts
   :=
 begin
@@ -233,9 +233,9 @@ induction ts; intros,
   { simp [left_subtrees_leaves],
     simp [left_subtrees_leaves']
   },
-  { simp [left_subtrees_leaves'], 
+  { simp [left_subtrees_leaves'],
     simp [left_subtrees_leaves],
-    rw ih_1, 
+    rw ih_1,
     rw tree_leaves_combine,
     rw list.append_assoc
    }
@@ -255,13 +255,13 @@ def merge_to_tree {A} (f : A -> A -> A)
 
 def merge_to_tree_default {A} (f : A -> A -> A)
   (xs : list A) (default : A) : tree A :=
-  match merge_to_tree f xs with 
+  match merge_to_tree f xs with
   | (some t) := t
   | none := tree.leaf default
   end
 
 lemma list_to_tree_Some {A} (xs : list A)
-  f (H : xs ≠ []) 
+  f (H : xs ≠ [])
   : Issome (merge_to_tree f xs)
   :=
 begin
@@ -286,7 +286,7 @@ lemma list_map_nil {A B : Type} (f : A -> B)
   (xs : list A)
   (H : xs = [])
   : list.map f xs = []
-  := 
+  :=
 begin
 rw H, reflexivity
 end
@@ -304,7 +304,7 @@ induction t,
      apply ih_1, intros contra, apply H,
      apply list_map_nil, apply contra },
     { constructor }
-  } 
+  }
 end
 
 /-- Decision procedure to determine whether
@@ -330,9 +330,9 @@ split; intro H,
     { constructor }
   }
 },
-{ induction H, 
+{ induction H,
   { simp [lptree_nonzero_bool] },
-  { cases ma, 
+  { cases ma,
     { simp [lptree_nonzero_bool], assumption },
     { reflexivity }
   }
@@ -371,7 +371,7 @@ inductive internal_nodes_ok {A} (f : A -> A -> A) : tree A -> Prop
       -> x = f (root l) (root r) -> internal_nodes_ok (tree.node x l r)
 
 lemma internal_nodes_ok_combine {A} (f : A -> A -> A)
-  (x y : tree A) 
+  (x y : tree A)
   (Hx : internal_nodes_ok f x)
   (Hy : internal_nodes_ok f y)
   : internal_nodes_ok f (combine f x y) :=
@@ -381,9 +381,9 @@ constructor, assumption, assumption, reflexivity
 end
 
 lemma assemble_left_subtrees_preserves_nodes
- {A} (f : A -> A -> A) (xs : list (tree A)) 
+ {A} (f : A -> A -> A) (xs : list (tree A))
  (Hxs : list.Forall (internal_nodes_ok f) xs)
- : ∀ (x : tree A) (Hx : internal_nodes_ok f x), 
+ : ∀ (x : tree A) (Hx : internal_nodes_ok f x),
    internal_nodes_ok f (assemble_left_subtrees f x xs)
  :=
  begin
@@ -395,7 +395,7 @@ lemma assemble_left_subtrees_preserves_nodes
  end
 
 lemma assemble_left_subtrees_preserves_leaves
-  {A} (f : A -> A -> A) (xs : list (tree A)) 
+  {A} (f : A -> A -> A) (xs : list (tree A))
   : ∀ (x : tree A),
    tree_leaves (assemble_left_subtrees f x xs)
    = left_subtrees_leaves f xs x :=
@@ -408,7 +408,7 @@ induction xs; intros,
 }
 end
 
-lemma congr_arg2_pair {A B C} (f : A -> B -> C) 
+lemma congr_arg2_pair {A B C} (f : A -> B -> C)
   (a a' : A) (b b' : B)
   : (a, b) = (a', b') -> f a b = f a' b'
   :=
@@ -440,12 +440,13 @@ lemma root_untwice_tree' {A} (f : A -> A -> A) (l r : tree (A × A))
   = (root (untwice_tree f l), root (untwice_tree f r))
   :=
 begin
-generalize Ql : (root l) = Pl,
-cases Pl,
-generalize Qr : (root r) = Pr,
-cases Pr,
-simp [twice],
-f_equal; apply root_untwice_tree; assumption
+  generalize Ql : (root l) = Pl,
+  cases Pl,
+  generalize Qr : (root r) = Pr,
+  cases Pr,
+  simp [twice],
+  apply and.intro,
+  all_goals { apply root_untwice_tree, assumption, },
 end
 
 lemma internal_nodes_ok_twice {A}
@@ -458,7 +459,7 @@ induction x,
 { cases item, simp [untwice_tree],
     constructor, constructor, constructor, reflexivity
 },
-{ cases item, simp [untwice_tree], constructor, 
+{ cases item, simp [untwice_tree], constructor,
   { apply ih_1, clear ih_1 ih_2,
     generalize Q : (tree.node (fst, snd) l r) = P,
     rw Q at H, revert fst snd l r Q,
@@ -473,7 +474,7 @@ induction x,
     { contradiction },
     { injection Q, subst r_1, assumption }
   },
-  { clear ih_1 ih_2, 
+  { clear ih_1 ih_2,
     generalize Q : (tree.node (fst, snd) l r) = P,
     rw Q at H, revert fst snd l r Q,
     induction H; intros,
@@ -500,7 +501,7 @@ induction t,
   cases a,
   { simp [lptree_to_tree_helper._match_1],
     specialize (ih_1 (twice f)),
-    apply list.map_Forall, 
+    apply list.map_Forall,
     apply list.impl_Forall,
         { assumption },
         { intros, apply internal_nodes_ok_twice, apply a }
@@ -508,7 +509,7 @@ induction t,
   { simp [lptree_to_tree_helper._match_1],
     constructor,
       { constructor },
-      { apply list.map_Forall, 
+      { apply list.map_Forall,
         apply list.impl_Forall,
         { apply ih_1 },
         { intros, apply internal_nodes_ok_twice, assumption }
@@ -532,7 +533,7 @@ begin
 generalize Q : (lptree_to_tree f t) = P,
 cases P,
 { dsimp, constructor },
-{ dsimp, 
+{ dsimp,
   generalize W : (lptree_to_tree_helper f t) = Z,
   cases Z,
   { unfold lptree_to_tree at Q,
@@ -557,14 +558,14 @@ end
 
 lemma lptree_leaves_cons {A} (t : lptree A)
   (x : A)
-  : lptree_leaves (lptree_cons x t) = 
+  : lptree_leaves (lptree_cons x t) =
      x :: lptree_leaves t
   :=
 begin
 induction t,
 { reflexivity },
 { cases a,
-  { simp [lptree_cons, lptree_to_tree, lptree_to_tree_helper], 
+  { simp [lptree_cons, lptree_to_tree, lptree_to_tree_helper],
     simp [lptree_leaves]},
   { simp [lptree_cons],
     simp [lptree_leaves],
@@ -606,7 +607,7 @@ induction xs,
 end
 
 
-lemma depair_tree_leaves {A} (f : A -> A -> A) 
+lemma depair_tree_leaves {A} (f : A -> A -> A)
   (t : tree (A × A))
   : depair (tree_leaves t) = tree_leaves (untwice_tree f t)
 :=
@@ -645,7 +646,7 @@ lemma lptree_leaves_helper_same' {A} f (t : lptree A)
 begin
 induction t,
 { reflexivity },
-{ simp [lptree_leaves], 
+{ simp [lptree_leaves],
   simp [lptree_to_tree_helper],
   cases a,
   { simp [lptree_leaves],
@@ -657,7 +658,7 @@ induction t,
     simp [lptree_to_tree_helper],
     simp [left_subtrees_leaves'],
     simp [tree_leaves] with empt,
-    f_equal, 
+    f_equal,
     rw (ih_1 (twice f)),
     apply depair_leaves },
 }
@@ -711,7 +712,7 @@ begin
 generalize P : (lptree_to_tree f t) = Q,
 cases Q,
 { simp [tree_leaves_option],
-  
+
   cases (lptree_nonzero_dec t),
   apply lptree_not_nonzero_no_leaves,
   assumption,
@@ -723,7 +724,7 @@ cases Q,
   apply (@not_Issome_none (tree A)),
   assumption
 },
-{ simp [tree_leaves_option], 
+{ simp [tree_leaves_option],
   generalize W : (lptree_to_tree_helper f t) = Z,
   cases Z,
   { unfold lptree_to_tree at P,
@@ -743,7 +744,7 @@ end
 
 /-- If we take a list, convert it to an lptree, convert
     that to a binary tree, and compute the leaves,
-    we get back the original list 
+    we get back the original list
 -/
 lemma lptree_leaves_ok {A} (f : A -> A -> A) (xs : list A)
   : xs = tree_leaves_option (merge_to_tree f xs) :=
@@ -770,7 +771,7 @@ end
 lemma list.append_nil_left {A} (xs : list A)
   : xs = [] ++ xs := rfl
 
-lemma list.map_compose {A B C : Type} 
+lemma list.map_compose {A B C : Type}
   (f : A -> B) (g : B -> C) (xs : list A)
   : list.map (g ∘ f) xs = list.map g (list.map f xs)
 :=
@@ -800,7 +801,7 @@ unfold list.reverse,
 simp [list.reverse_core],
 induction xs,
 { reflexivity },
-{ simp [list.reverse_core], 
+{ simp [list.reverse_core],
   rw <- (reverse_core_app a_1 [a] [x]),
   dsimp, reflexivity
  }
@@ -813,7 +814,7 @@ lemma cons_reverse_app {A : Type} (x : A) (xs : list A)
 begin
 induction xs,
 { reflexivity },
-{ simp [function.comp] }
+{ simp [function.comp], }
 end
 
 section paths
@@ -830,7 +831,7 @@ inductive lr : Type
 def path := list (lr × A)
 
 def all_paths_core : tree A -> path -> list (A × path)
-| (tree.node i l r) path :=  
+| (tree.node i l r) path :=
                  all_paths_core r ((lr.right, root l) ::path)
               ++ all_paths_core l ((lr.left, root r) ::path)
 | (tree.leaf i) path := [(i, path)]
@@ -929,7 +930,7 @@ induction t,
 end
 
 protected def right_core : tree A -> path -> path
-| (tree.node i l r) path :=  
+| (tree.node i l r) path :=
                   right_core r ((lr.right, root l) ::path)
 | (tree.leaf i) path := path
 
@@ -946,7 +947,7 @@ def tree_at_path : tree A -> path -> option (tree A)
                                 | (lr.left, _) := tree_at_path l t
                                 | (lr.right, _) := tree_at_path r t
                                 end
-| (tree.leaf _) _ := none               
+| (tree.leaf _) _ := none
 
 
 def reconstruct_root (f : A -> A -> A) : path -> A -> A
@@ -963,21 +964,21 @@ def reconstruct_items_rev (f : A → A → A) : path → A → list A
 def reconstruct_items (node_combine : A -> A -> A) : path → A → list A
 | [] _ := []
 | ((lr.left, i) :: t) last_item := let new_item := node_combine last_item i in
-                                    new_item :: (reconstruct_items t new_item) 
+                                    new_item :: (reconstruct_items t new_item)
 | ((lr.right, i) :: t) last_item := let new_item := node_combine i last_item in
                                     new_item :: (reconstruct_items t new_item)
 
-/-- Given 
-    a prospective leaf item `lf`, 
+/-- Given
+    a prospective leaf item `lf`,
     a path `p` that is supposed to lead to that leaf item,
     and a tree `t`, this predicate indicates that indeed
     following the path `p` along the tree `t` leads to the leaf `lf`.
 -/
 inductive path_in_tree_rev : A -> list A -> tree A -> Prop
 | leaf : ∀ lf : A, path_in_tree_rev lf [] (tree.leaf lf)
-| left : ∀ lf x xs l r, 
+| left : ∀ lf x xs l r,
          path_in_tree_rev lf xs l -> path_in_tree_rev lf (x :: xs) (tree.node x l r)
-| right : ∀ lf x xs l r, 
+| right : ∀ lf x xs l r,
          path_in_tree_rev lf xs r -> path_in_tree_rev lf (x :: xs) (tree.node x l r)
 
 
@@ -987,15 +988,15 @@ lemma second_simpl {X A B : Type} (f : A -> B)
   := rfl
 
 /-- If we compute the list of paths to all leaves in a tree
-    where the internal nodes are all the result of applying 
+    where the internal nodes are all the result of applying
     and then use those paths and the leaves they point to
-    to try to 
+    to try to
 
 -/
 lemma reconstruct_root_correct (f : A -> A -> A)
   (t : tree A)
   (H : internal_nodes_ok f t)
-  : list.Forall (λ p : A × path, 
+  : list.Forall (λ p : A × path,
     reconstruct_root f p.snd p.fst = root t) (all_paths_rev t)
 := begin
 induction H,
@@ -1009,8 +1010,8 @@ induction H,
     apply list.impl_Forall, apply ih_2,
     clear ih_2 a a_1,
     simp [root],
-    intros p, subst x, cases p with lf p,
-    dsimp,
+    intros lf p,
+    subst x,
     intros H,
     dsimp [second],
     simp [reconstruct_root],
@@ -1019,8 +1020,8 @@ induction H,
     apply list.impl_Forall, apply ih_1,
     clear ih_1 a a_1,
     simp [root],
-    intros p, subst x, cases p with lf p,
-    dsimp,
+    intros lf p,
+    subst x,
     intros H,
     simp [second],
     simp [reconstruct_root],
@@ -1060,11 +1061,11 @@ induction t,
   }
 end
 
-lemma reconstruct_items_correct (f : A -> A -> A) 
+lemma reconstruct_items_correct (f : A -> A -> A)
   (t : tree A)
   : internal_nodes_ok f t
-  -> list.Forall (λ p, let (lf, pth) := p in  
-      path_in_tree_rev lf (reconstruct_items_rev f pth lf) t) (all_paths_rev t) 
+  -> list.Forall (λ p, let (lf, pth) := p in
+      path_in_tree_rev lf (reconstruct_items_rev f pth lf) t) (all_paths_rev t)
 := begin
 intros H, induction H,
 { simp [all_paths_rev],
