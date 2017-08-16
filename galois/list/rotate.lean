@@ -25,7 +25,7 @@ namespace list
   | l 0        := l
   | l (succ n) := ror1 (ror l n)
 
-  theorem ror1_concat (l : list T) (a : T) 
+  theorem ror1_concat (l : list T) (a : T)
   : ror1 (l ++ [a]) = a::l :=
   begin
     induction l,

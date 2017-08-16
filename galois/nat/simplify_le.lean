@@ -5,7 +5,6 @@ Author: Joe Hendrix
 This module defines operations for simplifying comparisons between
 natural numbers.
 -/
-
 import data.nat.basic
 
 namespace nat
@@ -52,11 +51,11 @@ begin
   case nat.succ n ind {
     intros a m,
     cases a,
-    case nat.zero { 
+    case nat.zero {
       simp [nat.zero_sub, zero_lt_succ, not_succ_le_zero],
     },
-    case nat.succ { 
-      simp [add_succ, nat.succ_lt_succ_iff, nat.succ_le_succ_iff, ind], 
+    case nat.succ {
+      simp [add_succ, nat.succ_lt_succ_iff, nat.succ_le_succ_iff, ind],
     },
   },
 end

@@ -1,6 +1,6 @@
 /- This file contains lemmas for take and drop -/
 import galois.nat.simplify_le
-import init.data.list.basic
+import data.list.basic
 
 universe variable u
 
@@ -9,15 +9,6 @@ namespace list
 variable {α : Type u}
 
 /- take theorems -/
-
-@[simp]
-theorem take_zero (xs : list α) : take 0 xs = [] := rfl
-
-@[simp]
-theorem take_nil : ∀ (n : ℕ), take n list.nil = @list.nil α
-| 0 := by refl
-| (nat.succ n) := by refl
-
 @[simp]
 theorem take_succ_cons (n : ℕ) (x : α) (xs : list α) : take (nat.succ n) (x :: xs) = x :: take n xs := rfl
 

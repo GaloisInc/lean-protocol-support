@@ -6,7 +6,7 @@ namespace list
 theorem nil_inter {α : Type} [decidable_eq α] (x : list α) : list.nil ∩ x = [] := rfl
 
 @[simp]
-theorem cons_inter {α : Type} [decidable_eq α] (a : α) (x y : list α) 
+theorem cons_inter {α : Type} [decidable_eq α] (a : α) (x y : list α)
 : (a::x) ∩ y = if a ∈ y then a :: (x ∩ y) else x ∩ y := rfl
 
 @[simp]
@@ -25,7 +25,7 @@ begin
   case list.cons v xr ind {
     simp,
     by_cases (v ∈ y) with h,
-    all_goals { 
+    all_goals {
       simp [h, ind],
       by_cases (e = v) with e_eq_v,
       all_goals { simp [*], },
