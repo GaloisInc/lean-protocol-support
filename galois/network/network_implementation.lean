@@ -54,31 +54,16 @@ def initial_incoming_items : incoming_items
   := { sockets := []
      , messages := [] }
 
-def next_agent_receive_from_label (a_ip : ip) (a : agent)
+def next_agent_poll_state_from_label (a_ip : ip) {A : Type u}
   (ports : list port) (sockets : list socket) (bound : time)
   (incoming : incoming_items)
-  (cont : poll_result ports sockets bound → list (socket × message_t) × a.state_type)
-  (elapsed_fin : fin bound) (rn : remote_name)
-  : poll_receive_label → option ((list (socket × message_t) × a.state_type) × (global_state_t → global_state_t))
-| poll_receive_label.drop_connection := none
-| poll_receive_label.new_connection :=
-  match list.member_st_decide 
-    (λ s : socket_info, s.server = a_ip ∧ s.new) incoming.sockets with
-  | (sum.inl m) := 
-    let m' := m.to_member in
-    let s := m'.value in
-    match list.check_member s.port ports with
-    | (some portidx) := some (cont
-         (poll_result.new_connection elapsed_fin portidx s.socket)
-      , lookup_updatef a_ip (λ inc, {inc with sockets := list.update_member ({s with new := false}) _ m'})
-      )
-    | none := none
-    end
-  | (sum.inr contra) := none
-  end
-| (poll_receive_label.receive_message mess) :=
+  (cont : poll_result ports sockets bound → A)
+  : poll_label → option (A × (global_state_t → global_state_t))
+| (poll_label.receive elapsed rn mess) :=
 -- OOPS, need to fix: to receive message, I should already have been
 -- informed of the new connection that the message has transferred over
+  if H : elapsed < bound 
+    then let elapsed_fin : fin bound := ⟨ elapsed, H ⟩ in
   match list.member_st_decide (λ p : socket × message_t, p.snd = mess) incoming.messages with
   | (sum.inl idx) := let idx' := idx.to_member in
     let p := idx'.value in
@@ -90,74 +75,45 @@ def next_agent_receive_from_label (a_ip : ip) (a : agent)
         end
   | (sum.inr contra) := none
   end
+     else none
+| poll_label.timeout := some (cont poll_result.timeout, id)
 
 def add_message (rn : remote_name) (m : message_t) (a_ip : ip)
   : global_state_t → global_state_t :=
   lookup_updatef a_ip (λ i : incoming_items, {i with messages := (rn, m) :: i.messages })
 
-def next_agent_poll_state_from_label (a_ip : ip) (a : agent)
-  (ports : list port) (sockets : list socket) (bound : time)
-  (incoming : incoming_items)
-  (cont : poll_result ports sockets bound → list (socket × message_t) × a.state_type)
-  : poll_label → option ((list (socket × message_t) × a.state_type) × (global_state_t → global_state_t))
-| poll_label.timeout := some (cont poll_result.timeout, id)
-| (poll_label.receive elapsed rn receive_label) := 
-  if H : elapsed < bound 
-    then let elapsed_fin : fin bound := ⟨ elapsed, H ⟩ in
-      next_agent_receive_from_label a_ip a ports
-        sockets bound incoming cont elapsed_fin rn receive_label
-   else none
-
-def add_socket (s : socket_info) (a_ip : ip) : global_state_t → global_state_t :=
-  lookup_updatef a_ip (λ i : incoming_items, {i with sockets := s :: i.sockets })
+def option_filter {A : Type u}
+   (P : A → Prop) [decidable_pred P] : option A → option A
+| (some x) := if P x then some x else none
+| none := none
 
 section
 parameters (a_ip : ip) (a : agent) (incoming : incoming_items)
 
-
-
-def next_agent_state_from_label (a_next : act a.state_type)
-  : agent_label → option ((list (socket × message_t) × a.state_type) × (global_state_t → global_state_t))
-| (agent_label.poll plabel ms) := match a_next with
-  | (act.poll ports sockets bound after) :=
-     next_agent_poll_state_from_label a_ip a
-           ports sockets bound incoming after plabel
-  end
+def next_agent_state_from_label
+  : act a.state_type → agent_label → 
+    option ((list (socket × message_t) × a.state_type) × (global_state_t → global_state_t))
+| (act.poll ports sockets bound after) (agent_label.poll plabel ms) :=
+  option_filter (λ x, x.fst.fst = ms)
+    (next_agent_poll_state_from_label a_ip
+              ports sockets bound incoming after plabel)
 
 inductive poll_receive_dlabel (ports : list port) (sockets : list socket)
     : Type
-| new_connection {} : ∀ (sock : list.member_st (λ s : socket_info, s.server = a_ip ∧ s.new) incoming.sockets)
-    (p : ports.member),
-    sock.to_member.value.port = p.value →
-    poll_receive_dlabel
-| receive_message {} : ∀ (mess : incoming.messages.member)
-    (sock : sockets.member),
+| receive_message {} : ∀ (mess : incoming.messages.member) (sock : sockets.member),
     mess.value.fst = sock.value → 
     poll_receive_dlabel
 
 def dlabel' {a} := @dlabel a poll_receive_dlabel
 
-def next_agent_state_receive_dlabel {ports : list port} {sockets : list socket}
-  {bound : time}
-  (cont : poll_result ports sockets bound → list (socket × message_t) × a.state_type)
-  (elapsed_fin : fin bound) (rn : remote_name)
-  : poll_receive_dlabel ports sockets
-  → (list (socket × message_t) × a.state_type) × (global_state_t → global_state_t)
-| (poll_receive_dlabel.new_connection sock p _) := 
-let s := sock.to_member in
-      (cont (poll_result.new_connection elapsed_fin p s.value.socket)
-      , lookup_updatef a_ip (λ inc, {inc with sockets := list.update_member ({s.value with new := false}) _ s}))
-| (poll_receive_dlabel.receive_message mess sock _) := 
-  (cont (poll_result.message elapsed_fin sock mess.value.snd)
-        , lookup_updatef a_ip (λ inc, {inc with messages := list.remove_member _ mess}))
-
-def next_agent_state_poll_dlabel {ports : list port} {sockets : list socket}
-  {bound : time} (cont : poll_result ports sockets bound → list (socket × message_t) × a.state_type)
+def next_agent_state_poll_dlabel {A} {ports : list port} {sockets : list socket}
+  {bound : time} (cont : poll_result ports sockets bound → A)
   : @poll_dlabel poll_receive_dlabel ports sockets bound 
-  → (list (socket × message_t) × a.state_type) × (global_state_t → global_state_t)
-| poll_dlabel.timeout := (cont (poll_result.timeout), id)
-| (poll_dlabel.receive elapsed_fin rn rlabel) := next_agent_state_receive_dlabel
-     cont elapsed_fin rn rlabel
+  → A × (global_state_t → global_state_t)
+| poll_dlabel.timeout := (cont poll_result.timeout, id)
+| (poll_dlabel.receive elapsed_fin rn (poll_receive_dlabel.receive_message mess sock _)) 
+  := (cont (poll_result.message elapsed_fin sock mess.value.snd)
+        , lookup_updatef a_ip (λ inc, {inc with messages := list.remove_member _ mess}))
 
 def next_agent_state_from_dlabel
   : ∀ (a_next : act a.state_type) (la : dlabel' a_next)
@@ -177,12 +133,7 @@ induction a_1,
   { -- receive
     apply (poll_label.receive elapsed_fin.val rn),
     induction a_1,
-    { -- new connection
-      exact poll_receive_label.new_connection
-    },
-    { -- receive message
-      exact poll_receive_label.receive_message mess.value.snd,
-    }
+    apply mess.value.snd
   },
 assumption
 end

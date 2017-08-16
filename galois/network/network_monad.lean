@@ -51,16 +51,6 @@ inductive poll_result {socket : Type} (ports : list port) (sockets : list socket
 | timeout {} : poll_result
 -- ^ We waited until the elapsed time without receiving a message.
 
-| new_connection {}
-  : fin bound → list.member ports → socket → poll_result
-
--- ^ Another system created a connection to this machine via the port
--- with the given index at the given time.
-| drop_connection {}
-: fin bound → list.member sockets → poll_result
--- ^ The socket with the given index closed and should not be used, at
--- the given time bound
-
 | message {}
 : fin bound → list.member sockets → list byte → poll_result
 -- ^ We received a message from the socket with the given index.
