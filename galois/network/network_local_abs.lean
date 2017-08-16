@@ -57,7 +57,7 @@ intros x, induction x,
 admit
 end
 
-def LTS s l s' := next_agent_state_from_dlabel s l = s'
+def LTS s l s' := next_agent_state_from_dlabel (ag.loop s) l = s'
 
 end
 

@@ -59,9 +59,12 @@ inductive receives (P : poll_receive_label → Prop) : agent_label → Prop
 | mk : ∀ (t : time) (rn : remote_name) (prl : poll_receive_label) ms,
        P prl → receives (agent_label.poll (poll_label.receive t rn prl) ms)
 
+inductive timeouts (l : agent_label) : Prop
+| mk : ∀ ms, l = agent_label.poll poll_label.timeout ms -> timeouts
+
 inductive receives_or_timeout (P : poll_receive_label → Prop) (l : agent_label) : Prop
 | receives : receives P l → receives_or_timeout
-| timeouts : ∀ ms, l = agent_label.poll poll_label.timeout ms -> receives_or_timeout
+| timeouts : timeouts l -> receives_or_timeout
 
 def receives_message (m : message_t) : agent_label → Prop :=
   receives (eq (poll_receive_label.receive_message m))
