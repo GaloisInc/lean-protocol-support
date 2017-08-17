@@ -14,6 +14,15 @@ begin
   contradiction,
 end
 
+@[simp]
+theorem succ_eq_zero (x : ℕ) : (succ x = 0) ↔ false :=
+begin
+  simp [bit0],
+  induction x,
+  contradiction,
+  contradiction
+end
+
 /- Simplify succ n = 0 to false -/
 @[simp]
 theorem not_succ_eq_zero (n : ℕ) : ¬ (nat.succ n = 0) :=

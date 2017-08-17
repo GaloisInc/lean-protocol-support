@@ -184,7 +184,6 @@ meta def simp_bvlit_rule : tactic unit := do
       , expr.const `ff_eq_tt_eq_false []
         -- Natural number lemmas
       , expr.const `nat.succ_eq_zero []
-      , expr.const `nat.zero_eq_succ []
       , expr.const `nat.succ_sub_succ []
         -- Vector lemmas
       , expr.const `vector.repeat_succ_to_append []
