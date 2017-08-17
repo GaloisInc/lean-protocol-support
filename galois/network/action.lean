@@ -40,6 +40,14 @@ def cont_result {A : Type u} : ∀ {next : act A} (la : dlabel next),
 
 def messages {A : Type u} {next : act A} (la : dlabel next) : list (socket × message_t)
   := la.cont_result.fst
+
+lemma invert {A : Type u} 
+  {ports sockets bound cont} (l : @dlabel A (act.poll ports sockets bound cont))
+  : ∃ r : poll_result ports sockets bound,
+    l = dlabel.poll ports sockets bound cont r
+:= begin
+cases l, constructor, reflexivity
+end
 end dlabel
 
 end network
