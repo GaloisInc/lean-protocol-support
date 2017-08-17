@@ -71,15 +71,6 @@ inductive next_state_from_label_ind (a_ip : ip) (s : system_state) (la : agent_l
          (H : next_state_from_label_ind' ag s la s'), next_state_from_label_ind
 
 
-lemma option_bind_some {A B} {ma : option A} {f : A → option B}
-  {b : B} (H : option_bind ma f = some b)
-  : ∃ a : A, ma = some a ∧ f a = some b
-:= begin
-cases ma,
-contradiction,
-existsi a, split, reflexivity, assumption
-end
-
 /-- WARNING: This lemma is now incorrect
     The definition of next_state_from_label_ind' needs
     to be modified

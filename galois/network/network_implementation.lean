@@ -28,6 +28,14 @@ unfold lookup_update lookup_updatef,
 rw (dif_pos (eq.refl a)),
 end
 
+lemma lookup_update_different {A : Type u} [decidable_eq A] {B : A → Type v}
+  {a a' : A} {b : B a} {f : ∀ a, B a} (H : a ≠ a') :
+  lookup_update a b f a' = f a'
+:= begin
+unfold lookup_update lookup_updatef,
+rw (dif_neg H),
+end
+
 @[reducible]
 def global_state_t := ip → incoming_items
 
@@ -54,7 +62,7 @@ def poll_label.to_poll_result
 def agent_label.to_dlabel
   (incoming : incoming_items) {ag : agent}
 : ∀ (a_next : act ag.state_type), agent_label → option (dlabel a_next)
-| (act.poll ports sockets bound cont) (agent_label.poll plabel ms) := do
+| (act.poll ports sockets bound cont) (agent_label.mk plabel ms) := do
    r ← plabel.to_poll_result ports sockets bound incoming,
    guard ((cont r).fst = ms),
    some (dlabel.poll ports sockets bound cont r)
@@ -98,7 +106,7 @@ end
 
 def dlabel_to_label {A} : ∀ {a_next : act A}, dlabel a_next → agent_label
 | (act.poll ports sockets bound cont) (dlabel.poll ._ ._ ._ ._ r) :=
-  agent_label.poll (poll_result_to_label r) ((cont r).fst)
+  agent_label.mk (poll_result_to_label r) ((cont r).fst)
 
 section
 parameter {agents : map ip agent}
@@ -106,6 +114,10 @@ parameter {agents : map ip agent}
 structure system_state : Type 1 :=
   (local_state : ∀ a : agents.member, a.value.state_type)
   (global_state : global_state_t)
+
+structure sys_dlabel (st : system_state) :=
+  (ag : agents.member)
+  (label : dlabel (ag.value.loop (st.local_state ag)))
 
 section
 parameters (a_ip : ip) (ag : agent) (incoming : incoming_items)
@@ -136,30 +148,34 @@ def next_agent_state_from_dlabel
 
 end
 
-def next_agent_state_from_label
-   (ag : agents.member) (ag_state : ag.value.state_type)
-   (ag_incoming : incoming_items)
-   (aupdate : agent_label)
-   : option (ag.value.state_type × (global_state_t → global_state_t)) := do
-  option_bind (aupdate.to_dlabel ag_incoming (ag.value.loop ag_state)) $ λ la,
-  next_agent_state_from_dlabel ag.key _ ag_incoming la
-
-def next_state_from_label (system : system_state) 
-  : next_state_label → option system_state
-| (next_state_label.agent_update a_ip aupdate) := do
-  ag ← agents.check_member a_ip,
-  let incoming := system.global_state ag.key,
-  option_bind (next_agent_state_from_label ag (system.local_state ag) incoming aupdate)
+def next_state_from_dlabel (system : system_state) 
+  : sys_dlabel system → option system_state
+| (sys_dlabel.mk ag aupdate) :=
+  option_bind (next_agent_state_from_dlabel ag.key ag.value
+     (system.global_state ag.key) aupdate)
      $ λ p, let (new_state, updatef) := p in
    some  { local_state  := lookup_update ag new_state system.local_state
         , global_state := updatef system.global_state }
-  
+
+def label.to_sys_dlabel (system : system_state)
+: next_state_label → option (sys_dlabel system)
+| (next_state_label.agent_update a_ip aupdate) := do
+  ag ← agents.check_member a_ip,
+  option_bind (aupdate.to_dlabel (system.global_state a_ip) 
+         (ag.value.loop (system.local_state ag))) $ λ l',
+  some (sys_dlabel.mk ag l')
+
+def next_state_from_label (system : system_state) 
+  (l : next_state_label) : option system_state :=
+  option_bind (label.to_sys_dlabel system l) (next_state_from_dlabel system)
 
 open temporal
 
 -- Our labeled transition system
 def LTS (s : system_state) (l : next_state_label) (s' : system_state) : Prop :=
   next_state_from_label s l = some s'
+def LTSd (s : system_state) (l : sys_dlabel s) (s' : system_state) : Prop :=
+  next_state_from_dlabel s l = some s'
 
 def TR := trace (sigma (λ _ : system_state, next_state_label))
 def TP := tProp (sigma (λ _ : system_state, next_state_label))
@@ -182,6 +198,15 @@ lemma inLabel_mono {S} {L} : subset.monotone (@inLabel S L Prop)
 intros P Q PQ x Hx, apply PQ, apply Hx
 end
 
+end
+
+lemma option_bind_some {A B} {ma : option A} {f : A → option B}
+  {b : B} (H : option_bind ma f = some b)
+  : ∃ a : A, ma = some a ∧ f a = some b
+:= begin
+cases ma,
+contradiction,
+existsi a, split, reflexivity, assumption
 end
 
 end network

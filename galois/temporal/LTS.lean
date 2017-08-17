@@ -4,7 +4,7 @@ A labeled transition system built on top of temporal logic
 
 import .fixpoint
 
-universes u v
+universes u v u' v'
 
 open temporal
 
@@ -116,3 +116,26 @@ rw sigma_eta, assumption, assumption,
 end
 
 end LTS
+
+section LTS_refinement
+
+def WithSkip {S : Type u} (L : S → Type v) (s : S) : Type v := option (L s)
+
+parameters {S : Type u} {L : S → Type v}
+parameter (LTS : ∀ s : S, L s → S → Prop)
+
+def SkipLTS (s : S) (l : WithSkip L s) (s' : S) : Prop :=
+  match l with
+  | none := s = s'
+  | some l' := LTS s l' s'
+  end
+
+parameters {S' : Type u'}{L' : S' → Type v'}
+parameter (LTS' : ∀ s : S', L' s → S' → Prop)
+
+structure Refinement :=
+  (S_refine : S → S')
+  (L_refine : ∀ s, L s → L' (S_refine s))
+  (refines : ∀ s l s', LTS s l s' → LTS' (S_refine s) (L_refine s l) (S_refine s'))
+
+end LTS_refinement

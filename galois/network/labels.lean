@@ -19,8 +19,9 @@ instance poll_label_decidable_eq
   : decidable_eq poll_label
   := by tactic.mk_dec_eq_instance
 
-inductive agent_label : Type
-  | poll : poll_label → list (remote_name × message_t) → agent_label
+structure agent_label : Type :=
+  (plabel : poll_label)
+  (messages : list (remote_name × message_t))
 
 /-- Decidable equality is straightforward, but currently it's
     difficult for me to automate.
@@ -37,7 +38,7 @@ inductive agent_does (a : ip) (P : agent_label → Prop) : next_state_label → 
 
 /-- Indicates that an agent is polling -/
 inductive polls : agent_label → Prop
-| mk : ∀ (l : poll_label) ms, polls (agent_label.poll l ms)
+| mk : ∀ (l : poll_label) ms, polls (agent_label.mk l ms)
 
 instance polls_decidable : decidable_pred polls
 := begin
@@ -48,10 +49,10 @@ end
 
 inductive receives (P : message_t → Prop) : agent_label → Prop
 | mk : ∀ (t : time) (rn : remote_name) (mess : message_t) ms,
-       P mess → receives (agent_label.poll (poll_label.receive t rn mess) ms)
+       P mess → receives (agent_label.mk (poll_label.receive t rn mess) ms)
 
 inductive timeouts : agent_label → Prop
-| mk : ∀ ms, timeouts (agent_label.poll poll_label.timeout ms)
+| mk : ∀ ms, timeouts (agent_label.mk poll_label.timeout ms)
 
 inductive receives_or_timeout (P : message_t → Prop) (l : agent_label) : Prop
 | receives : receives P l → receives_or_timeout
@@ -63,7 +64,7 @@ def receives_message (m : message_t) : agent_label → Prop :=
 def poll_result_to_label {ports : list port} {sockets : list socket}
   {timeout : time} : poll_result ports sockets timeout → poll_label
 | poll_result.timeout := poll_label.timeout
-| (poll_result.message elapsed sock mess) :=  
+| (poll_result.message elapsed sock mess) :=
    poll_label.receive elapsed.val sock.value mess
 
 end network
