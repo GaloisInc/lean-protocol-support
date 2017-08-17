@@ -450,27 +450,59 @@ rw ← always_idempotent at PQ,
 apply PQ,
 end
 
-lemma always_eventually_well_founded {T : Type u} {A : Type v}
+/-- If I have a type A with a well-founded relation R on it, 
+    then if for every state that measures to some `x : A`, 
+      if I am at `x` now, I will eventually reach a smaller state or Q happens,
+    then if I am in some state that yields an `A`, eventually Q happens.
+   Note: your `meas` will likely take the form of `now _` -/
+lemma always_eventually_well_founded_option {T : Type u} {A : Type v}
   {R : A → A → Prop} (wf : well_founded R)
-  (meas : T → A) (Q : tProp T)
+  (meas : trace T → option A) (Q : tProp T)
   (tr : trace T)
-  (H : ∀ x : A, □ (now (λ s, meas s = x) => ◇ ((now (λ s, R (meas s) x)) ∪ Q)) tr)
-  (z : A) : □ (now (λ s, meas s = z) => ◇ Q) tr
+  (H : ∀ x : A, □ ((λ s, meas s = some x) => ◇ (((λ s, 
+  match meas s with 
+  | none := false
+  | (some m) := R m x end)) ∪ Q)) tr)
+  (z : A) : □ ((λ s, meas s = some z) => ◇ Q) tr
 := begin
 have wf_ind := λ x y z, @well_founded.induction _ _ wf x z y,
 revert z,
-apply (@wf_ind (λ (z : A), □ (now (λ (s : T), meas s = z)=>◇ Q) tr)),
+apply (@wf_ind (λ (z : A), □ ((λ s, meas s = some z)=>◇ Q) tr)),
 intros x IH n Hn,
 specialize (H x n Hn),
 induction H with k Hk,
 induction Hk with Hk Hk,
-{ unfold now later at Hk,
+{ generalize Hm : ((meas (delayn k (delayn n tr)))) = m,
+  rw Hm at Hk,
+  induction m;
+    dsimp at Hk,
+  contradiction,
   specialize (IH _ Hk (k + n)),
   rw ← eventually_idempotent,
   constructor, rw delayn_combine, apply IH,
-  simp with ltl,
+  simp with ltl, simp with ltl at Hm,
+  assumption
   },
 { constructor, assumption }
+end
+
+/-- Like the above but without partiality: every state is required 
+    to have some measure.
+-/
+lemma always_eventually_well_founded {T : Type u} {A : Type v}
+  {R : A → A → Prop} (wf : well_founded R)
+  (meas : trace T → A) (Q : tProp T)
+  (tr : trace T)
+  (H : ∀ x : A, □ ((λ s, meas s = x) => ◇ (((λ s, R (meas s) x)) ∪ Q)) tr)
+  : □ (◇ Q) tr
+:= begin
+have H1 := always_eventually_well_founded_option wf (λ x, some (meas x)) Q tr,
+intros n, apply H1; clear H1,
+{ intros x n H1,
+  specialize (H x n), simp with ltl at H1,
+  injection H1 with H1', clear H1, subst x,
+  apply H, simp with ltl },
+{ unfold now later }
 end
 
 lemma now_until_eventually {T : Type u}
