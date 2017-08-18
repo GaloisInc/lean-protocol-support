@@ -1,3 +1,11 @@
+/-
+Copyright (c) 2017 Galois Inc.  All rights reserved.
+Author: Joe Hendrix
+
+This module defines a datatype "calendar_time" for representing
+Gregorian calendar times, and operations for converting from Unix
+time and printing to ISO8601 time.
+-/
 import galois.list
 
 -- This represents a Gregorian calendar time.
