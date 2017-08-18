@@ -13,6 +13,12 @@ namespace temporal
 /--An ordered series of events over states --/
 def trace (T : Type u) : Type u := nat -> T
 
+namespace trace
+def map {A : Type u} {B : Type v} (f : A → B)
+  : trace A → trace B
+  := λ tr n, f (tr n)
+end trace
+
 /--Type of Propositions over traces --/
 @[reducible]
 def tProp (T : Type u) := subset (trace T)

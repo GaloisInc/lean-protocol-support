@@ -58,13 +58,14 @@ apply (if Hip : a_ip = a_ip' then _ else _),
   cases contra, contradiction }
 end
 
-inductive next_state_from_label_ind' (ag : agents.member) (s : system_state) (la : agent_label) (s' : system_state) : Prop
-| mk : ∀ (next' : ag.value.state_type) (updatef : global_state_t → global_state_t)
-       (Hagl : next_agent_state_from_label ag (s.local_state ag) ((s.global_state ag.key)) la
-          = some (next', updatef))
-       (Hupd : s' = {local_state := lookup_update ag next' (s.local_state)
-                    , global_state := updatef (s.global_state)})
-      , next_state_from_label_ind'
+inductive next_state_from_label_ind' (ag : agents.member) (s : system_state) (la : agent_label) (s' : @system_state agents) : Prop
+| mk : ∀ (la' : dlabel ((ag.value).loop (s.local_state ag)))
+         (Hla' : agent_label.to_dlabel (s.global_state (ag.key)) ((ag.value).loop (s.local_state ag)) la = some la')
+         (new_state : (ag.value).state_type)
+         (updatef : global_state_t → global_state_t)
+         (Hagl : next_agent_state_from_dlabel (ag.key) (ag.value) (s.global_state (ag.key)) la' = some (new_state, updatef))
+         (Hupd : s' = {local_state := lookup_update ag new_state (s.local_state), global_state := updatef (s.global_state)})
+         , next_state_from_label_ind'
 
 inductive next_state_from_label_ind (a_ip : ip) (s : system_state) (la : agent_label) (s' : system_state) : Prop
 | mk : ∀ (ag : agents.member) (Hip : ag.key = a_ip)
@@ -84,17 +85,26 @@ intros H,
 simp [LTS] at H,
 simp [next_state_from_label] at H,
 apply_in H option_bind_some,
-induction H with ag' p, induction p with Hag1 Hag2,
-dsimp at Hag2,
-apply_in Hag1 mapd.check_member_same, subst ag',
+induction H with la' p, induction p with Hag1 Hag2,
+dsimp [label.to_sys_dlabel] at Hag1,
+apply_in Hag1 option_bind_some,
+induction Hag1 with ag' Hag1,
+induction Hag1 with Hag Hag',
+apply_in Hag mapd.check_member_same, 
+subst ag',
+dsimp at Hag',
+apply_in Hag' option_bind_some,
+induction Hag' with la'' Hla'',
+induction Hla'' with H1 H2,
+injection H2 with H2', clear H2, subst la',
+dsimp [next_state_from_dlabel] at Hag2,
 apply_in Hag2 option_bind_some,
-induction Hag2 with p1 p2,
-induction p1 with next' updatef,
-induction p2 with H1 H2,
-dsimp [next_state_from_label] at H2,
-injection H2 with H2', clear H2,
-constructor; try {assumption},
-symmetry, admit
+induction Hag2 with res Hres,
+induction Hres with HA HB,
+induction res with new_state updatef,
+dsimp [next_state_from_dlabel] at HB,
+injection HB with HB', clear HB,
+constructor; try { assumption }, symmetry, assumption
 end
 
 lemma agent_update_invert_st {s la s'}
@@ -104,9 +114,14 @@ lemma agent_update_invert_st {s la s'}
 := begin
 intros H, have H1 := H,
 have H' := option_bind_some H,
-clear H, induction H' with ag p, induction p with Hag1 Hag2,
-have H1 := mapd.check_member_same_key Hag1,
+clear H, induction H' with la' p, induction p with Hag1 Hag2,
+dsimp [label.to_sys_dlabel] at Hag1,
+apply_in Hag1 option_bind_some,
+induction Hag1 with ag Hag,
+induction Hag with H1 H2,
+apply_in H1 mapd.check_member_same_key,
 subst a_ip,
+dsimp at H2,
 constructor, reflexivity,
 apply agent_update_invert_st', assumption,
 end

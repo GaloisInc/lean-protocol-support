@@ -130,12 +130,53 @@ def SkipLTS (s : S) (l : WithSkip L s) (s' : S) : Prop :=
   | some l' := LTS s l' s'
   end
 
+def inSkipLabel (P : sigma L → Prop) : sigma (WithSkip L) → Prop
+| (sigma.mk s l) := match l with
+  | none := false
+  | some l' := P (sigma.mk s l')
+  end
+
 parameters {S' : Type u'}{L' : S' → Type v'}
 parameter (LTS' : ∀ s : S', L' s → S' → Prop)
 
 structure Refinement :=
   (S_refine : S → S')
-  (L_refine : ∀ s, L s → L' (S_refine s))
-  (refines : ∀ s l s', LTS s l s' → LTS' (S_refine s) (L_refine s l) (S_refine s'))
-
+  (L_refine : ∀ {s}, L s → L' (S_refine s))
+  (refines : ∀ s l s', LTS s l s' → LTS' (S_refine s) (L_refine l) (S_refine s'))
 end LTS_refinement
+
+namespace Refinement
+section
+parameters {S : Type u} {S' : Type u'} {L : S → Type v} {L' : S' → Type v'} 
+  {LTS : ∀ s : S, L s → S → Prop}
+  {LTS' : ∀ s : S', L' s → S' → Prop}
+
+def SL_refine' (r : Refinement LTS LTS')
+  : sigma L → sigma L'
+| (sigma.mk s l) := sigma.mk (r.S_refine s) (r.L_refine l)
+def SL_refine (r : Refinement LTS LTS')
+  (x : sigma L) : sigma L'
+   := sigma.mk (r.S_refine x.fst) (r.L_refine x.snd)
+
+def SL_refine_valid_trace (r : Refinement LTS LTS')
+  (tr : trace (sigma L))
+  (valid : valid_trace LTS tr)
+  : valid_trace LTS' (tr.map r.SL_refine)
+:= begin
+constructor, unfold LTS_trace, 
+dsimp [trace.map],
+intros n, dsimp [SL_refine], apply refines, apply valid.next_step,
+end
+
+def SL_refine_transform
+  (r : Refinement LTS LTS')
+  (P : tProp (sigma L'))
+  (H : ⊩ valid_trace LTS' => P)
+  : ⊩ valid_trace LTS => (P ∘ trace.map r.SL_refine)
+:= begin
+intros tr validtr, dsimp [function.comp],
+apply H, apply SL_refine_valid_trace, assumption
+end 
+
+end
+end Refinement
