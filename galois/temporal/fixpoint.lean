@@ -104,6 +104,20 @@ def weak_until {T : Type u} (P Q : tProp T) : tProp T :=
 -- \MCW
 infix `𝓦` : 50 := weak_until
 
+lemma weak_until_map {A : Type v} {T : Type u} (P Q : tProp T)
+  (f : A → T)
+  : (P 𝓦 Q) ∘ trace.map f = ((P ∘ trace.map f) 𝓦 (Q ∘ trace.map f))
+:= begin
+unfold weak_until,
+unfold greatest_fixpointn, rw intersection_ix_precompose,
+f_equal, apply funext, intros n,
+induction n; simp [iterate],
+reflexivity, rw ← ih_1, unfold until_fixpoint,
+unfold has_union.union has_inter.inter,
+rw or_precompose,
+rw and_precompose, rw next_map,
+end
+
 @[ltl]
 def release {T : Type u} (P Q : tProp T) : tProp T :=
   Q 𝓦 (Q ∩ P)

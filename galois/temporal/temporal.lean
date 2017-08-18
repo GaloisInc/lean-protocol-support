@@ -13,12 +13,6 @@ namespace temporal
 /--An ordered series of events over states --/
 def trace (T : Type u) : Type u := nat -> T
 
-namespace trace
-def map {A : Type u} {B : Type v} (f : A → B)
-  : trace A → trace B
-  := λ tr n, f (tr n)
-end trace
-
 /--Type of Propositions over traces --/
 @[reducible]
 def tProp (T : Type u) := subset (trace T)
@@ -551,6 +545,47 @@ apply contra, constructor, assumption, },
   induction contra with k Hk,
   apply (H k), assumption }
 end
+
+namespace trace
+def map {A : Type u} {B : Type v} (f : A → B)
+  : trace A → trace B
+  := λ tr n, f (tr n)
+end trace
+
+section map_props
+parameters {A : Type u} {B : Type v} (f : A → B)
+
+lemma later_map (P : subset B)
+  (n : ℕ) : later P n ∘ trace.map f = later (P ∘ f) n
+:= begin
+apply funext, intros x, reflexivity,
+end
+
+lemma now_map (P : subset B)
+  : now P ∘ trace.map f = now (P ∘ f)
+:= later_map P 0
+end map_props
+
+section precompose_props
+parameters {A : Type u} {B : Type v}
+lemma imp_precompose (P Q : tProp B) (f : A → trace B)
+  : (P => Q) ∘ f = ((P ∘ f) => (Q ∘ f))
+:= rfl
+
+lemma and_precompose (P Q : tProp B) (f : A → trace B)
+  : (bintersection P Q) ∘ f = (bintersection (P ∘ f) (Q ∘ f))
+:= rfl
+
+lemma or_precompose (P Q : tProp B) (f : A → trace B)
+  : (bunion P Q) ∘ f = (bunion (P ∘ f) (Q ∘ f))
+:= rfl
+
+lemma next_map (P : tProp B) (f : A → B)
+  : (◯ P) ∘ trace.map f = ◯ (P ∘ trace.map f)
+:= rfl
+
+
+end precompose_props
 
 end temporal
 

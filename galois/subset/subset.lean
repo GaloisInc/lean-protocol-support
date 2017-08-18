@@ -1,7 +1,7 @@
 import galois.tactic
        galois.list.preds
 
-universes u v
+universes u v w
 /-- Defines a subset of a type -/
 def subset (A : Sort u) := A → Prop
 
@@ -172,7 +172,6 @@ lemma intersection_ix_mono {Ix : Type v} {F G : Ix → subset A}
 intros x H' ix, apply H, apply H'
 end
 
-
 lemma imp_or (P Q : subset A)
   : (P ≤ Q) = (P ∪ Q = Q)
 := begin
@@ -215,6 +214,14 @@ unfold bintersection, rw and_comm,
 end
 
 end
+
+lemma intersection_ix_precompose {A : Type u} {B : Type w} 
+  {Ix : Type v} (F : Ix → subset B) (f : A → B)
+  : intersection_ix F ∘ f = intersection_ix (λ ix, F ix ∘ f)
+:= begin
+unfold intersection_ix
+end
+
 
 /-- Definition of monotone for unary functions over subsets -/
 def monotone {A : Type u} {B : Type v} (F : subset A → subset B) :=

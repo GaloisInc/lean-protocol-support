@@ -176,7 +176,8 @@ def starts_loop {a : agents.member} (next : act a.value.state_type) : Prop :=
   ∃ (s : a.value.state_type), next = a.value.loop s
 
 def inLocalState (a : agents.member) (P : a.value.state_type → Prop)
-  : sigma (λ _ : system_state, next_state_label) → Prop
+  {L : system_state → Type u}
+  : sigma L → Prop
   := inState (λ s, P (s.local_state a))
 
 /-- If a transition occurs that doesn't involve a particular agent,

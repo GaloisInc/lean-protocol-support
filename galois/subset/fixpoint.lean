@@ -266,7 +266,6 @@ tactic.swap, assumption, clear H x,
 intros x H, apply H,
 end
 
-
 lemma continuous_chain_cocont {F : subset A → subset A}
   (H : continuous_inh F) : chain_cocont F :=
 begin
