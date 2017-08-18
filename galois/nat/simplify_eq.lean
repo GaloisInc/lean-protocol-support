@@ -44,6 +44,43 @@ begin
   }
 end
 
+/- Lemmas comparing operations with zero. -/
+section zero_comparison
+
+/- Simplify comparison of sum of two naturals with 0. -/
+theorem add_is_zero_iff (m n : ℕ) : m + n = 0 ↔ m = 0 ∧ n = 0 :=
+begin
+  cases n,
+  case zero { simp, },
+  case succ n ind { simp [add_succ], },
+end
+
+/- Simplify comparison of product of two naturals with 0. -/
+theorem mul_is_zero_iff (m n : ℕ) : m * n = 0 ↔ m = 0 ∨ n = 0 :=
+begin
+  induction n,
+  case zero { simp, },
+  case succ n ind {
+    simp [mul_succ, add_is_zero_iff, ind],
+    by_cases m = 0 with h,
+    all_goals { simp [h], },
+  }
+end
+
+/- Simplify comparison of power of two naturals with 0. -/
+theorem pow_is_zero_iff (m n : ℕ) : m ^ n = 0 ↔ m = 0 ∧ n ≠ 0 :=
+begin
+  induction n,
+  case zero { simp, },
+  case succ n ind {
+    simp [pow, mul_is_zero_iff, ind],
+    by_cases m = 0 with h,
+    all_goals { simp [h], },
+  }
+end
+
+end zero_comparison
+
 -- Commute bit0 and succ
 protected
 theorem bit0_succ (x : ℕ) : bit0 (succ x) = succ (succ (bit0 x)) :=

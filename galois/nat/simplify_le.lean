@@ -6,8 +6,12 @@ This module defines operations for simplifying comparisons between
 natural numbers.
 -/
 import data.nat.basic
+import .simplify_eq
 
 namespace nat
+
+-- Reduce x < y to theorem with addition
+protected theorem lt_is_succ_le (x y : ℕ) : x < y ↔ x + 1 ≤ y := by trivial
 
 ------------------------------------------------------------------------
 -- le theorems
@@ -25,11 +29,48 @@ begin
   },
 end
 
+-- Reduce proof that product is greater than one to constraints
+-- on variables.
+lemma one_le_mul (m n : ℕ) : 1 ≤ m * n ↔ 1 ≤ m ∧ 1 ≤ n :=
+begin
+  cases n,
+  case zero {
+    simp [nat.le_zero_iff_eq_zero],
+   },
+  case succ n {
+    simp [nat.mul_succ],
+    cases (nat.eq_zero_or_pos m) with h h,
+    {
+      simp [h, le_zero_iff],
+    },
+    {
+      have g : 1 ≤ m := h,
+      simp [g, succ_le_succ_iff, nat.zero_le],
+      transitivity,
+      exact g,
+      apply nat.le_add_right,
+    },
+  },
+end
+
+-- Reduce proof that power is greater than one to constraints
+-- on variables.
+lemma one_le_pow (m n : ℕ) : 1 ≤ m^n ↔ n = 0 ∨ 1 ≤ m :=
+begin
+  induction n,
+  case zero { simp, },
+  case succ n ind {
+    simp [nat.pow, one_le_mul, ind],
+    by_cases (1 ≤ m) with h,
+    all_goals {
+      simp [nat.lt_is_succ_le] at h,
+      simp [h, not_succ_eq_zero],
+    },
+  },
+end
+
 ------------------------------------------------------------------------
 -- lt theorems
-
--- Reduce x < y to theorem with addition
-protected theorem lt_is_succ_le (x y : ℕ) : x < y ↔ x + 1 ≤ y := by trivial
 
 -- Reduce succ x < succ y
 protected lemma succ_lt_succ_iff : ∀{m n : ℕ}, succ n < succ m ↔ n < m :=
@@ -103,27 +144,46 @@ end
 ------------------------------------------------------------------------
 -- Specialized lemmas
 
--- Specialized lemma to prove theorem about subtracting then adding.
---
--- Note: We should see if we can eliminate this once arithmetic is done.
-protected lemma sub_add_lt : ∀{m n p : ℕ}, p < n → p < m → m - n + p < m :=
+protected lemma sub_add_iff : ∀(m n p : ℕ),
+   (m - n) + p = if n ≤ m then (m + p) - n else p :=
 begin
-  intro m,
-  induction m with m ind,
-  { intros n p p_lt_n p_lt_zero,
-    simp [nat.lt_is_succ_le, not_succ_le_zero] at p_lt_zero,
-    contradiction,
+  intros m n p,
+  revert n,
+  induction m,
+  case zero {
+    intro n,
+    simp,
+    cases n,
+    case zero { simp, },
+    case succ { simp [nat.not_succ_le_zero], },
   },
-  {
-    intros n p p_lt_n p_lt_succ_m,
-    by_cases n ≤ m with pr,
-    { rw [succ_sub pr, succ_add, nat.succ_lt_succ_iff],
-      have p_lt_m : p < m := nat.lt_of_lt_of_le p_lt_n pr,
-      apply ind p_lt_n p_lt_m,
+  case succ m ind {
+    intro n,
+    cases n,
+    case zero {
+      simp [nat.zero_le],
     },
-    { simp [nat.lt_of_not_le, nat.lt_is_succ_le] at pr,
-      simp [sub_eq_zero_of_le pr, p_lt_succ_m],
-    },
+    case succ n {
+      simp only [nat.succ_sub_succ],
+      by_cases (n ≤ m) with h,
+      {
+        simp only [succ_le_succ_iff, h, ind, if_pos, succ_add, succ_sub_succ],
+      },
+      {
+        simp [ind, if_neg, succ_le_succ_iff, h],
+      }
+    }
+  }
+ end
+
+lemma le_add (a b : ℕ) : a ≤ a + b :=
+begin
+  induction b,
+  case zero {
+    exact less_than_or_equal.refl a,
+  },
+  case succ b ind {
+    exact less_than_or_equal.step ind,
   },
 end
 
