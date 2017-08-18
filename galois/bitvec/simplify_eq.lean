@@ -24,7 +24,7 @@ begin
 end
 
 theorem adc_append1 {n : ℕ} (x : bitvec n) (a : bool) (y : bitvec n) (b : bool) (c : bool)
-: adc (x ++ cons a nil) (y ++ cons b nil) c 
+: adc (x ++ cons a nil) (y ++ cons b nil) c
   = adc x y (bitvec.carry a b c) ++ cons (bitvec.xor3 a b c) nil :=
 begin
   apply vector.eq,
@@ -83,7 +83,7 @@ begin
   refl
 end
 
-theorem one_to_repeat (n : ℕ) 
+theorem one_to_repeat (n : ℕ)
 : (1 : bitvec (succ n)) = repeat ff n ++ cons tt nil :=
 begin
   trivial,
@@ -183,7 +183,8 @@ meta def simp_bvlit_rule : tactic unit := do
       , expr.const `tt_eq_ff_eq_false []
       , expr.const `ff_eq_tt_eq_false []
         -- Natural number lemmas
-      , expr.const `nat.succ_eq_zero []
+      , expr.const `nat.not_succ_eq_zero []
+      , expr.const `nat.not_zero_eq_succ []
       , expr.const `nat.succ_sub_succ []
         -- Vector lemmas
       , expr.const `vector.repeat_succ_to_append []
