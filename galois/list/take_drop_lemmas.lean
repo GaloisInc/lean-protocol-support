@@ -93,6 +93,22 @@ begin
   simp [drop_append, nat.succ_add],
 end
 
+theorem drop_add {α : Type u} (l : list α) (i j : ℕ)
+: l.drop (i + j) = (l.drop i).drop j :=
+begin
+  revert l j,
+  induction i,
+  case nat.zero { simp, },
+  case nat.succ i ind {
+    intros l j,
+    cases l,
+    case list.nil { simp only [list.drop_nil], },
+    case list.cons e l {
+      simp only [nat.succ_add, list.drop_succ_cons, ind],
+    }
+  }
+end
+
 /- Combination -/
 
 theorem take_append_drop_self : ∀ (n : ℕ) (l : list α), take n l ++ drop n l = l
