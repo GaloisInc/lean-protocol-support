@@ -36,17 +36,6 @@ inductive next_state_label : Type 1
 inductive agent_does (a : ip) (P : agent_label → Prop) : next_state_label → Prop
 | mk : ∀ (l : agent_label), P l → agent_does (next_state_label.agent_update a l)
 
-/-- Indicates that an agent is polling -/
-inductive polls : agent_label → Prop
-| mk : ∀ (l : poll_label) ms, polls (agent_label.mk l ms)
-
-instance polls_decidable : decidable_pred polls
-:= begin
-intros x, induction x;
-try { solve1 { apply decidable.is_false; intros contra; cases contra } },
-apply decidable.is_true, constructor,
-end
-
 inductive receives (P : message_t → Prop) : agent_label → Prop
 | mk : ∀ (t : time) (rn : remote_name) (mess : message_t) ms,
        P mess → receives (agent_label.mk (poll_label.receive t rn mess) ms)
@@ -64,7 +53,7 @@ def receives_message (m : message_t) : agent_label → Prop :=
 def poll_result_to_label {ports : list port} {sockets : list socket}
   {timeout : time} : poll_result ports sockets timeout → poll_label
 | poll_result.timeout := poll_label.timeout
-| (poll_result.message elapsed sock mess) :=
+| (poll_result.message elapsed sock mess _) :=
    poll_label.receive elapsed.val sock.value mess
 
 end network
