@@ -230,11 +230,11 @@ end
     then it eventually receives that message.
 -/
 def message_fairness_spec : @TP agents := λ tr,
-  ∀ (a : agents.member) (mess : (socket × message_t)),
-    (fair (   now (inLocalState a (polls_on_socket mess.fst ∘ a.value.loop))
+  ∀ (a : agents.member) (sock : socket) (mess : message_t),
+    (fair (   now (inLocalState a (polls_on_socket sock ∘ a.value.loop))
             ∩ now (inLabel (agent_does a.key (λ _, true))))
-     => □ (now (inState (λ s : system_state, mess ∈ (s.global_state a.key).messages))
-           => ◇ (now (inLabel (agent_does a.key (receives_message mess.snd)))))) tr
+     => □ (now (inState (λ s : system_state, (sock, mess) ∈ (s.global_state a.key).messages))
+           => ◇ (now (inLabel (agent_does a.key (receives_message mess)))))) tr
 
 
 end
@@ -301,7 +301,7 @@ have H' := blocks_until_not_never_receives_always_polls
   _ _ _ _ valid nowstate contra,
 induction H with mess Hmess,
 induction Hmess with Hmess1 Hmess2,
-specialize (mfair a (s, mess) H'),
+specialize (mfair a s mess H'),
 rw ← (delayn_zero tr) at Hmess2,
 specialize (mfair 0 Hmess2),
 rw ← not_eventually_always_not at contra,
