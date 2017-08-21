@@ -54,10 +54,10 @@ def poll_label.to_poll_result
   : poll_label → option (poll_result ports sockets bound)
 | poll_label.timeout := some poll_result.timeout
 | (poll_label.receive elapsed rn mess) := do
-  plift.up H ← precondition (elapsed < bound),
+  plift.up (and.intro H H') ← precondition (elapsed < bound ∧ 0 < elapsed),
   idx ← list.check_member_st (λ p : socket × message_t, p.snd = mess) incoming.messages,
   sockidx ← list.check_member idx.to_member.value.fst sockets, --any other checks necessary?
-  some (poll_result.message ⟨ elapsed, H ⟩ sockidx mess)
+  some (poll_result.message ⟨ elapsed, H ⟩ sockidx mess H')
 
 def agent_label.to_dlabel
   (incoming : incoming_items) {ag : agent}
@@ -134,7 +134,7 @@ def next_agent_state_poll_dlabel {A : Type} {ports : list port} {sockets : list 
   : poll_result ports sockets bound 
   → option (global_state_t → global_state_t)
 | poll_result.timeout := some id
-| (poll_result.message elapsed_fin sock mess) := do
+| (poll_result.message elapsed_fin sock mess H) := do
     midx ← incoming.messages.check_member (sock.value, mess),
     some (lookup_updatef a_ip (λ inc, {inc with messages := list.remove_member _ midx}))
 

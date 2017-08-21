@@ -231,10 +231,10 @@ end
 -/
 def message_fairness_spec : @TP agents := λ tr,
   ∀ (a : agents.member) (mess : (socket × message_t)),
-    (fair (now (inLabel (agent_does a.key polls))) 
+    (fair (   now (inLocalState a (polls_on_socket mess.fst ∘ a.value.loop))
+            ∩ now (inLabel (agent_does a.key (λ _, true))))
      => □ (now (inState (λ s : system_state, mess ∈ (s.global_state a.key).messages))
            => ◇ (now (inLabel (agent_does a.key (receives_message mess.snd)))))) tr
-
 
 
 end
@@ -256,11 +256,14 @@ parameters {agents : map ip agent}
   (P : message_t → Prop)
 
 lemma blocks_until_not_never_receives_always_polls
+  (s : socket)
   : ⊩ valid_trace (@LTS agents)
-    => (◇ (now (inLabel (agent_does a.key polls))) 
+    => (◇ (now (inLocalState a (polls_on_socket s ∘ a.value.loop))
+           ∩ now (inLabel (agent_does a.key (λ _, true)))) 
         𝓦 (now (inLabel (agent_does a.key (receives P)))))
     => □ (tNot (now (inLabel (agent_does a.key (receives P)))))
-    => fair (now (inLabel (agent_does a.key polls)))
+    => fair (now (inLocalState a (polls_on_socket s ∘ a.value.loop))
+             ∩ now (inLabel (agent_does a.key (λ _, true))))
 := begin
 intros tr valid nows never,
 apply weak_until_not_always; assumption,
@@ -280,24 +283,25 @@ end
    eventually do receive the message, a contradiction.
 -/
 theorem blocking_agent_eventually_receives_message
+  {s : socket}
   : ⊩ valid_trace (@LTS agents)
-    => fairness_spec
     => message_fairness_spec
-    => (◇ (now (inLabel (agent_does a.key polls))) 
+    => (◇ (now (inLocalState a (polls_on_socket s ∘ a.value.loop))
+          ∩ now (inLabel (agent_does a.key (λ _, true))))
         𝓦 (now (inLabel (agent_does a.key (receives P)))))
-    => now (inState (λ ss : system_state, ∃ mess : socket × message_t,
-         P mess.snd ∧
-         mess ∈ (ss.global_state a.key).messages))
+    => now (inState (λ ss : system_state, ∃ mess : message_t,
+         P mess ∧
+         (s, mess) ∈ (ss.global_state a.key).messages))
     => ◇ (now (inLabel (agent_does a.key (receives P))))
 := begin
-intros tr valid fair mfair nowstate H,
+intros tr valid mfair nowstate H,
 apply classical.not_always_not_implies_eventually,
 intros contra,
-have H' := blocks_until_not_never_receives_always_polls 
-  _ _ _ valid nowstate contra,
+have H' := blocks_until_not_never_receives_always_polls
+  _ _ _ _ valid nowstate contra,
 induction H with mess Hmess,
 induction Hmess with Hmess1 Hmess2,
-specialize (mfair a mess H'),
+specialize (mfair a (s, mess) H'),
 rw ← (delayn_zero tr) at Hmess2,
 specialize (mfair 0 Hmess2),
 rw ← not_eventually_always_not at contra,

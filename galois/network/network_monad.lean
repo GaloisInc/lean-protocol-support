@@ -52,7 +52,8 @@ inductive poll_result {socket : Type} (ports : list port) (sockets : list socket
 -- ^ We waited until the elapsed time without receiving a message.
 
 | message {}
-: ∀ (elapsed : fin bound) (sock : list.member sockets) (mess : list byte), poll_result
+: ∀ (elapsed : fin bound) (sock : list.member sockets) (mess : list byte)
+     (elapsed_pos : 0 < elapsed.val), poll_result
 -- ^ We received a message from the socket with the given index.
 
 -- This defines the interface a monad needs to implement to give
