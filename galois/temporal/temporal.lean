@@ -608,6 +608,18 @@ lemma next_map (P : tProp B) (f : A → B)
   : (◯ P) ∘ trace.map f = ◯ (P ∘ trace.map f)
 := rfl
 
+lemma always_map (P : tProp B) (f : A → B)
+  : (□ P) ∘ trace.map f = □ (P ∘ trace.map f)
+:= rfl
+
+lemma eventually_map (P : tProp B) (f : A → B)
+  : (◇ P) ∘ trace.map f = ◇ (P ∘ trace.map f)
+:= rfl
+
+lemma fair_map (P : tProp B) (f : A → B)
+  : (fair P) ∘ trace.map f = fair (P ∘ trace.map f)
+:= rfl
+
 
 end precompose_props
 

@@ -160,7 +160,7 @@ apply decP,
 end
 
 def fairness_SkipLTS : tProp (sigma (WithSkip L)) := 
-  □ (◇ (now (inSkipLabel (λ _, true))))
+  fair (now (inSkipLabel (λ _, true)))
 
 lemma SkipLTS_next_state
   (P Q : S → Prop)

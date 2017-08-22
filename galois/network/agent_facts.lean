@@ -187,6 +187,10 @@ def fairness_spec : @TP agents
   := λ tr : TR, ∀ (a : agents.member),
    fair (now (inLabel (agent_does a.key (λ _, true)))) tr
 
+def fairness_specd
+  := λ tr, ∀ (a : agents.member),
+   fair (now (sys_agent_does a (λ _, true))) tr
+
 
 lemma agent_update_invert {tr : TR} (a_ip : ip)
   (validtr : valid_trace LTS tr)
