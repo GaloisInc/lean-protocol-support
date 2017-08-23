@@ -43,6 +43,13 @@ inductive receives (P : message_t → Prop) : agent_label → Prop
 inductive timeouts : agent_label → Prop
 | mk : ∀ ms, timeouts (agent_label.mk poll_label.timeout ms)
 
+instance timeouts_decidable : decidable_pred timeouts
+:= begin
+intros x, induction x, induction plabel,
+{ apply decidable.is_true, constructor, },
+{ apply decidable.is_false, intros contra, cases contra, }
+end
+
 inductive receives_or_timeout (P : message_t → Prop) (l : agent_label) : Prop
 | receives : receives P l → receives_or_timeout
 | timeouts : timeouts l -> receives_or_timeout

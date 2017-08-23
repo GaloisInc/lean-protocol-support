@@ -46,6 +46,15 @@ parameter {agents : map ip agent}
 def indLabel {A} (P : agent_label → Prop)
   := λ a_next, P ∘ @dlabel_to_label A a_next
 
+
+instance inLabeld_decidable {ag : agent} (P : agent_label → Prop) 
+  [decP : decidable_pred P]
+  : decidable_pred (@loc.inLabeld ag (indLabel P))
+:= begin
+intros x, dsimp [loc.inLabeld, indLabel, function.comp],
+induction x, dsimp, apply decP
+end
+
 inductive sys_agent_does (ag : agents.member)
   (P : agent_label → Prop)
   : sigma sys_dlabel → Prop

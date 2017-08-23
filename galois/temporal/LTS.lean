@@ -164,10 +164,11 @@ def fairness_SkipLTS : tProp (sigma (WithSkip L)) :=
 
 lemma SkipLTS_next_state
   (P Q : S → Prop)
-  (HLTS : ∀ s l s', LTS s l s' → P s → Q s')
+  (W : sigma L → Prop)
+  (HLTS : ∀ s l s', LTS s l s' → P s → W ⟨ _, l ⟩ → Q s')
    : ⊩ valid_trace SkipLTS
    => now (inState P)
-   => now (inSkipLabel (λ _, true))
+   => now (inSkipLabel W)
    => ◯ (now (inState Q))
 := begin
 simp with ltl,
@@ -178,7 +179,7 @@ rw Hsl at goes,
 induction l; dsimp [inSkipLabel] at goes,
 { contradiction },
 { apply HLTS, rw Hsl at H, dsimp [SkipLTS] at H, 
-  apply H, rw Hsl at nowP, assumption,
+  apply H, rw Hsl at nowP, assumption, assumption
 }
 end
 
