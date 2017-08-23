@@ -23,9 +23,6 @@ structure agent_label : Type :=
   (plabel : poll_label)
   (messages : list (remote_name × message_t))
 
-/-- Decidable equality is straightforward, but currently it's
-    difficult for me to automate.
--/
 instance agent_label_decidable_eq : decidable_eq agent_label
   := by tactic.mk_dec_eq_instance
 

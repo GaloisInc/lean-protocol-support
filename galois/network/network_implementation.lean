@@ -209,4 +209,15 @@ contradiction,
 existsi a, split, reflexivity, assumption
 end
 
+lemma option_map_some {A B} {ma : option A} {f : A → B}
+  {b : B} (H : option_map f ma = some b)
+  : ∃ a : A, ma = some a ∧ f a = b
+:= begin
+cases ma,
+contradiction,
+existsi a, split, reflexivity,
+dsimp [option_map, function.comp, option_bind] at H, 
+injection H with H',
+end
+
 end network
