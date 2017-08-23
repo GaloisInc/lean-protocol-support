@@ -326,14 +326,14 @@ def message_fairness_spec : @TP agents := λ tr,
     (fair (   now (inLocalState a (polls_on_socket sock ∘ a.value.loop))
             ∩ now (inLabel (agent_does a.key (λ _, true))))
      => □ (now (inState (λ s : system_state, (sock, mess) ∈ (s.global_state a.key).messages))
-           => ◇ (now (inLabel (agent_does a.key (receives_message mess)))))) tr
+           => ◇ (now (inLabel (agent_does a.key (receives_message sock mess)))))) tr
 
 def message_fairness_specd := λ tr,
   ∀ (a : agents.member) (sock : socket) (mess : message_t),
     (fair (   now (inLocalState a (polls_on_socket sock ∘ a.value.loop))
             ∩ now (sys_agent_does a (λ _, true)))
      => □ (now (inState (λ s : system_state, (sock, mess) ∈ (s.global_state a.key).messages))
-           => ◇ (now (sys_agent_does a (receives_message mess))))) tr
+           => ◇ (now (sys_agent_does a (receives_message sock mess))))) tr
 
 
 end
@@ -352,7 +352,7 @@ inductive can_possibly_step (a_ip : ip) (a : agent)
 section
 parameters {agents : map ip agent}
   (a : agents.member)
-  (P : message_t → Prop)
+  (P : socket → message_t → Prop)
 
 lemma blocks_until_not_never_receives_always_polls
   (s : socket)
@@ -389,7 +389,7 @@ theorem blocking_agent_eventually_receives_message
           ∩ now (inLabel (agent_does a.key (λ _, true))))
         𝓦 (now (inLabel (agent_does a.key (receives P)))))
     => now (inState (λ ss : system_state, ∃ mess : message_t,
-         P mess ∧
+         P s mess ∧
          (s, mess) ∈ (ss.global_state a.key).messages))
     => ◇ (now (inLabel (agent_does a.key (receives P))))
 := begin
@@ -416,7 +416,9 @@ induction Hla with Hlal Hlar,
 rw Hlar,
 constructor,
 induction Hlal,
-constructor, rw ← a_1, assumption
+induction a_1 with Hm Hs,
+subst rn, subst mess_1,
+constructor, assumption
 end
 
 end
