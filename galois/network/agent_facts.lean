@@ -421,6 +421,22 @@ subst rn, subst mess_1,
 constructor, assumption
 end
 
+/-- Agent fairness in the global transition system implies
+    "skip fairness" in the local system, where there is only
+    a single agent 
+-/
+lemma fairness_Skip_impl (agents : map ip agent) (ag : agents.member) :
+ ⊩ fairness_specd => (fairness_SkipLTS ∘ trace.map (Refinement.SL_refine (refinesd ag)))
+:= begin
+intros tr agent_fair,
+unfold fairness_SkipLTS,
+dsimp, rw fair_map, rw now_map,
+unfold fairness_specd at agent_fair,
+specialize (agent_fair ag),
+rw ← label_refine_eqd at agent_fair,
+assumption,
+end
+
 end
 
 end network
