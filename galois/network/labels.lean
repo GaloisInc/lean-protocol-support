@@ -4,6 +4,13 @@ import galois.network.network_monad
 
 universes u v
 
+lemma fin_inhabited_pos {n : ℕ} (x : fin n)
+  : 0 < n
+:= begin
+apply lt_of_le_of_lt, tactic.swap, apply x.is_lt,
+apply nat.zero_le,
+end
+
 namespace network
 
 def message_t := list byte
@@ -54,10 +61,23 @@ inductive receives_or_timeout (P : remote_name → message_t → Prop) (l : agen
 def receives_message (sock : socket) (mess : message_t) : agent_label → Prop :=
   receives (λ s m, s = sock ∧ m = mess)
 
-def poll_result_to_label {ports : list port} {sockets : list socket}
-  {timeout : time} : poll_result ports sockets timeout → poll_label
+section poll_result_facts
+parameters {ports : list port} {sockets : list socket} {timeout : time}
+def poll_result_to_label  : poll_result ports sockets timeout → poll_label
 | poll_result.timeout := poll_label.timeout
 | (poll_result.message elapsed sock mess _) :=
    poll_label.receive elapsed.val sock.value mess
 
+lemma poll_result_receives_bound_pos 
+  (r : poll_result ports sockets timeout)
+  {elapsed : fin timeout} {sock : sockets.member} {mess : message_t}
+  {elapsed_gt0 : 0 < elapsed.val}
+  (Hr : r = poll_result.message elapsed sock mess elapsed_gt0)
+  : 0 < timeout
+:= begin
+induction r; injection Hr, repeat {subst h },
+apply fin_inhabited_pos, assumption
+end
+
+end poll_result_facts
 end network
