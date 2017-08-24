@@ -14,4 +14,8 @@ def all : Π(k:ℕ), list (bitvec k)
    := list.map (vector.cons ff) (all k)
    ++ list.map (vector.cons tt) (all k)
 
+protected def to_string {n : nat} (x : bitvec n) : string := has_to_string.to_string x.to_nat
+
+instance (n : nat) : has_to_string (bitvec n) := ⟨bitvec.to_string⟩
+
 end bitvec

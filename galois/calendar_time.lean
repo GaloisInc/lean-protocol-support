@@ -113,5 +113,3 @@ def from_posix_unix_time (sec : ℕ) : calendar_time :=
  }
 
 end calendar_time
-
-#eval to_string (calendar_time.from_posix_unix_time 1503071355) == "2017-08-18T15:49:15Z"
