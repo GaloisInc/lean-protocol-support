@@ -364,19 +364,30 @@ end
 
 lemma next_weak_until_always_loop_lemma {T : Type u}
   (P Q : tProp T)
-: ⊩ □ (P=>◯ P𝓦Q) => □ (Q=>◯ P) => □ (P=>◯ P)
+: ⊩ □ (P=>◯ P𝓦Q) => □ (P ∩ Q=>◯ P) => □ (P=>◯ P)
 := begin
 intros tr PuntilQ QimpP n HP,
 specialize (PuntilQ n HP),
 specialize (PuntilQ 1), simp [iterate] at PuntilQ,
 unfold until_fixpoint at PuntilQ,
-induction PuntilQ with H H, apply QimpP, assumption,
+induction PuntilQ with H H, apply QimpP, split; assumption,
 induction H with H H, assumption,
 end
 
 lemma next_weak_until_always_loop {T : Type u}
   (P Q : tProp T)
 : ⊩ P => □ (P => ◯ P 𝓦 Q) => □ (Q => ◯ P) => □ P
+:= begin
+intros tr HP PuntilQ QimpP,
+apply temporal_induction, assumption,
+clear HP,
+apply next_weak_until_always_loop_lemma; try { assumption },
+intros n Hn, induction Hn with HP HQ, apply QimpP, assumption,
+end
+
+lemma next_weak_until_always_loop' {T : Type u}
+  (P Q : tProp T)
+: ⊩ P => □ (P => ◯ P 𝓦 Q) => □ (P ∩ Q => ◯ P) => □ P
 := begin
 intros tr HP PuntilQ QimpP,
 apply temporal_induction, assumption,
