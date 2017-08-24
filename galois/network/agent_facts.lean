@@ -1,11 +1,12 @@
 -- author: Ben Sherman
 
 import galois.network.network_implementation
+       galois.network.network_local_abs
        galois.temporal.fixpoint
        galois.temporal.classical
        galois.temporal.LTS
 
-universes u
+universes u v
 
 /-- reflexive-transitive closure of a relation -/
 inductive RTclosure {A : Type u} (R : A → A → Prop) (x : A) : A → Prop
@@ -41,6 +42,60 @@ open temporal
 
 section
 parameter {agents : map ip agent}
+
+def indLabel {A} (P : agent_label → Prop)
+  := λ a_next, P ∘ @dlabel_to_label A a_next
+
+
+instance inLabeld_decidable {ag : agent} (P : agent_label → Prop) 
+  [decP : decidable_pred P]
+  : decidable_pred (@loc.inLabeld ag (indLabel P))
+:= begin
+intros x, dsimp [loc.inLabeld, indLabel, function.comp],
+induction x, dsimp, apply decP
+end
+
+inductive sys_agent_does (ag : agents.member)
+  (P : agent_label → Prop)
+  : sigma sys_dlabel → Prop
+| mk : ∀ sys dlabel, P (dlabel_to_label dlabel) → sys_agent_does (sigma.mk sys (sys_dlabel.mk ag dlabel))
+
+
+lemma label_refine_eqd {ag : agents.member} (P : agent_label → Prop)
+ : inSkipLabel (@loc.inLabeld ag.value (indLabel P)) ∘
+       (Refinement.SL_refine (refinesd ag))
+ = sys_agent_does ag P
+:= begin
+apply funext, intros x, dsimp [function.comp],
+apply propext, split; intros H,
+{
+  induction x, induction snd,
+  dsimp [inSkipLabel] at H,
+  dsimp [Refinement.SL_refine, refinesd, inSkipLabel] at H,
+  dsimp [sys_dlabel_to_local] at H,
+  apply (if Hag : ag_1 = ag then _ else _),
+  { subst ag_1, constructor,
+    rw (precondition_true_bind (eq.refl ag)) at H,
+    dsimp [sys_dlabel_to_local] at H,
+    dsimp [inSkipLabel] at H,
+    dsimp [loc.inLabeld] at H,
+    dsimp [indLabel] at H,
+    apply H },
+  { rw (precondition_false Hag) at H,
+    dsimp [has_bind.bind, option_bind] at H,
+    dsimp [inSkipLabel] at H, contradiction,
+  },
+},
+{ induction H,
+  dsimp [Refinement.SL_refine, refinesd, inSkipLabel],
+  dsimp [sys_dlabel_to_local],
+  rw (precondition_true_bind (eq.refl ag)),
+  dsimp [sys_dlabel_to_local], dsimp [inSkipLabel],
+  unfold loc.inLabeld, unfold indLabel, assumption
+}
+end
+
+
 
 instance decidable_agent_does (a_ip : ip) P
   [decidable_pred P] : decidable_pred (agent_does a_ip P)
@@ -141,6 +196,10 @@ def fairness_spec : @TP agents
   := λ tr : TR, ∀ (a : agents.member),
    fair (now (inLabel (agent_does a.key (λ _, true)))) tr
 
+def fairness_specd
+  := λ tr, ∀ (a : agents.member),
+   fair (now (sys_agent_does a (λ _, true))) tr
+
 
 lemma agent_update_invert {tr : TR} (a_ip : ip)
   (validtr : valid_trace LTS tr)
@@ -201,6 +260,39 @@ apply (if Heq : ag = a then _ else _),
 { rw (dif_neg Heq) }
 end
 
+
+lemma SkipLTS_state_stays_constant (ag : agent)
+  (P : ag.state_type → Prop) : 
+  ⊩  valid_trace (SkipLTS (loc.LTSd ag))
+  => □ (now (inState P)
+  => ((◯ (now (inState P)))
+       𝓦 
+       now (inSkipLabel (λ _, true)))
+  )
+:= begin
+intros tr validtr n Pst,
+apply (invariant_holds_while (SkipLTS (loc.LTSd ag)) _ (delayn n tr)),
+apply valid_trace_always, assumption, assumption,
+apply_instance,
+intros,
+induction l,
+{ dsimp [SkipLTS] at a, subst s', assumption },
+{ exfalso, apply a_1, constructor, }
+end
+
+def agent_has_state {L : @system_state agents → Type u}
+  (ag : agents.member)
+  (P : ag.value.state_type → Prop)
+  : tProp (sigma L) := now (@inLocalState ag P L)
+
+lemma agent_has_state_refine_eq (ag : agents.member)
+  (P : ag.value.state_type → Prop) :
+  agent_has_state ag P =
+     now (inState P ∘ Refinement.SL_refine (refinesd ag))
+:= begin
+apply funext, intros x, reflexivity
+end
+
 /-- A statement of the fact that a particular agent's state 
     doesn't change (weak-) until it takes a step within
     temporal logic.
@@ -234,7 +326,14 @@ def message_fairness_spec : @TP agents := λ tr,
     (fair (   now (inLocalState a (polls_on_socket sock ∘ a.value.loop))
             ∩ now (inLabel (agent_does a.key (λ _, true))))
      => □ (now (inState (λ s : system_state, (sock, mess) ∈ (s.global_state a.key).messages))
-           => ◇ (now (inLabel (agent_does a.key (receives_message mess)))))) tr
+           => ◇ (now (inLabel (agent_does a.key (receives_message sock mess)))))) tr
+
+def message_fairness_specd := λ tr,
+  ∀ (a : agents.member) (sock : socket) (mess : message_t),
+    (fair (   now (inLocalState a (polls_on_socket sock ∘ a.value.loop))
+            ∩ now (sys_agent_does a (λ _, true)))
+     => □ (now (inState (λ s : system_state, (sock, mess) ∈ (s.global_state a.key).messages))
+           => ◇ (now (sys_agent_does a (receives_message sock mess))))) tr
 
 
 end
@@ -253,7 +352,7 @@ inductive can_possibly_step (a_ip : ip) (a : agent)
 section
 parameters {agents : map ip agent}
   (a : agents.member)
-  (P : message_t → Prop)
+  (P : socket → message_t → Prop)
 
 lemma blocks_until_not_never_receives_always_polls
   (s : socket)
@@ -290,7 +389,7 @@ theorem blocking_agent_eventually_receives_message
           ∩ now (inLabel (agent_does a.key (λ _, true))))
         𝓦 (now (inLabel (agent_does a.key (receives P)))))
     => now (inState (λ ss : system_state, ∃ mess : message_t,
-         P mess ∧
+         P s mess ∧
          (s, mess) ∈ (ss.global_state a.key).messages))
     => ◇ (now (inLabel (agent_does a.key (receives P))))
 := begin
@@ -317,7 +416,9 @@ induction Hla with Hlal Hlar,
 rw Hlar,
 constructor,
 induction Hlal,
-constructor, rw ← a_1, assumption
+induction a_1 with Hm Hs,
+subst rn, subst mess_1,
+constructor, assumption
 end
 
 end

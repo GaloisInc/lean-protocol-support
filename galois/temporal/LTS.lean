@@ -47,20 +47,18 @@ A trace is valid if it is a labeled transition system
 structure valid_trace (t : trace (sigma L)) : Prop :=
   (next_step : LTS_trace LTS t)
 
-lemma prove_always {P : sigma L → Prop} 
+lemma prove_next {P : sigma L → Prop} 
   {Q : S → Prop}
   (H : ∀ s l s', LTS s l s' → P ⟨ s, l ⟩ → Q s')
   : ⊩ valid_trace
-    => □ (now P => ◯ (now (inState Q)))
+    => now P => ◯ (now (inState Q))
 := begin
-intros tr validtr n,
+intros tr validtr,
 unfold next nextn now later,
 intros HP,
-rw delayn_combine,
-rw add_comm, simp [delayn], apply H,
+apply H,
 apply validtr.next_step,
-dsimp [delayn] at HP, simp at HP,
-cases (tr n), dsimp, assumption
+cases (tr 0), dsimp, assumption
 end
 
 lemma valid_trace_delay : ⊩ valid_trace => ◯ valid_trace
@@ -82,6 +80,16 @@ lemma global_always (P : tProp (sigma L))
 := begin
 intros tr validtr n,
 apply H, apply valid_trace_always, assumption
+end
+
+lemma prove_always {P : sigma L → Prop} 
+  {Q : S → Prop}
+  (H : ∀ s l s', LTS s l s' → P ⟨ s, l ⟩ → Q s')
+  : ⊩ valid_trace
+    => □ (now P => ◯ (now (inState Q)))
+:= begin
+apply (global_always _ _),
+apply prove_next, assumption
 end
 
 
@@ -115,6 +123,20 @@ apply (H _ _), apply validtr.next_step,
 rw sigma_eta, assumption, assumption,
 end
 
+lemma LTS_now_next (P' : S → Prop) (P Q : sigma L → Prop)
+  (H : ∀ s l s', LTS s l s' → P ⟨ _, l⟩ → P' s' ∨ Q ⟨ _, l ⟩)
+  : ⊩ valid_trace 
+    => now P
+    => ( ◯ (now (inState P')) ∪ now Q)
+:= begin
+intros tr valid HP,
+specialize (H _ _ _ (valid.next_step 0)),
+rw sigma_eta at H,
+specialize (H HP),
+induction H, left, assumption,
+right, assumption
+end
+
 end LTS
 
 section LTS_refinement
@@ -135,6 +157,61 @@ def inSkipLabel (P : sigma L → Prop) : sigma (WithSkip L) → Prop
   | none := false
   | some l' := P (sigma.mk s l')
   end
+
+instance inSkipLabel_decidable P [decP : decidable_pred P] 
+  : decidable_pred (inSkipLabel P)
+:= begin
+intros x, induction x with s l,
+induction l; dsimp [inSkipLabel],
+apply decidable.is_false, trivial,
+apply decP,
+end
+
+def fairness_SkipLTS : tProp (sigma (WithSkip L)) := 
+  fair (now (inSkipLabel (λ _, true)))
+
+lemma SkipLTS_next_state
+  (P Q : S → Prop)
+  (W : sigma L → Prop)
+  (HLTS : ∀ s l s', LTS s l s' → P s → W ⟨ _, l ⟩ → Q s')
+   : ⊩ valid_trace SkipLTS
+   => now (inState P)
+   => now (inSkipLabel W)
+   => ◯ (now (inState Q))
+:= begin
+simp with ltl,
+intros tr valid nowP goes,
+have H := valid.next_step 0,
+destruct ((tr 0)), intros s l Hsl,
+rw Hsl at goes,
+induction l; dsimp [inSkipLabel] at goes,
+{ contradiction },
+{ apply HLTS, rw Hsl at H, dsimp [SkipLTS] at H, 
+  apply H, rw Hsl at nowP, assumption, assumption
+}
+end
+
+lemma SkipLTS_now_next (P' : S → Prop) (P Q : sigma (WithSkip L) → Prop)
+  (H : ∀ s l s', LTS s l s' → P ⟨ _, some l⟩ → P' s' ∨ Q ⟨ _, some l ⟩)
+  : ⊩ valid_trace SkipLTS
+    => now P => now (inSkipLabel (λ _, true))
+    => ( ◯ (now (inState P')) ∪ now Q)
+:= begin
+intros tr valid HP Hgoes,
+have valid0 := valid.next_step 0,
+unfold now later at Hgoes,
+unfold now later at HP,
+destruct ((tr 0)); intros,
+rw a at Hgoes,
+cases snd; dsimp [inSkipLabel] at Hgoes,
+contradiction,
+rw a at valid0, rw a at HP,
+dsimp [SkipLTS] at valid0,
+specialize (H _ _ _ valid0 HP),
+induction H with H H,
+left, assumption, right, unfold now later,
+rw a, assumption,
+end
 
 parameters {S' : Type u'}{L' : S' → Type v'}
 parameter (LTS' : ∀ s : S', L' s → S' → Prop)

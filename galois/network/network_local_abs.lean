@@ -105,7 +105,7 @@ dsimp [next_agent_state_from_dlabel] at H2,
 injection H2 with H, clear H2, injection H with H1 H2
 end
 
-def refines
+def refinesd
   {agents : map ip agent}
   (ag : agents.member)
  : Refinement (@LTSd agents) (SkipLTS (loc.LTSd ag.value))

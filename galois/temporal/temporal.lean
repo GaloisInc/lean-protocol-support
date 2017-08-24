@@ -424,6 +424,14 @@ constructor, assumption
 { apply eventually_return, assumption }
 end
 
+lemma eventually_absorbs_next {T : Type u} (P : tProp T)
+  :  ◇ (◯ P) ≤ ◇ P
+:= begin
+intros x Hx; induction Hx with k Hk, 
+unfold next nextn at Hk, rw delayn_combine at Hk,
+constructor, assumption,
+end
+
 lemma always_idempotent {T : Type u} (P : tProp T)
   : □ (□ P) = □ P
 := begin
@@ -484,6 +492,22 @@ induction Hk with Hk Hk,
   assumption
   },
 { constructor, assumption }
+end
+
+lemma eventually_or {T : Type u} (P Q : tProp T)
+  : ◇ (P ∪ Q) = (◇ P) ∪ (◇ Q)
+:= begin
+apply included_eq; intros x Hx,
+{ induction Hx with k Hk, 
+  induction Hk with Hk Hk,
+  left, constructor, assumption,
+  right, constructor, assumption
+},
+{ induction Hx with Hx Hx;
+  induction Hx with H Hk,
+  constructor, left, assumption,
+  constructor, right, assumption,
+}
 end
 
 /-- Like the above but without partiality: every state is required 
@@ -582,6 +606,18 @@ lemma or_precompose (P Q : tProp B) (f : A → trace B)
 
 lemma next_map (P : tProp B) (f : A → B)
   : (◯ P) ∘ trace.map f = ◯ (P ∘ trace.map f)
+:= rfl
+
+lemma always_map (P : tProp B) (f : A → B)
+  : (□ P) ∘ trace.map f = □ (P ∘ trace.map f)
+:= rfl
+
+lemma eventually_map (P : tProp B) (f : A → B)
+  : (◇ P) ∘ trace.map f = ◇ (P ∘ trace.map f)
+:= rfl
+
+lemma fair_map (P : tProp B) (f : A → B)
+  : (fair P) ∘ trace.map f = fair (P ∘ trace.map f)
 := rfl
 
 
