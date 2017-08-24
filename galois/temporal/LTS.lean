@@ -47,20 +47,18 @@ A trace is valid if it is a labeled transition system
 structure valid_trace (t : trace (sigma L)) : Prop :=
   (next_step : LTS_trace LTS t)
 
-lemma prove_always {P : sigma L → Prop} 
+lemma prove_next {P : sigma L → Prop} 
   {Q : S → Prop}
   (H : ∀ s l s', LTS s l s' → P ⟨ s, l ⟩ → Q s')
   : ⊩ valid_trace
-    => □ (now P => ◯ (now (inState Q)))
+    => now P => ◯ (now (inState Q))
 := begin
-intros tr validtr n,
+intros tr validtr,
 unfold next nextn now later,
 intros HP,
-rw delayn_combine,
-rw add_comm, simp [delayn], apply H,
+apply H,
 apply validtr.next_step,
-dsimp [delayn] at HP, simp at HP,
-cases (tr n), dsimp, assumption
+cases (tr 0), dsimp, assumption
 end
 
 lemma valid_trace_delay : ⊩ valid_trace => ◯ valid_trace
@@ -82,6 +80,16 @@ lemma global_always (P : tProp (sigma L))
 := begin
 intros tr validtr n,
 apply H, apply valid_trace_always, assumption
+end
+
+lemma prove_always {P : sigma L → Prop} 
+  {Q : S → Prop}
+  (H : ∀ s l s', LTS s l s' → P ⟨ s, l ⟩ → Q s')
+  : ⊩ valid_trace
+    => □ (now P => ◯ (now (inState Q)))
+:= begin
+apply (global_always _ _),
+apply prove_next, assumption
 end
 
 
