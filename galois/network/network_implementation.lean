@@ -1,6 +1,7 @@
 -- author: Ben Sherman
 import .action
        galois.tactic
+       galois.option
        galois.temporal.temporal
 
 universes u v
@@ -42,19 +43,13 @@ def global_state_t := ip → incoming_items
 def initial_incoming_items : incoming_items
   := { messages := [] }
 
-def precondition (P : Prop) [decP : decidable P] : option (plift P) :=
-  match decP with
-  | decidable.is_true H := some (plift.up H)
-  | decidable.is_false contra := none
-  end
-
 def poll_label.to_poll_result
   (ports : list port) (sockets : list socket) (bound : time)
   (incoming : incoming_items)
   : poll_label → option (poll_result ports sockets bound)
 | poll_label.timeout := some poll_result.timeout
 | (poll_label.receive elapsed rn mess) := do
-  plift.up (and.intro H H') ← precondition (elapsed < bound ∧ 0 < elapsed),
+  plift.up (and.intro H H') ← option.precondition (elapsed < bound ∧ 0 < elapsed),
   idx ← list.check_member_st (λ p : socket × message_t, p.snd = mess) incoming.messages,
   sockidx ← list.check_member idx.to_member.value.fst sockets, --any other checks necessary?
   some (poll_result.message ⟨ elapsed, H ⟩ sockidx mess H')
@@ -124,28 +119,14 @@ def next_state_from_dlabel (system : system_state)
    some  { local_state  := lookup_update ag new_state system.local_state
         , global_state := updatef system.global_state }
 
-def label.to_sys_dlabel (system : system_state)
-: next_state_label → option (sys_dlabel system)
-| (next_state_label.agent_update a_ip aupdate) := do
-  ag ← agents.check_member a_ip,
-  option_bind (aupdate.to_dlabel (system.global_state a_ip) 
-         (ag.value.loop (system.local_state ag))) $ λ l',
-  some (sys_dlabel.mk ag l')
-
-def next_state_from_label (system : system_state) 
-  (l : next_state_label) : option system_state :=
-  option_bind (label.to_sys_dlabel system l) (next_state_from_dlabel system)
-
 open temporal
 
 -- Our labeled transition system
-def LTS (s : system_state) (l : next_state_label) (s' : system_state) : Prop :=
-  next_state_from_label s l = some s'
 def LTSd (s : system_state) (l : sys_dlabel s) (s' : system_state) : Prop :=
   next_state_from_dlabel s l = some s'
 
-def TR := trace (sigma (λ _ : system_state, next_state_label))
-def TP := tProp (sigma (λ _ : system_state, next_state_label))
+def TR := trace (sigma sys_dlabel)
+def TP := tProp (sigma sys_dlabel)
 
 /--
 Apply a function (usually a predicate) to the label of a state-label pair

@@ -75,13 +75,13 @@ apply propext, split; intros H,
   dsimp [sys_dlabel_to_local] at H,
   apply (if Hag : ag_1 = ag then _ else _),
   { subst ag_1, constructor,
-    rw (precondition_true_bind (eq.refl ag)) at H,
+    rw (option.precondition_true_bind (eq.refl ag)) at H,
     dsimp [sys_dlabel_to_local] at H,
     dsimp [inSkipLabel] at H,
     dsimp [loc.inLabeld] at H,
     dsimp [indLabel] at H,
     apply H },
-  { rw (precondition_false Hag) at H,
+  { rw (option.precondition_false Hag) at H,
     dsimp [has_bind.bind, option_bind] at H,
     dsimp [inSkipLabel] at H, contradiction,
   },
@@ -89,21 +89,21 @@ apply propext, split; intros H,
 { induction H,
   dsimp [Refinement.SL_refine, refinesd, inSkipLabel],
   dsimp [sys_dlabel_to_local],
-  rw (precondition_true_bind (eq.refl ag)),
+  rw (option.precondition_true_bind (eq.refl ag)),
   dsimp [sys_dlabel_to_local], dsimp [inSkipLabel],
   unfold loc.inLabeld, unfold indLabel, assumption
 }
 end
 
 
-
-instance decidable_agent_does (a_ip : ip) P
-  [decidable_pred P] : decidable_pred (agent_does a_ip P)
+instance decidable_sys_agent_does a P
+  [decidable_pred P] : decidable_pred (sys_agent_does a P)
 := begin 
-intros l, induction l with a_ip' l,
-apply (if Hip : a_ip = a_ip' then _ else _),
-{ apply (if H : P l then _ else _),
-  subst a_ip',
+intros l, induction l with s l,
+induction l with a' l,
+apply (if Hip : a = a' then _ else _),
+{ apply (if H : P (dlabel_to_label l) then _ else _),
+  subst a',
   { apply decidable.is_true,
     constructor, assumption } ,
   { apply decidable.is_false,
@@ -113,115 +113,63 @@ apply (if Hip : a_ip = a_ip' then _ else _),
   cases contra, contradiction }
 end
 
-inductive next_state_from_label_ind' (ag : agents.member) (s : system_state) (la : agent_label) (s' : @system_state agents) : Prop
-| mk : ∀ (la' : dlabel ((ag.value).loop (s.local_state ag)))
-         (Hla' : agent_label.to_dlabel (s.global_state (ag.key)) ((ag.value).loop (s.local_state ag)) la = some la')
-         (new_state : (ag.value).state_type)
+inductive next_state_from_label_ind' (ag : agents.member) (s : system_state) (la : dlabel ((ag.value).loop (s.local_state ag))) (s' : @system_state agents) : Prop
+| mk : ∀ (new_state : (ag.value).state_type)
          (updatef : global_state_t → global_state_t)
-         (Hagl : next_agent_state_from_dlabel (ag.key) (ag.value) (s.global_state (ag.key)) la' = some (new_state, updatef))
+         (Hagl : next_agent_state_from_dlabel (ag.key) (ag.value) (s.global_state (ag.key)) la = some (new_state, updatef))
          (Hupd : s' = {local_state := lookup_update ag new_state (s.local_state), global_state := updatef (s.global_state)})
          , next_state_from_label_ind'
 
-inductive next_state_from_label_ind (a_ip : ip) (s : system_state) (la : agent_label) (s' : system_state) : Prop
-| mk : ∀ (ag : agents.member) (Hip : ag.key = a_ip)
-         (H : next_state_from_label_ind' ag s la s'), next_state_from_label_ind
 
-
-lemma agent_update_invert_st' {s la s'}
+lemma agent_update_invert_st'
   {ag : agents.member}
-  : LTS s (next_state_label.agent_update ag.key la) s'
+  {s la s'}
+  : LTSd s (sys_dlabel.mk ag la) s'
   → next_state_from_label_ind' ag s la s'
 := begin
 intros H,
-simp [LTS] at H,
-simp [next_state_from_label] at H,
+simp [LTSd] at H,
+simp [next_state_from_dlabel] at H,
 apply_in H option.bind_some,
-induction H with la' p, induction p with Hag1 Hag2,
-dsimp [label.to_sys_dlabel] at Hag1,
-apply_in Hag1 option.bind_some,
-induction Hag1 with ag' Hag1,
-induction Hag1 with Hag Hag',
-apply_in Hag mapd.check_member_same, 
-subst ag',
-dsimp at Hag',
-apply_in Hag' option.bind_some,
-induction Hag' with la'' Hla'',
-induction Hla'' with H1 H2,
-injection H2 with H2', clear H2, subst la',
-dsimp [next_state_from_dlabel] at Hag2,
-apply_in Hag2 option.bind_some,
-induction Hag2 with res Hres,
-induction Hres with HA HB,
+induction H with res p, induction p with Hag1 Hag2,
 induction res with new_state updatef,
-dsimp [next_state_from_dlabel] at HB,
-injection HB with HB', clear HB,
+dsimp [next_agent_state_from_dlabel] at Hag1,
+dsimp [next_state_from_dlabel] at Hag2,
+injection Hag2 with Hag2', clear Hag2,
 constructor; try { assumption }, symmetry, assumption
 end
 
-lemma agent_update_invert_st {s la s'}
-  {a_ip : ip}
-  : LTS s (next_state_label.agent_update a_ip la) s'
-  → next_state_from_label_ind a_ip s la s'
-:= begin
-intros H, have H1 := H,
-have H' := option.bind_some H,
-clear H, induction H' with la' p, induction p with Hag1 Hag2,
-dsimp [label.to_sys_dlabel] at Hag1,
-apply_in Hag1 option.bind_some,
-induction Hag1 with ag Hag,
-induction Hag with H1 H2,
-apply_in H1 mapd.check_member_same_key,
-subst a_ip,
-dsimp at H2,
-constructor, reflexivity,
-apply agent_update_invert_st', assumption,
-end
-
-lemma agent_does_invert {a_ip : ip} {P : agent_label → Prop}
-  {l : next_state_label}
-  (H : agent_does a_ip P l)
-  : ∃ (la : agent_label), P la
-   ∧ l = next_state_label.agent_update a_ip la
-:= begin
-induction H, constructor, split, assumption,
-reflexivity
-end
-
 /-- Every agent always eventually gets to step -/
-def fairness_spec : @TP agents
-  := λ tr : TR, ∀ (a : agents.member),
-   fair (now (inLabel (agent_does a.key (λ _, true)))) tr
-
-def fairness_specd
+def fairness_specd : @TP agents
   := λ tr, ∀ (a : agents.member),
    fair (now (sys_agent_does a (λ _, true))) tr
 
 
-lemma agent_update_invert {tr : TR} (a_ip : ip)
-  (validtr : valid_trace LTS tr)
-  {n : nat}
-  {la : agent_label}
-  (H : (tr n).snd = next_state_label.agent_update a_ip la)
-  : next_state_from_label_ind a_ip (tr n).fst la (tr n.succ).fst
-:= begin
-have Hn := validtr.next_step n,
-apply agent_update_invert_st,
-rw <- H,
-apply (validtr.next_step n),
-end
+-- lemma agent_update_invert {tr : TR} (a_ip : ip)
+--   (validtr : valid_trace LTS tr)
+--   {n : nat}
+--   {la : agent_label}
+--   (H : (tr n).snd = next_state_label.agent_update a_ip la)
+--   : next_state_from_label_ind a_ip (tr n).fst la (tr n.succ).fst
+-- := begin
+-- have Hn := validtr.next_step n,
+-- apply agent_update_invert_st,
+-- rw <- H,
+-- apply (validtr.next_step n),
+-- end
 
-lemma agent_update_invert' {tr : TR} (ag : agents.member)
-  (validtr : valid_trace LTS tr)
-  {n : nat}
-  {la : agent_label}
-  (H : (tr n).snd = next_state_label.agent_update ag.key la)
-  : next_state_from_label_ind' ag (tr n).fst la (tr n.succ).fst
-:= begin
-have Hn := validtr.next_step n,
-apply agent_update_invert_st',
-rw <- H,
-apply (validtr.next_step n),
-end
+-- lemma agent_update_invert' {tr : TR} (ag : agents.member)
+--   (validtr : valid_trace LTS tr)
+--   {n : nat}
+--   {la : agent_label}
+--   (H : (tr n).snd = next_state_label.agent_update ag.key la)
+--   : next_state_from_label_ind' ag (tr n).fst la (tr n.succ).fst
+-- := begin
+-- have Hn := validtr.next_step n,
+-- apply agent_update_invert_st',
+-- rw <- H,
+-- apply (validtr.next_step n),
+-- end
 
 /-- Indicates that an agent is at the beginning of running 
     an iteration of its loop (or doing something equivalent
@@ -240,17 +188,17 @@ def inLocalState (a : agents.member) (P : a.value.state_type → Prop)
 -/
 lemma local_state_stays_constant {s l s'}
   (a : agents.member)
-  (HLTS : LTS s l s')
-  (Hagent : ¬agent_does (a.key) (λ (_x : agent_label), true) l)
+  (HLTS : LTSd s l s')
+  (Hagent : ¬sys_agent_does a (λ (_x : agent_label), true) ⟨ _, l ⟩)
   : s.local_state a = s'.local_state a
 := begin
-induction l with a_ip la,
-apply_in HLTS agent_update_invert_st,
-induction HLTS with ag Hip H, subst a_ip,
-induction H,
-subst s', dsimp, unfold lookup_update lookup_updatef,
-apply (if Heq : ag = a then _ else _),
-{ exfalso, subst ag,
+induction l with a' la,
+apply_in HLTS agent_update_invert_st',
+induction HLTS with new_state updatef H1 Hs',
+subst s', dsimp,
+unfold lookup_update lookup_updatef,
+apply (if Heq : a' = a then _ else _),
+{ exfalso, subst a',
  apply Hagent,
  constructor, trivial },
 { rw (dif_neg Heq) }
@@ -277,16 +225,16 @@ end
 -/
 lemma local_state_stays_constant_ltl (a : agents.member)
   (P : a.value.state_type → Prop)
-  : ⊩ valid_trace LTS
+  : ⊩ valid_trace LTSd
     => □ (now (inLocalState a P)
     => (◯ (now (inLocalState a P))
         𝓦
-       now (inLabel (agent_does a.key (λ _, true))))
+       now (sys_agent_does a (λ _, true)))
     )
 := begin
 intros tr validtr n Pst,
 unfold inLocalState,
-apply (invariant_holds_while LTS _ (delayn n tr)),
+apply (invariant_holds_while LTSd _ (delayn n tr)),
 apply valid_trace_always, assumption, assumption,
 apply_instance,
 intros,
@@ -297,20 +245,12 @@ end
 /-- If an agent always eventually polls, and if it is sent a message,
     then it eventually receives that message.
 -/
-def message_fairness_spec : @TP agents := λ tr,
-  ∀ (a : agents.member) (sock : socket) (mess : message_t),
-    (fair (   now (inLocalState a (polls_on_socket sock ∘ a.value.loop))
-            ∩ now (inLabel (agent_does a.key (λ _, true))))
-     => □ (now (inState (λ s : system_state, (sock, mess) ∈ (s.global_state a.key).messages))
-           => ◇ (now (inLabel (agent_does a.key (receives_message sock mess)))))) tr
-
-def message_fairness_specd := λ tr,
+def message_fairness_specd : @TP agents := λ tr,
   ∀ (a : agents.member) (sock : socket) (mess : message_t),
     (fair (   now (inLocalState a (polls_on_socket sock ∘ a.value.loop))
             ∩ now (sys_agent_does a (λ _, true)))
      => □ (now (inState (λ s : system_state, (sock, mess) ∈ (s.global_state a.key).messages))
            => ◇ (now (sys_agent_does a (receives_message sock mess))))) tr
-
 
 end
 
@@ -321,13 +261,13 @@ parameters {agents : map ip agent}
 
 lemma blocks_until_not_never_receives_always_polls
   (s : socket)
-  : ⊩ valid_trace (@LTS agents)
+  : ⊩ valid_trace (@LTSd agents)
     => (◇ (now (inLocalState a (polls_on_socket s ∘ a.value.loop))
-           ∩ now (inLabel (agent_does a.key (λ _, true)))) 
-        𝓦 (now (inLabel (agent_does a.key (receives P)))))
-    => □ (tNot (now (inLabel (agent_does a.key (receives P)))))
+           ∩ now (sys_agent_does a (λ _, true))) 
+        𝓦 (now (sys_agent_does a (receives P))))
+    => □ (tNot (now (sys_agent_does a (receives P))))
     => fair (now (inLocalState a (polls_on_socket s ∘ a.value.loop))
-             ∩ now (inLabel (agent_does a.key (λ _, true))))
+             ∩ now (sys_agent_does a (λ _, true)))
 := begin
 intros tr valid nows never,
 apply weak_until_not_always; assumption,
@@ -348,15 +288,15 @@ end
 -/
 theorem blocking_agent_eventually_receives_message
   {s : socket}
-  : ⊩ valid_trace (@LTS agents)
-    => message_fairness_spec
+  : ⊩ valid_trace (@LTSd agents)
+    => message_fairness_specd
     => (◇ (now (inLocalState a (polls_on_socket s ∘ a.value.loop))
-          ∩ now (inLabel (agent_does a.key (λ _, true))))
-        𝓦 (now (inLabel (agent_does a.key (receives P)))))
+          ∩ now (sys_agent_does a (λ _, true))))
+        𝓦 (now (sys_agent_does a (receives P)))
     => now (inState (λ ss : system_state, ∃ mess : message_t,
          P s mess ∧
          (s, mess) ∈ (ss.global_state a.key).messages))
-    => ◇ (now (inLabel (agent_does a.key (receives P))))
+    => ◇ (now (sys_agent_does a (receives P)))
 := begin
 intros tr valid mfair nowstate H,
 apply classical.not_always_not_implies_eventually,
@@ -375,15 +315,11 @@ apply eventually_mono,
 intros x H,
 unfold now later inLabel at H,
 unfold now later inLabel,
-apply_in H agent_does_invert,
-induction H with la Hla,
-induction Hla with Hlal Hlar,
-rw Hlar,
-constructor,
-induction Hlal,
-induction a_1 with Hm Hs,
-subst rn, subst mess_1,
-constructor, assumption
+induction H with s l Psl,
+constructor, unfold receives_message at Psl,
+induction Psl with t rn mess' ms H,
+induction H with H1 H2, subst mess', subst s,
+constructor, assumption,
 end
 
 /-- Agent fairness in the global transition system implies

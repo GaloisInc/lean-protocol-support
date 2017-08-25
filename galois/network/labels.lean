@@ -33,13 +33,6 @@ structure agent_label : Type :=
 instance agent_label_decidable_eq : decidable_eq agent_label
   := by tactic.mk_dec_eq_instance
 
-inductive next_state_label : Type 1
-  | agent_update : ip → agent_label → next_state_label
-
-/-- Indicates that an agent takes a step satisfying a given property -/
-inductive agent_does (a : ip) (P : agent_label → Prop) : next_state_label → Prop
-| mk : ∀ (l : agent_label), P l → agent_does (next_state_label.agent_update a l)
-
 inductive receives (P : socket → message_t → Prop) : agent_label → Prop
 | mk : ∀ (t : time) (rn : remote_name) (mess : message_t) ms,
        P rn mess → receives (agent_label.mk (poll_label.receive t rn mess) ms)

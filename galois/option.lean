@@ -112,4 +112,39 @@ lemma filter_true {A : Type u}
 unfold option.filter, rw (if_pos H),
 end
 
+def precondition (P : Prop) [decP : decidable P] : option (plift P) :=
+  match decP with
+  | decidable.is_true H := some (plift.up H)
+  | decidable.is_false contra := none
+  end
+
+lemma precondition_true {P : Prop} {A : Type u} [decP : decidable P]
+  {f : plift P → option A}
+  (H : P)
+  : option_bind (precondition P) f = f (plift.up H)
+:= begin
+unfold precondition,
+induction decP; dsimp [precondition],
+{ contradiction },
+{ simp [option_bind],
+}
+end
+
+lemma precondition_false {P : Prop} [decP : decidable P]
+  (H : ¬ P)
+  : precondition P = none
+:= begin
+unfold precondition,
+induction decP; dsimp [precondition],
+{ simp [option_bind], },
+{ contradiction
+}
+end
+
+lemma precondition_true_bind {P : Prop} {A : Type} [decP : decidable P]
+  {f : plift P → option A}
+  (H : P)
+  : precondition P >>= f = f (plift.up H)
+:= precondition_true H
+
 end option

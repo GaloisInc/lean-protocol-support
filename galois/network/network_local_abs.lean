@@ -49,39 +49,10 @@ def sys_dlabel_to_local {agents : map ip agent}
  (ag : agents.member) (s : @system_state agents) : 
   sys_dlabel s → option (dlabel (ag.value.loop (s.local_state ag)))
 | (sys_dlabel.mk ag' aupdate) := do
-  plift.up H ← precondition (ag' = ag),
+  plift.up H ← option.precondition (ag' = ag),
   some (eq.rec_on H aupdate)
 
 universes u
-
-lemma precondition_true {P : Prop} {A : Type u} [decP : decidable P]
-  {f : plift P → option A}
-  (H : P)
-  : option_bind (precondition P) f = f (plift.up H)
-:= begin
-unfold precondition,
-induction decP; dsimp [precondition],
-{ contradiction },
-{ simp [option_bind],
-}
-end
-
-lemma precondition_false {P : Prop} [decP : decidable P]
-  (H : ¬ P)
-  : precondition P = none
-:= begin
-unfold precondition,
-induction decP; dsimp [precondition],
-{ simp [option_bind], },
-{ contradiction
-}
-end
-
-lemma precondition_true_bind {P : Prop} {A : Type} [decP : decidable P]
-  {f : plift P → option A}
-  (H : P)
-  : precondition P >>= f = f (plift.up H)
-:= precondition_true H
 
 lemma next_state_local 
   (agents : map ip agent)
@@ -126,7 +97,7 @@ def refinesd
    subst s', dsimp,
    apply (if Hag : ag' = ag then _ else _),
    { -- I go! 
-     rw (precondition_true_bind Hag),
+     rw (option.precondition_true_bind Hag),
      dsimp [sys_dlabel_to_local], induction Hag,
      dsimp, unfold SkipLTS,
      unfold loc.LTSd,
@@ -136,7 +107,7 @@ def refinesd
      apply next_state_local, assumption,
    },
    { --Someone else goes
-   rw (precondition_false Hag),
+   rw (option.precondition_false Hag),
    dsimp [has_bind.bind, option_bind],
    dsimp [SkipLTS],
    rw (lookup_update_different Hag),
