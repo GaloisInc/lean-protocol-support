@@ -61,6 +61,7 @@ inductive sys_agent_does (ag : agents.member)
 | mk : ∀ sys dlabel, P (dlabel_to_label dlabel) → sys_agent_does (sigma.mk sys (sys_dlabel.mk ag dlabel))
 
 
+@[trace_map]
 lemma label_refine_eqd {ag : agents.member} (P : agent_label → Prop)
  : inSkipLabel (@loc.inLabeld ag.value (indLabel P)) ∘
        (Refinement.SL_refine (refinesd ag))
@@ -143,33 +144,6 @@ end
 def fairness_specd : @TP agents
   := λ tr, ∀ (a : agents.member),
    fair (now (sys_agent_does a (λ _, true))) tr
-
-
--- lemma agent_update_invert {tr : TR} (a_ip : ip)
---   (validtr : valid_trace LTS tr)
---   {n : nat}
---   {la : agent_label}
---   (H : (tr n).snd = next_state_label.agent_update a_ip la)
---   : next_state_from_label_ind a_ip (tr n).fst la (tr n.succ).fst
--- := begin
--- have Hn := validtr.next_step n,
--- apply agent_update_invert_st,
--- rw <- H,
--- apply (validtr.next_step n),
--- end
-
--- lemma agent_update_invert' {tr : TR} (ag : agents.member)
---   (validtr : valid_trace LTS tr)
---   {n : nat}
---   {la : agent_label}
---   (H : (tr n).snd = next_state_label.agent_update ag.key la)
---   : next_state_from_label_ind' ag (tr n).fst la (tr n.succ).fst
--- := begin
--- have Hn := validtr.next_step n,
--- apply agent_update_invert_st',
--- rw <- H,
--- apply (validtr.next_step n),
--- end
 
 /-- Indicates that an agent is at the beginning of running 
     an iteration of its loop (or doing something equivalent

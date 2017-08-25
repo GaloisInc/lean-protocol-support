@@ -104,6 +104,7 @@ def weak_until {T : Type u} (P Q : tProp T) : tProp T :=
 -- \MCW
 infix `𝓦` : 50 := weak_until
 
+@[trace_map]
 lemma weak_until_map {A : Type v} {T : Type u} (P Q : tProp T)
   (f : A → T)
   : (P 𝓦 Q) ∘ trace.map f = ((P ∘ trace.map f) 𝓦 (Q ∘ trace.map f))

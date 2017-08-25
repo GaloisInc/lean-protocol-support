@@ -755,22 +755,6 @@ unfold merge_to_tree,
 rw (tree_lptree_leaves f)
 end
 
-lemma list.map_extensional {A B : Type} (f g : A -> B)
-  (xs : list A)
-  : (∀ x, f x = g x)
-  -> list.map f xs = list.map g xs
-:= begin
-intros H,
-induction xs,
-{ reflexivity },
-{ simp [list.map], f_equal,
-  apply H, assumption
- }
-end
-
-lemma list.append_nil_left {A} (xs : list A)
-  : xs = [] ++ xs := rfl
-
 lemma list.map_compose {A B C : Type}
   (f : A -> B) (g : B -> C) (xs : list A)
   : list.map (g ∘ f) xs = list.map g (list.map f xs)
@@ -884,12 +868,12 @@ induction t; intros,
 { simp [all_paths_core, all_paths'],
   f_equal,
   { rw ih_2,
-    apply list.map_extensional,
-    intros, cases x with i1 i2,
+    f_equal, apply funext,
+    intros x, cases x with i1 i2,
     dsimp [function.comp, second],
     simp [second] },
   { rw ih_1,
-    apply list.map_extensional,
+    f_equal, apply funext,
     intros, cases x with i1 i2,
     dsimp [function.comp, second], simp [second] }
 }
@@ -918,12 +902,12 @@ induction t,
   f_equal,
   { rw <- ih_2,
     rw <- list.map_compose,
-    apply list.map_extensional,
+    f_equal, apply funext,
     intros x, cases x with lf xs,
     simp [function.comp, second] },
   { rw <- ih_1,
     rw <- list.map_compose,
-    apply list.map_extensional,
+    f_equal, apply funext,
     intros x, cases x with lf xs,
     simp [function.comp, second]  }
 }

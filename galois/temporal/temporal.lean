@@ -22,6 +22,7 @@ def tProp (T : Type u) := subset (trace T)
    to simplify any rule with this attribute -/
 run_cmd mk_simp_attr `ltl
 run_cmd mk_simp_attr `tImp
+run_cmd mk_simp_attr `trace_map
 
 /--
 Move a trace forward in time by n
@@ -579,12 +580,14 @@ end trace
 section map_props
 parameters {A : Type u} {B : Type v} (f : A → B)
 
+@[trace_map]
 lemma later_map (P : subset B)
   (n : ℕ) : later P n ∘ trace.map f = later (P ∘ f) n
 := begin
 apply funext, intros x, reflexivity,
 end
 
+@[trace_map]
 lemma now_map (P : subset B)
   : now P ∘ trace.map f = now (P ∘ f)
 := later_map P 0
@@ -592,30 +595,38 @@ end map_props
 
 section precompose_props
 parameters {A : Type u} {B : Type v}
+
+@[trace_map]
 lemma imp_precompose (P Q : tProp B) (f : A → trace B)
   : (P => Q) ∘ f = ((P ∘ f) => (Q ∘ f))
 := rfl
 
+@[trace_map]
 lemma and_precompose (P Q : tProp B) (f : A → trace B)
   : (bintersection P Q) ∘ f = (bintersection (P ∘ f) (Q ∘ f))
 := rfl
 
+@[trace_map]
 lemma or_precompose (P Q : tProp B) (f : A → trace B)
   : (bunion P Q) ∘ f = (bunion (P ∘ f) (Q ∘ f))
 := rfl
 
+@[trace_map]
 lemma next_map (P : tProp B) (f : A → B)
   : (◯ P) ∘ trace.map f = ◯ (P ∘ trace.map f)
 := rfl
 
+@[trace_map]
 lemma always_map (P : tProp B) (f : A → B)
   : (□ P) ∘ trace.map f = □ (P ∘ trace.map f)
 := rfl
 
+@[trace_map]
 lemma eventually_map (P : tProp B) (f : A → B)
   : (◇ P) ∘ trace.map f = ◇ (P ∘ trace.map f)
 := rfl
 
+@[trace_map]
 lemma fair_map (P : tProp B) (f : A → B)
   : (fair P) ∘ trace.map f = fair (P ∘ trace.map f)
 := rfl
