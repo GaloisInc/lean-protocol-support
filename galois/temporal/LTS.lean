@@ -213,6 +213,25 @@ left, assumption, right, unfold now later,
 rw a, assumption,
 end
 
+lemma SkipLTS_state_stays_constant
+  (P : S → Prop) : 
+  ⊩  valid_trace SkipLTS
+  => □ (now (inState P)
+  => ((◯ (now (inState P)))
+       𝓦 
+       now (inSkipLabel (λ _, true)))
+  )
+:= begin
+intros tr validtr n Pst,
+apply (invariant_holds_while SkipLTS _ (delayn n tr)),
+apply valid_trace_always, assumption, assumption,
+apply_instance,
+intros,
+induction l,
+{ dsimp [SkipLTS] at a, subst s', assumption },
+{ exfalso, apply a_1, constructor, }
+end
+
 parameters {S' : Type u'}{L' : S' → Type v'}
 parameter (LTS' : ∀ s : S', L' s → S' → Prop)
 

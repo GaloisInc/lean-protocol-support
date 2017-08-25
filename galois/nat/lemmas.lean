@@ -41,6 +41,42 @@ by_cases ((0 < k ∧ k ≤ n)) with h; simp [h] at H,
 }
 end
 
+lemma drop_drops_one : forall index drop_size,
+drop_size ≠ 0 → 
+drop_size ≤ index -> 
+index / drop_size = ((index - drop_size) / drop_size) + 1 :=
+begin
+intros, rw nat.div_def,
+by_cases (0 < drop_size ∧ drop_size ≤ index) with h;
+simp [h],
+{
+  exfalso, apply h,
+  split,
+  { destruct drop_size; intros; subst drop_size,
+    {
+      contradiction,
+    },
+    {
+      simp [nat.lt_is_succ_le], have e : (nat.succ a_2) = 1 + a_2, simp,
+        rw e, apply nat.le_add_right
+    }
+  },
+  {
+   assumption,
+  }
+}
+end
+
+lemma drops_decreases : forall drop_size index,
+drop_size ≠ 0 →
+drop_size ≤ index ->
+((index - drop_size) / drop_size) < index /drop_size :=
+begin
+intros,
+rw (drop_drops_one index); try {assumption},
+apply nat.lt.base,
+end
+
 lemma lt_of_div_succ_2
   {n k p : ℕ}
   (H : n / k = p.succ)
@@ -48,8 +84,7 @@ lemma lt_of_div_succ_2
 := 
 begin
 cases k with k, simp at *, contradiction,
-have dps := list.drop_drops_one n (nat.succ k),
-unfold list.drops_to_first_n at *,
+have dps := drop_drops_one n (nat.succ k),
 have neO : nat.succ k ≠ 0, {contradiction},
 specialize dps neO,
 clear neO,
@@ -88,6 +123,25 @@ apply le_trans,
 apply nat.pred_le_pred,
 apply nat.sub_le,
 apply le_refl,
+end
+
+lemma sub_1_succ : forall (n b : ℕ),
+n - 1 - b = n - nat.succ b :=
+begin
+intros n,
+induction n; intros,
+{ dsimp, cases b,
+  {refl},
+  { simp }
+},
+{
+  simp,
+}
+end
+
+lemma lt_succ_both : forall a b, nat.succ a < nat.succ b -> a < b :=
+begin
+intros,  simp [nat.lt_is_succ_le, nat.succ_le_succ_iff] at *, apply a_1,
 end
 
 

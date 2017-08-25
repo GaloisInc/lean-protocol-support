@@ -106,7 +106,7 @@ end
 
 def dlabel_to_label {A} : ∀ {a_next : act A}, dlabel a_next → agent_label
 | (act.poll ports sockets bound cont) (dlabel.poll ._ ._ ._ ._ r) :=
-  agent_label.mk (poll_result_to_label r) ((cont r).fst)
+  agent_label.mk r.to_label ((cont r).fst)
 
 section
 parameter {agents : map ip agent}

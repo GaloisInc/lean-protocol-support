@@ -7,47 +7,6 @@ universe variable u
 
 namespace list
 
-/-- We should be able to use this as a meausre to show that we eventually send messages in our queue-/
-def drops_to_first_n (index : ℕ) (drop_size : ℕ) := index / drop_size
-
-lemma drop_drops_one : forall index drop_size,
-drop_size ≠ 0 → 
-drop_size ≤ index -> 
-drops_to_first_n index drop_size = (drops_to_first_n (index - drop_size) drop_size) + 1 :=
-begin
-unfold drops_to_first_n,
-intros, rw nat.div_def,
-by_cases (0 < drop_size ∧ drop_size ≤ index) with h;
-simp [h],
-{
-  exfalso, apply h,
-  split,
-  { destruct drop_size; intros; subst drop_size,
-    {
-      contradiction,
-    },
-    {
-      simp [nat.lt_is_succ_le], have e : (nat.succ a_2) = 1 + a_2, simp,
-        rw e, apply nat.le_add_right
-    }
-  },
-  {
-   assumption,
-  }
-}
-end
-
-lemma drops_decreases : forall drop_size index,
-drop_size ≠ 0 →
-drop_size ≤ index ->
-(drops_to_first_n (index - drop_size) drop_size) <
-drops_to_first_n index drop_size :=
-begin
-intros,
-rw (drop_drops_one index); try {assumption},
-apply nat.lt.base,
-end
-
 variable {α : Type u}
 
 /- take theorems -/

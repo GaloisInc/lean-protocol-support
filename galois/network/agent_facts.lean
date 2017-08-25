@@ -127,10 +127,6 @@ inductive next_state_from_label_ind (a_ip : ip) (s : system_state) (la : agent_l
          (H : next_state_from_label_ind' ag s la s'), next_state_from_label_ind
 
 
-/-- WARNING: This lemma is now incorrect
-    The definition of next_state_from_label_ind' needs
-    to be modified
--/
 lemma agent_update_invert_st' {s la s'}
   {ag : agents.member}
   : LTS s (next_state_label.agent_update ag.key la) s'
@@ -258,26 +254,6 @@ apply (if Heq : ag = a then _ else _),
  apply Hagent,
  constructor, trivial },
 { rw (dif_neg Heq) }
-end
-
-
-lemma SkipLTS_state_stays_constant (ag : agent)
-  (P : ag.state_type → Prop) : 
-  ⊩  valid_trace (SkipLTS (loc.LTSd ag))
-  => □ (now (inState P)
-  => ((◯ (now (inState P)))
-       𝓦 
-       now (inSkipLabel (λ _, true)))
-  )
-:= begin
-intros tr validtr n Pst,
-apply (invariant_holds_while (SkipLTS (loc.LTSd ag)) _ (delayn n tr)),
-apply valid_trace_always, assumption, assumption,
-apply_instance,
-intros,
-induction l,
-{ dsimp [SkipLTS] at a, subst s', assumption },
-{ exfalso, apply a_1, constructor, }
 end
 
 def agent_has_state {L : @system_state agents → Type u}
