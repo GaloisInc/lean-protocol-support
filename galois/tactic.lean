@@ -1,12 +1,7 @@
-import .option
-import galois.list.member
-
 universes u v
 
 open tactic lean lean.parser
 open interactive interactive.types expr
-
-local postfix *:9001 := many
 
 namespace tactic.interactive
 

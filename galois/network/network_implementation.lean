@@ -71,39 +71,6 @@ def add_message (rn : remote_name) (m : message_t) (a_ip : ip)
   : global_state_t → global_state_t :=
   lookup_updatef a_ip (λ i : incoming_items, {i with messages := (rn, m) :: i.messages })
 
-def option_filter {A : Type u}
-   (P : A → Prop) [decidable_pred P] : option A → option A
-| (some x) := if P x then some x else none
-| none := none
-
-lemma option_filter_some {A : Type u}
-  {P : A → Prop} [decP : decidable_pred P] {mx : option A} {x : A}
-  (H : option_filter P mx = some x)
-  : mx = some x ∧ P x
-:= begin
-cases mx; simp [option_filter] at H,
-contradiction,
-have H' := decP a, induction H' with H' H',
-{ rw (if_neg H') at H, contradiction, },
-{ rw (if_pos H') at H, injection H with H'', clear H,
-  subst x, constructor, reflexivity, assumption }
-end
-
-def guard_option_filter {A : Type}
-  {P : Prop} [decP : decidable P] (mx : option A) :
-  (do guard P, mx) = option_filter (λ _, P) mx
-:= begin
-induction mx; induction decP; try { reflexivity }
-end
-
-lemma option_filter_true {A : Type u}
-  {P : A → Prop} [decP : decidable_pred P] {x : A}
-  (H : P x)
-  : option_filter P (some x) = some x
-:= begin
-unfold option_filter, rw (if_pos H),
-end
-
 def dlabel_to_label {A} : ∀ {a_next : act A}, dlabel a_next → agent_label
 | (act.poll ports sockets bound cont) (dlabel.poll ._ ._ ._ ._ r) :=
   agent_label.mk r.to_label ((cont r).fst)
@@ -198,26 +165,6 @@ lemma inLabel_mono {S} {L} : subset.monotone (@inLabel S L Prop)
 intros P Q PQ x Hx, apply PQ, apply Hx
 end
 
-end
-
-lemma option_bind_some {A B} {ma : option A} {f : A → option B}
-  {b : B} (H : option_bind ma f = some b)
-  : ∃ a : A, ma = some a ∧ f a = some b
-:= begin
-cases ma,
-contradiction,
-existsi a, split, reflexivity, assumption
-end
-
-lemma option_map_some {A B} {ma : option A} {f : A → B}
-  {b : B} (H : option_map f ma = some b)
-  : ∃ a : A, ma = some a ∧ f a = b
-:= begin
-cases ma,
-contradiction,
-existsi a, split, reflexivity,
-dsimp [option_map, function.comp, option_bind] at H, 
-injection H with H',
 end
 
 end network

@@ -135,21 +135,21 @@ lemma agent_update_invert_st' {s la s'}
 intros H,
 simp [LTS] at H,
 simp [next_state_from_label] at H,
-apply_in H option_bind_some,
+apply_in H option.bind_some,
 induction H with la' p, induction p with Hag1 Hag2,
 dsimp [label.to_sys_dlabel] at Hag1,
-apply_in Hag1 option_bind_some,
+apply_in Hag1 option.bind_some,
 induction Hag1 with ag' Hag1,
 induction Hag1 with Hag Hag',
 apply_in Hag mapd.check_member_same, 
 subst ag',
 dsimp at Hag',
-apply_in Hag' option_bind_some,
+apply_in Hag' option.bind_some,
 induction Hag' with la'' Hla'',
 induction Hla'' with H1 H2,
 injection H2 with H2', clear H2, subst la',
 dsimp [next_state_from_dlabel] at Hag2,
-apply_in Hag2 option_bind_some,
+apply_in Hag2 option.bind_some,
 induction Hag2 with res Hres,
 induction Hres with HA HB,
 induction res with new_state updatef,
@@ -164,10 +164,10 @@ lemma agent_update_invert_st {s la s'}
   → next_state_from_label_ind a_ip s la s'
 := begin
 intros H, have H1 := H,
-have H' := option_bind_some H,
+have H' := option.bind_some H,
 clear H, induction H' with la' p, induction p with Hag1 Hag2,
 dsimp [label.to_sys_dlabel] at Hag1,
-apply_in Hag1 option_bind_some,
+apply_in Hag1 option.bind_some,
 induction Hag1 with ag Hag,
 induction Hag with H1 H2,
 apply_in H1 mapd.check_member_same_key,
@@ -313,17 +313,6 @@ def message_fairness_specd := λ tr,
 
 
 end
-
-inductive can_possibly_step (a_ip : ip) (a : agent) 
-  (s : a.state_type) (l : next_state_label) (s' : a.state_type) : Prop
-| mk : ∀ 
-  (agents : map ip agent)
-  (Hmap : mapd.find a_ip agents = some a)
-  (ss ss' : @system_state agents)
-  (loc : ss.local_state ⟨ _, _, Hmap ⟩ = s)
-  (loc' : ss'.local_state ⟨ _, _, Hmap ⟩ = s')
-  (HLTS : LTS ss l ss'),
-  can_possibly_step
 
 section
 parameters {agents : map ip agent}
