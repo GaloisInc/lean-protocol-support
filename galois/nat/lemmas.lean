@@ -144,5 +144,16 @@ begin
 intros,  simp [nat.lt_is_succ_le, nat.succ_le_succ_iff] at *, apply a_1,
 end
 
+lemma max_subtract : forall (a b : nat),
+(max a b) - b = a - b :=
+begin
+intros a b, unfold max,
+apply (if H : a ≤ b then _ else _),
+{ rw (if_pos H), rw nat.sub_eq_zero_of_le,
+  rw nat.sub_eq_zero_of_le, assumption,
+  apply le_refl,
+ },
+{ rw (if_neg H), }
+end
 
 end nat
