@@ -33,7 +33,7 @@ def tImp {T : Type u} (P Q : subset T) : subset T :=
 infixr `=>` : 50 := tImp
 
 
-instance : has_union (subset A)
+instance subset_has_union : has_union (subset A)
   := ⟨ bunion ⟩
 
 instance subset_has_inter : has_inter (subset A)
@@ -62,7 +62,7 @@ intros x HP, apply QR, apply PQ, assumption
 end
 
 /-- Intersection is monotonic, it grows as either of its arguments grows -/
-lemma bintersection_mono {P P' Q Q' : subset A} 
+lemma bintersection_mono {P P' Q Q' : subset A}
   (HP : P ≤ P') (HQ : Q ≤ Q')
   : P ∩ Q ≤ P' ∩ Q'
 := begin
@@ -72,7 +72,7 @@ apply HQ, assumption
 end
 
 /-- Union is monotonic, it grows as either of its arguments grows -/
-lemma bunion_mono {P P' Q Q' : subset A} 
+lemma bunion_mono {P P' Q Q' : subset A}
   (HP : P ≤ P') (HQ : Q ≤ Q')
   : P ∪ Q ≤ P' ∪ Q'
 := begin
@@ -120,8 +120,8 @@ begin intros x H, constructor end
 lemma ff_bot (P : subset A) : ff ≤ P :=
 begin intros x H, exfalso, apply H, end
 
-definition from_list' (l : list A) : subset A := 
-fun x :A, x ∈ l 
+definition from_list' (l : list A) : subset A :=
+fun x :A, x ∈ l
 
 /-- Create a subset of items contained in a list -/
 inductive from_list : list A → subset A
@@ -208,14 +208,14 @@ apply or.inr, constructor; assumption
 end
 
 lemma inter_comm (P Q : subset A) : P ∩ Q = Q ∩ P
-:= begin 
+:= begin
 apply funext, intros x, simp [has_inter.inter],
 unfold bintersection, rw and_comm,
 end
 
 end
 
-lemma intersection_ix_precompose {A : Type u} {B : Type w} 
+lemma intersection_ix_precompose {A : Type u} {B : Type w}
   {Ix : Type v} (F : Ix → subset B) (f : A → B)
   : intersection_ix F ∘ f = intersection_ix (λ ix, F ix ∘ f)
 := begin

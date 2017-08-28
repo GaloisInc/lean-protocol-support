@@ -4,16 +4,16 @@ import galois.subset.fixpoint
 
 open subset
 
-namespace temporal 
+namespace temporal
 
 universes u v
 
 def always_fixpoint {T : Type u} (P : tProp T) (X : tProp T) := P ∩ ◯ X
 
-def until_fixpoint {T : Type u} (P Q : tProp T) (X : tProp T) := 
+def until_fixpoint {T : Type u} (P Q : tProp T) (X : tProp T) :=
   Q ∪ (P ∩ ◯ X)
 
-lemma always_fixpoint_mono {T : Type u} (P : tProp T) : 
+lemma always_fixpoint_mono {T : Type u} (P : tProp T) :
   monotone (always_fixpoint P)
 := begin
 unfold monotone, intros X Y H,
@@ -45,7 +45,7 @@ unfold has_inter.inter, rw and_continuous_r,
 reflexivity,
 end
 
-lemma until_fixpoint_mono {T : Type u} (P Q : tProp T) : 
+lemma until_fixpoint_mono {T : Type u} (P Q : tProp T) :
   monotone (until_fixpoint P Q)
 := begin
 unfold monotone, intros X Y H,
@@ -83,7 +83,7 @@ lemma next_cocontinuous {T : Type u}
 lemma until_fixpoint_cocontinuous_l {T : Type u}
   {Ix : Type} [inhabited Ix] (P : Ix → tProp T)
   (Q : tProp T)
-  : until_fixpoint (union_ix P) Q 
+  : until_fixpoint (union_ix P) Q
   = λ x, union_ix (λ ix, until_fixpoint (P ix) Q x)
 := begin
 apply funext, intros X,
@@ -114,7 +114,6 @@ unfold greatest_fixpointn, rw intersection_ix_precompose,
 f_equal, apply funext, intros n,
 induction n; simp [iterate],
 reflexivity, rw ← ih_1, unfold until_fixpoint,
-unfold has_union.union has_inter.inter,
 rw or_precompose,
 rw and_precompose, rw next_map,
 end
@@ -132,7 +131,7 @@ lemma always_fixpoint_fixes {T : Type u} (P : tProp T)
 unfold always_fixpoint, symmetry, apply always_and_next
 end
 
-lemma always_greatest_fixpoint {T : Type u} (P : tProp T) 
+lemma always_greatest_fixpoint {T : Type u} (P : tProp T)
   : □ P = greatest_fixpoint (always_fixpoint P)
 := begin
 apply included_eq,
@@ -140,7 +139,7 @@ apply included_eq,
   unfold always_fixpoint,
   rw ← always_and_next, apply (included_refl _),
   assumption },
-{ apply (greatest_fixpoint_le _ _), 
+{ apply (greatest_fixpoint_le _ _),
   apply always_fixpoint_mono,
   intros x H,
   unfold always_fixpoint at H,
@@ -184,7 +183,7 @@ apply until_fixpoint_continuous,
 apply H
 end
 
-lemma weak_until_not_always_lemma 
+lemma weak_until_not_always_lemma
   {T : Type u} (P Q : tProp T) (n : ℕ)
   : ⊩ □ (tNot Q)
     => iterate (until_fixpoint P Q) tt n
@@ -234,7 +233,7 @@ lemma weak_until_mono {T : Type u} {A B P : tProp T}
   (AB : A ≤ B)
   : (A 𝓦 P) ≤ (B 𝓦 P)
 := begin
-intros tr AP,  apply weak_until_always_mono, 
+intros tr AP,  apply weak_until_always_mono,
 intros n, apply AB, assumption
 end
 
@@ -262,7 +261,7 @@ apply always_fixpoint_continuous,
 unfold always_fixpoint until_fixpoint,
 intros X tr H, induction H with Hl Hr,
 induction Hl with Hl Hl,
-{ apply or.inr, 
+{ apply or.inr,
   constructor; assumption },
 { apply or.inl, assumption }
 end
@@ -395,6 +394,20 @@ apply temporal_induction, assumption,
 clear HP,
 apply next_weak_until_always_loop_lemma; assumption
 end
+
+lemma next_weak_until_combine {T : Type u}
+  (P Q : tProp T) [decidable_pred Q]
+: ⊩ ◇ P => □ (P => ◯ P 𝓦 Q) => fair Q => ◇ (P ∩ Q)
+:= begin
+intros tr evP PuntilQ evQ,
+apply eventually_cut, apply evP,
+intros n Pnow,
+specialize (evQ n),
+specialize (PuntilQ n Pnow),
+have H := eventually_strengthen_until _ evQ PuntilQ,
+apply now_until_eventually, assumption, assumption,
+end
+
 
 lemma now_continuous {T : Type u}
   : continuous (@now T)

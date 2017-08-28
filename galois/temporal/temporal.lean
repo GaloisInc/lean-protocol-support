@@ -428,7 +428,7 @@ end
 lemma eventually_absorbs_next {T : Type u} (P : tProp T)
   :  ◇ (◯ P) ≤ ◇ P
 := begin
-intros x Hx; induction Hx with k Hk, 
+intros x Hx; induction Hx with k Hk,
 unfold next nextn at Hk, rw delayn_combine at Hk,
 constructor, assumption,
 end
@@ -459,8 +459,8 @@ rw ← always_idempotent at PQ,
 apply PQ,
 end
 
-/-- If I have a type A with a well-founded relation R on it, 
-    then if for every state that measures to some `x : A`, 
+/-- If I have a type A with a well-founded relation R on it,
+    then if for every state that measures to some `x : A`,
       if I am at `x` now, I will eventually reach a smaller state or Q happens,
     then if I am in some state that yields an `A`, eventually Q happens.
    Note: your `meas` will likely take the form of `now _` -/
@@ -468,8 +468,8 @@ lemma always_eventually_well_founded_option {T : Type u} {A : Type v}
   {R : A → A → Prop} (wf : well_founded R)
   (meas : trace T → option A) (Q : tProp T)
   (tr : trace T)
-  (H : ∀ x : A, □ ((λ s, meas s = some x) => ◇ (((λ s, 
-  match meas s with 
+  (H : ∀ x : A, □ ((λ s, meas s = some x) => ◇ (((λ s,
+  match meas s with
   | none := false
   | (some m) := R m x end)) ∪ Q)) tr)
   (z : A) : □ ((λ s, meas s = some z) => ◇ Q) tr
@@ -499,7 +499,7 @@ lemma eventually_or {T : Type u} (P Q : tProp T)
   : ◇ (P ∪ Q) = (◇ P) ∪ (◇ Q)
 := begin
 apply included_eq; intros x Hx,
-{ induction Hx with k Hk, 
+{ induction Hx with k Hk,
   induction Hk with Hk Hk,
   left, constructor, assumption,
   right, constructor, assumption
@@ -511,7 +511,7 @@ apply included_eq; intros x Hx,
 }
 end
 
-/-- Like the above but without partiality: every state is required 
+/-- Like the above but without partiality: every state is required
     to have some measure.
 -/
 lemma always_eventually_well_founded {T : Type u} {A : Type v}
@@ -603,12 +603,14 @@ lemma imp_precompose (P Q : tProp B) (f : A → trace B)
 
 @[trace_map]
 lemma and_precompose (P Q : tProp B) (f : A → trace B)
-  : (bintersection P Q) ∘ f = (bintersection (P ∘ f) (Q ∘ f))
+  : (@has_inter.inter _ subset.subset_has_inter P Q) ∘ f
+  = (@has_inter.inter _ subset.subset_has_inter (P ∘ f) (Q ∘ f))
 := rfl
 
 @[trace_map]
 lemma or_precompose (P Q : tProp B) (f : A → trace B)
-  : (bunion P Q) ∘ f = (bunion (P ∘ f) (Q ∘ f))
+  : (@has_union.union _ subset.subset_has_union P Q) ∘ f
+  = (@has_union.union _ subset.subset_has_union (P ∘ f) (Q ∘ f))
 := rfl
 
 @[trace_map]
