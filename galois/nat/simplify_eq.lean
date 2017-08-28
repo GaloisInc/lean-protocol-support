@@ -95,6 +95,17 @@ begin
   simp [bit1, nat.bit0_succ],
 end
 
+-- Commute succ and bit1.
+protected
+lemma succ_bit1 (x:ℕ) : succ (bit1 x) = bit0 (succ x) :=
+begin
+  induction x,
+  case zero { simp, },
+  case succ x ind {
+    simp [nat.bit0_succ, nat.bit1_succ, bit1, succ_add],
+  }
+end
+
 section literal_simplification_literals
 
 @[simp]
