@@ -32,9 +32,9 @@ def find_option {A} [decidable_eq A] (item: A) (l : list A) : option ℕ :=
 let index := list.index_of item l in
 if index = l.length then none else some index
 
-lemma find_option_mem {A} [decidable_eq A] {x : A} {xs : list A}
+lemma find_option_mem_len {A} [decidable_eq A] {x : A} {xs : list A}
   (H : x ∈ xs)
-  : ∃ n, xs.find_option x = some n
+  : ∃ n, xs.find_option x = some n ∧ n < xs.length
 := begin
 rw ← list.index_of_lt_length at H,
 destruct (find_option x xs),
@@ -42,7 +42,22 @@ destruct (find_option x xs),
   unfold find_option at Hnone, dsimp at Hnone,
   rw if_neg at Hnone, injection Hnone,
   apply ne_of_lt, assumption },
-{ intros n Hn, constructor, assumption }
+{ intros n Hn, constructor, split, assumption,
+  unfold find_option at Hn, dsimp at Hn,
+  have H : index_of x xs ≠ length xs,
+  apply ne_of_lt, assumption,
+  rw (if_neg H) at Hn, injection Hn with Hn',
+  rw ← Hn', assumption
+}
+end
+
+lemma find_option_mem {A} [decidable_eq A] {x : A} {xs : list A}
+  (H : x ∈ xs)
+  : ∃ n, xs.find_option x = some n
+:= begin
+apply_in H find_option_mem_len,
+induction H with n H, induction H with H H',
+constructor, assumption,
 end
 
 lemma find_index_append {A} {P : A → Prop} [decidable_pred P]

@@ -441,6 +441,18 @@ apply funext, intro tr, apply propext, split; intros H,
 { intros n k, rw delayn_combine, apply H }
 end
 
+lemma always_now {T : Type u} (P : tProp T)
+  : ⊩ □ P => P
+:= begin
+intros tr H, rw ← (delayn_zero tr), apply H,
+end
+
+lemma always_next {T : Type u} (P : tProp T)
+  : ⊩ □ P => ◯ P
+:= begin
+intros tr H, rw ← (delayn_zero tr), apply H,
+end
+
 
 lemma eventually_cut {T : Type u} {P Q : tProp T}
   : ⊩ ◇ P => □ (P => ◇ Q) => ◇ Q

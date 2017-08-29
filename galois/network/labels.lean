@@ -22,7 +22,7 @@ inductive poll_label : Type
 | timeout : poll_label
 | receive : time → remote_name → message_t → poll_label
 
-instance poll_label_decidable_eq 
+instance poll_label_decidable_eq
   : decidable_eq poll_label
   := by tactic.mk_dec_eq_instance
 
@@ -36,6 +36,18 @@ instance agent_label_decidable_eq : decidable_eq agent_label
 inductive receives (P : socket → message_t → Prop) : agent_label → Prop
 | mk : ∀ (t : time) (rn : remote_name) (mess : message_t) ms,
        P rn mess → receives (agent_label.mk (poll_label.receive t rn mess) ms)
+
+namespace receives
+lemma invert {P : socket → message_t → Prop} {plabel} {ms}
+  (H : receives P (agent_label.mk plabel ms)) : (match plabel with
+  | poll_label.timeout := false
+  | poll_label.receive t rn mess := P rn mess
+  end : Prop)
+:= begin
+induction plabel; cases H,
+dsimp, assumption,
+end
+end receives
 
 inductive timeouts : agent_label → Prop
 | mk : ∀ ms, timeouts (agent_label.mk poll_label.timeout ms)
@@ -62,7 +74,7 @@ def to_label  : poll_result ports sockets timeout → poll_label
 | (poll_result.message elapsed sock mess _) :=
    poll_label.receive elapsed.val sock.value mess
 
-lemma receives_bound_pos 
+lemma receives_bound_pos
   (r : poll_result ports sockets timeout)
   {elapsed : fin timeout} {sock : sockets.member} {mess : message_t}
   {elapsed_gt0 : 0 < elapsed.val}
