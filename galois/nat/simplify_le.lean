@@ -69,6 +69,27 @@ begin
   },
 end
 
+-- This rewrites a subtraction on left-hand-side of inequality into an
+-- addition, and one of two additional checks.
+protected lemma sub_le_iff (a m n : ℕ) : a - n ≤ m ↔ a ≤ m + n :=
+begin
+  revert a m,
+  induction n,
+  case nat.zero {
+    simp,
+  },
+  case nat.succ n ind {
+    intros a m,
+    cases a,
+    case nat.zero {
+      simp [zero_le],
+    },
+    case nat.succ {
+      simp [add_succ, nat.succ_le_succ_iff, ind],
+    },
+  },
+end
+
 ------------------------------------------------------------------------
 -- lt theorems
 
@@ -100,6 +121,7 @@ begin
     },
   },
 end
+
 
 -- This rewrites a subtraction on right-hand side of inequality into an addition.
 protected lemma lt_sub_iff (a m n : ℕ) : a < m - n ↔ a + n < m :=
