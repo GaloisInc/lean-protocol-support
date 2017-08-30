@@ -10,8 +10,7 @@ namespace binary_tree
 
 run_cmd mk_simp_attr `empt
 
-section trees
-universe variable u
+universe u
 
 /-- An `lptree A` represents a binary tree (without internal nodes)
     whose left subtrees are all perfect, where the sizes of these
@@ -27,13 +26,26 @@ inductive lptree : Type u -> Type (u + 1)
 | nil : ∀ {A}, lptree A
 | cons : ∀ {A}, option A -> lptree (A × A) -> lptree A
 
+namespace lptree
+
+def height : ∀ {A : Type u}, lptree A → ℕ
+| _ nil := 0
+| _ (cons mx t) := height t + 1
+
+def size : ∀ {A : Type u}, lptree A → ℕ
+| _ nil := 0
+| _ (cons mx t) := 2 * size t + (match mx with
+  | some _ := 1
+  | none := 0
+  end)
+
 /-- Indicates when an `lptree A` has at least one value of `A` in it
     (i.e., its corresponding binary natural number is nonzero.)
 -/
-inductive lptree_nonzero : ∀  {A : Type u}, lptree A -> Prop
-| nonzero_cons_some : ∀ {A} (a : A) t, lptree_nonzero (lptree.cons (some a) t)
-| nonzero_extend : ∀ {A} ma (t : lptree (A × A)), @lptree_nonzero (A × A) t ->
-    lptree_nonzero (lptree.cons ma t)
+inductive nonzero : ∀  {A : Type u}, lptree A -> Prop
+| nonzero_cons_some : ∀ {A} (a : A) t, nonzero (lptree.cons (some a) t)
+| nonzero_extend : ∀ {A} ma (t : lptree (A × A)), @nonzero (A × A) t ->
+    nonzero (lptree.cons ma t)
 
 -- def ptree_to_lptree : ∀ {A} {n}, ptree A n -> lptree A
 -- | A 0 x := lptree.cons (some x) lptree.nil
@@ -42,27 +54,94 @@ inductive lptree_nonzero : ∀  {A : Type u}, lptree A -> Prop
 /-- Add a single element to a left-perfect tree.
     (A generalization of adding one to a binary natural number.)
 -/
-def lptree_cons : ∀ {A : Type u}, A -> lptree A -> lptree A
+def insert : ∀ {A : Type u}, A -> lptree A -> lptree A
 | A x lptree.nil := lptree.cons (some x) lptree.nil
 | A x (lptree.cons none t') := lptree.cons (some x) t'
-| A x (lptree.cons (some y) t') := lptree.cons none (lptree_cons (y, x) t')
+| A x (lptree.cons (some y) t') := lptree.cons none (insert (y, x) t')
+
+end lptree
+
+lemma insert_size {A : Type u} (x : A) (t : lptree A)
+  : (t.insert x).size = t.size + 1
+:= begin
+induction t; dsimp [lptree.size, lptree.insert],
+{ simp },
+{ induction a; dsimp [lptree.size, lptree.insert],
+  { reflexivity },
+  { rw ih_1,
+    rw mul_add, repeat { rw add_assoc },
+    f_equal, }
+}
+end
+
+lemma mul_2_add {n : nat} : n * 2 = n + n
+:= begin
+induction n, simp,
+dsimp [has_mul.mul, nat.mul],
+simp,
+end
+
+lemma le_add_r {x y : nat} : x ≤ x + y
+:= begin
+induction y, simp,
+apply le_trans, assumption,
+apply nat.add_le_add_left, constructor,
+constructor,
+end
+
+lemma le_add_compat {x y x' y' : nat}
+  (Hx : x ≤ x') (Hy : y ≤ y') : x + y ≤ x' + y'
+:= begin
+induction Hx, apply nat.add_le_add_left, assumption,
+apply le_trans, apply ih_1,
+simp, apply nat.add_le_add_left, constructor,
+constructor,
+end
+
+lemma size_le_height {A : Type u} (t : lptree A)
+  : t.size + 1 ≤ 2 ^ t.height
+:= begin
+induction t; dsimp [lptree.size, lptree.height, nat.pow],
+{ rw add_comm, },
+{ induction a; dsimp [lptree.size],
+  { rw add_assoc, rw (add_comm 0 1), rw add_zero, rw mul_comm,
+    rw mul_2_add, rw mul_2_add, rw add_assoc,
+    apply le_add_compat,
+    apply le_trans, tactic.swap, assumption,
+    constructor, constructor, assumption,
+   },
+  { rw add_assoc, rw ← mul_2_add, rw ← mul_comm,
+    rw ← add_mul, apply mul_le_mul, assumption,
+    apply le_refl, apply nat.zero_le, apply nat.zero_le,
+  }
+}
+end
 
 /-- If you add one to an lptree, it is nonzero
 -/
-def lptree_cons_nonzero {A : Type u} (t : lptree A)
-  : ∀ x : A, lptree_nonzero (lptree_cons x t) :=
+def insert_nonzero {A : Type u} (t : lptree A)
+  : ∀ x : A, lptree.nonzero (t.insert x) :=
 begin
 induction t with A A ma t IHt; intros x,
-{ simp [lptree_cons], constructor },
+{ simp [lptree.insert], constructor },
 { cases ma,
-  { simp [lptree_cons], constructor },
-  { simp [lptree_cons], constructor, apply IHt }
+  { simp [lptree.insert], constructor },
+  { simp [lptree.insert], constructor, apply IHt }
 }
 end
 
 
 def list_to_lptree {A : Type u} : list A -> lptree A :=
-  list.foldr lptree_cons lptree.nil
+  list.foldr lptree.insert lptree.nil
+
+lemma list_to_lptree_length {A : Type u} (xs : list A)
+  : (list_to_lptree xs).size = xs.length
+:= begin
+unfold list_to_lptree,
+induction xs; dsimp [list.foldr, lptree.size],
+{ reflexivity },
+{ rw insert_size, rw ih_1, }
+end
 
 /-- Binary trees *with* internal nodes
     (which differs from both `ptree` and `lptree`)
@@ -74,6 +153,12 @@ inductive tree (A : Type) : Type
 | leaf (item : A) : tree
 | node (item : A) (l r : tree) : tree
 
+namespace tree
+def height {A : Type} : tree A → ℕ
+| (leaf x) := 0
+| (node x l r) := max (height l) (height r) + 1
+end tree
+
 def twice {A} (f : A -> A -> A)
   (x y : A × A) : A × A :=
   let (a, b) := x in let (p, q) := y in
@@ -83,6 +168,33 @@ def untwice_tree {A} (f : A -> A -> A)
   : tree (A × A) -> tree A
 | (tree.leaf (x, y)) := tree.node (f x y) (tree.leaf x) (tree.leaf y)
 | (tree.node (x, y) l r) := tree.node (f x y) (untwice_tree l) (untwice_tree r)
+
+lemma max_same (n : ℕ) : max n n = n
+:= begin
+unfold max, rw (if_pos (le_refl n)),
+end
+
+lemma max_add {m n k : ℕ} : max (m + k) (n + k) = max m n + k
+:= begin
+unfold max,
+apply (if H : m ≤ n then _ else _),
+rw (if_pos H), rw if_pos,
+apply nat.add_le_add_right, assumption,
+rw (if_neg H), rw if_neg,
+intros contra, apply H, rw ← nat.add_le_add_iff_le_right,
+assumption,
+end
+
+lemma untwice_tree_height {A} (f : A → A → A)
+  (x : tree (A × A))
+  : (untwice_tree f x).height = x.height + 1
+:= begin
+induction x; induction item; dsimp [untwice_tree, tree.height],
+{ rw max_same, },
+{ rw ih_1, rw ih_2, clear ih_1 ih_2 fst snd,
+  f_equal, rw max_add,
+}
+end
 
 /-- Pick the item at the root of the tree -/
 def root {A} : tree A -> A
@@ -94,7 +206,11 @@ def root {A} : tree A -> A
     new tree from the roots of the subtrees
 -/
 def combine {A} (f : A -> A -> A) (l r : tree A)
-  : tree A := tree.node (f (root l) (root r)) l r.
+  : tree A := tree.node (f (root l) (root r)) l r
+
+lemma combine_height {A} (f : A → A → A) (l r : tree A)
+  : (combine f l r).height = max l.height r.height + 1
+:= rfl
 
 /-- Compute a list of left subtrees, starting with the furthest
     down
@@ -107,6 +223,86 @@ def lptree_to_tree_helper
     | none := λ zs, zs
     end)
       (list.map (untwice_tree f) (lptree_to_tree_helper (twice f) t'))
+
+def lptree_to_tree_helper_option
+  : ∀ {A}, (A -> A -> A) -> lptree A -> list (option (tree A))
+| A f lptree.nil := []
+| A f (lptree.cons mx t') := list.cons
+   (option_map tree.leaf mx)
+      (list.map (option_map (untwice_tree f)) (lptree_to_tree_helper_option (twice f) t'))
+
+def asc_heights : ℕ → list ℕ → ℕ
+| n [] := n
+| n (x :: xs) := asc_heights(max x n + 1) xs
+
+def max_tree_list_height {A : Type} (x : tree A) (xs : list (tree A)) : ℕ
+  := asc_heights x.height (xs.map tree.height)
+
+lemma list.map_compose {A B C : Type}
+  (f : A -> B) (g : B -> C) (xs : list A)
+  : list.map (g ∘ f) xs = list.map g (list.map f xs)
+:=
+begin
+induction xs,
+{ reflexivity },
+{ simp [list.map] }
+end
+
+lemma tree_height_untwice_tree {A} (f : A → A → A) :
+  (tree.height ∘ untwice_tree f) = (nat.succ ∘ tree.height)
+:= begin
+apply funext, intros x; dsimp [function.comp],
+rw untwice_tree_height,
+end
+
+lemma nat.neg_le_le (x y : ℕ) (H : ¬ x ≤ y)
+  : y ≤ x
+:= begin
+apply (if H' : y ≤ x then _ else _),
+assumption, exfalso,
+have H1 := @nat.le_total x y,
+induction H1; contradiction,
+end
+
+lemma max_mono {x y x' y' : ℕ} (Hx : x ≤ x') (Hy : y ≤ y')
+  : max x y ≤ max x' y'
+:= begin
+unfold max,
+apply (if H : x ≤ y then _ else _),
+{ rw (if_pos H),
+  apply (if H' : x' ≤ y' then _ else _),
+  rw (if_pos H'), assumption,
+  rw (if_neg H'), apply le_trans, assumption,
+  apply nat.neg_le_le, assumption,
+},
+{ rw (if_neg H),
+  apply (if H' : x' ≤ y' then _ else _),
+  rw (if_pos H'), apply le_trans; assumption,
+  rw (if_neg H'), assumption,
+}
+end
+
+lemma asc_heights_helper_mono {m n : ℕ} (H : m ≤ n)
+  (xs : list ℕ)
+  : asc_heights m xs ≤ asc_heights n xs
+:= begin
+revert m n,
+induction xs; intros; dsimp [asc_heights], assumption,
+apply ih_1, apply nat.add_le_add_right, apply max_mono,
+apply nat.le_refl, assumption,
+end
+
+lemma asc_heights_succ (n : ℕ) (xs : list ℕ)
+  : asc_heights n.succ (xs.map nat.succ) ≤ (asc_heights n xs).succ
+:= begin
+revert n;
+induction xs; intros; dsimp [asc_heights],
+{ constructor, },
+{ repeat { rw ← nat.add_one },
+  rw max_add, apply le_trans, apply ih_1,
+  rw ← nat.add_one,
+}
+end
 
 /-- Given a rightmost subtree, and a list of left subtrees
     starting from furthest toward the rightmost subtree and
@@ -130,10 +326,26 @@ def lptree_to_tree {A} (f : A -> A -> A)
   | (x :: xs) := some (assemble_left_subtrees f x xs)
   end
 
+def filter_some {A} : list (option A) → list A
+| [] := []
+| (mx :: xs) := (match mx with
+  | none := λ l, l
+  | some x := list.cons x
+  end) (filter_some xs)
+
+def assemble_left_subtrees_option {A} (f : A → A → A) : list (option (tree A)) → option (tree A)
+| [] := none
+| (none :: xs) := assemble_left_subtrees_option xs
+| (some x :: xs) := some (assemble_left_subtrees f x (filter_some xs))
+
+def lptree_to_tree_option {A} (f : A -> A -> A)
+  (t : lptree A) : option (tree A) :=
+  assemble_left_subtrees_option f (lptree_to_tree_helper_option f t)
+
 inductive Issome {A} : option A -> Prop
   | MkIsSome : forall a : A, Issome (some a)
 
-lemma lptree_nonzero_subtrees {A} (t : lptree A)
+lemma lptree.nonzero_subtrees {A} (t : lptree A)
   (f : A -> A -> A)
   (H : lptree_to_tree_helper f t ≠ [])
   : Issome (lptree_to_tree f t)
@@ -155,12 +367,12 @@ cases xs,
 end
 
 
-lemma lptree_nonzero_tree {A} (t : lptree A)
+lemma lptree.nonzero_tree {A} (t : lptree A)
   (f : A -> A -> A)
-  (tnonzero : lptree_nonzero t)
+  (tnonzero : lptree.nonzero t)
   : Issome (lptree_to_tree f t) :=
 begin
-apply lptree_nonzero_subtrees,
+apply lptree.nonzero_subtrees,
 induction tnonzero with A x t A ma t tnonzero IHtnonzero,
 { dsimp, simp [lptree_to_tree_helper], },
 { simp [lptree_to_tree_helper],
@@ -169,15 +381,27 @@ induction tnonzero with A x t A ma t tnonzero IHtnonzero,
 }
 end
 
+namespace tree
 /-- Enumerate the leaves of a binary tree from right to left
 -/
-def tree_leaves {A} : tree A -> list A
-| (tree.node x l r) := tree_leaves r ++ tree_leaves l
-| (tree.leaf x) := [x]
+def leaves {A} : tree A -> list A
+| (node x l r) := leaves r ++ leaves l
+| (leaf x) := [x]
+
+lemma leaves_combine {A} f
+  (x y : tree A)
+  : (combine f x y).leaves
+  = y.leaves ++ x.leaves :=
+begin
+induction x,
+  { simp [combine, leaves] },
+  { reflexivity }
+end
+end tree
 
 def tree_leaves_option {A} : option (tree A) -> list A
 | none := []
-| (some t) := tree_leaves t
+| (some t) := t.leaves
 
 def depair {A} : list (A × A) -> list A
 | [] := []
@@ -199,18 +423,8 @@ def lptree_leaves : ∀ {A}, lptree A -> list A
 def left_subtrees_leaves {A}
   (f : A -> A -> A)
   : list (tree A) -> tree A -> list A
-| [] x := tree_leaves x
+| [] x := x.leaves
 | (y :: ys) x := left_subtrees_leaves ys (combine f y x)
-
-lemma tree_leaves_combine {A} f
-  (x y : tree A)
-  : tree_leaves (combine f x y)
-  = tree_leaves y ++ tree_leaves x :=
-begin
-induction x,
-  { simp [combine, tree_leaves] },
-  { reflexivity }
-end
 
 /-- Enumerate the leaves of a tree specified by a list of
     left subtrees (with an empty rightmost subtree)
@@ -219,13 +433,13 @@ end
 def left_subtrees_leaves' {A}
   : list (tree A) -> list A
 | [] := []
-| (t :: ts) := tree_leaves t ++ left_subtrees_leaves' ts
+| (t :: ts) := t.leaves ++ left_subtrees_leaves' ts
 
 
 lemma left_subtrees_leaves_same {A}
   (f : A -> A -> A) (ts : list (tree A))
   : ∀ t : tree A,
-    left_subtrees_leaves f ts t = tree_leaves t ++ left_subtrees_leaves' ts
+    left_subtrees_leaves f ts t = t.leaves ++ left_subtrees_leaves' ts
   :=
 begin
 induction ts; intros,
@@ -235,37 +449,30 @@ induction ts; intros,
   { simp [left_subtrees_leaves'],
     simp [left_subtrees_leaves],
     rw ih_1,
-    rw tree_leaves_combine,
+    rw tree.leaves_combine,
     rw list.append_assoc
    }
 end
 
-lemma list_to_lptree_nonzero {A} (xs : list A)
-  (H : xs ≠ []) : lptree_nonzero (list_to_lptree xs) :=
+lemma list_to_lptree.nonzero {A} (xs : list A)
+  (H : xs ≠ []) : lptree.nonzero (list_to_lptree xs) :=
 begin
 cases xs,
 { contradiction },
-{ simp [list_to_lptree], apply lptree_cons_nonzero }
+{ simp [list_to_lptree], apply insert_nonzero }
 end
 
 def merge_to_tree {A} (f : A -> A -> A)
   (xs : list A) : option (tree A)
   := lptree_to_tree f (list_to_lptree xs)
 
-def merge_to_tree_default {A} (f : A -> A -> A)
-  (xs : list A) (default : A) : tree A :=
-  match merge_to_tree f xs with
-  | (some t) := t
-  | none := tree.leaf default
-  end
-
 lemma list_to_tree_Some {A} (xs : list A)
   f (H : xs ≠ [])
   : Issome (merge_to_tree f xs)
   :=
 begin
-  apply lptree_nonzero_tree,
-  apply list_to_lptree_nonzero,
+  apply lptree.nonzero_tree,
+  apply list_to_lptree.nonzero,
   assumption
 end
 
@@ -294,7 +501,7 @@ lemma lptree_to_tree_helper_nonempty_nonzero {A}
   (f : A -> A -> A)
   (t : lptree A)
   (H : lptree_to_tree_helper f t ≠ [])
-  : lptree_nonzero t :=
+  : lptree.nonzero t :=
 begin
 induction t,
   { contradiction },
@@ -306,51 +513,318 @@ induction t,
   }
 end
 
+lemma assemble_left_subtrees_height {A : Type}
+  (f : A → A → A) (x : tree A) (xs : list (tree A))
+  : (assemble_left_subtrees f x xs).height = max_tree_list_height x xs
+:= begin
+revert x,
+unfold max_tree_list_height,
+induction xs; intros;
+  dsimp [tree.height, assemble_left_subtrees, asc_heights],
+{ reflexivity },
+{ rw ih_1, rw combine_height, }
+end
+
+lemma asc_heights_lemma1 (xs : list ℕ) (n : ℕ)
+  : asc_heights n (list.map nat.succ xs)
+  ≤ asc_heights n xs + 1
+:= begin
+apply le_trans, tactic.swap,
+apply asc_heights_succ,
+apply asc_heights_helper_mono,
+constructor, constructor,
+end
+
+def opt_default {A} (default : A) : option A → A
+| (some x) := x
+| none := default
+
+lemma asc_heights_filter_some1 {A} (n : ℕ) (xs : list (option (tree A))) :
+ asc_heights n (list.map tree.height (filter_some xs)) ≤
+    asc_heights n
+      (list.map (opt_default 0 ∘ option_map tree.height) xs)
+:= begin
+revert n,
+induction xs; intros; dsimp [asc_heights, list.map, filter_some],
+{ apply le_refl },
+{ induction a; dsimp [filter_some],
+  { apply le_trans, apply ih_1,
+    apply asc_heights_helper_mono,
+    apply le_trans, tactic.swap, apply le_add_r,
+    apply le_max_right, },
+  { dsimp [asc_heights], apply le_trans,
+    apply ih_1,
+    apply asc_heights_helper_mono,
+    apply nat.add_le_add_right,
+    apply max_mono,
+    { apply le_refl },
+    { apply le_refl }
+  }
+}
+end
+
+lemma asc_heights_filter_some {A} (n : ℕ) (xs : list (option (tree A))) :
+ asc_heights n (list.map tree.height (filter_some xs)) ≤
+    asc_heights (n + 1)
+      (list.map (opt_default 0 ∘ option_map tree.height) xs)
+:= begin
+apply le_trans, apply asc_heights_filter_some1,
+apply asc_heights_helper_mono, constructor, constructor,
+end
+
+lemma max_0_r (x : ℕ) : max x 0 = x
+:= begin
+unfold max,
+apply (if H : x ≤ 0 then _ else _),
+rw (if_pos H), symmetry, rw ← nat.le_zero_iff,
+assumption, rw if_neg, assumption,
+end
+
+lemma assemble_left_subtrees_option_height {A : Type}
+  (f : A → A → A) (xs : list (option (tree A)))
+  : (match assemble_left_subtrees_option f xs with
+    | none := true
+    | some t := t.height ≤ asc_heights 0 (list.map (opt_default 0 ∘ option_map tree.height) xs)
+    end : Prop)
+:= begin
+destruct (assemble_left_subtrees_option f xs),
+{ intros Hnone, rw Hnone, dsimp, constructor, },
+{ intros t Ht, rw Ht, dsimp,
+  revert t, induction xs; intros; dsimp [list.map, asc_heights],
+  { dsimp [assemble_left_subtrees_option] at Ht, contradiction, },
+  { induction a,
+    { dsimp [assemble_left_subtrees_option] at Ht,
+      specialize (ih_1 _ Ht), apply le_trans, assumption,
+      apply asc_heights_helper_mono, apply nat.zero_le,
+      },
+    { dsimp [assemble_left_subtrees_option] at Ht,
+      injection Ht with Ht', clear Ht,
+      subst t,
+      rw assemble_left_subtrees_height,
+      clear ih_1,
+      unfold max_tree_list_height,
+      apply le_trans, apply asc_heights_filter_some,
+      apply asc_heights_helper_mono,
+      dsimp [option_map, opt_default, option_bind, function.comp],
+      rw max_0_r,
+    }
+  }
+}
+end
+
+lemma asc_heights_list_mono_lemma (n : ℕ) (xs : list (option ℕ)) :
+  asc_heights n (xs.map (opt_default 0 ∘ option_map nat.succ))
+≤ asc_heights n (xs.map (nat.succ ∘ opt_default 0))
+:= begin
+revert n,
+induction xs; intros; dsimp [list.map, asc_heights],
+{ apply nat.le_refl,  },
+{ apply le_trans, apply ih_1,
+  apply asc_heights_helper_mono,
+  apply nat.add_le_add_right,
+  apply max_mono,
+  { dsimp [function.comp], induction a;
+      dsimp [option_map, option_bind, opt_default],
+    apply nat.zero_le, apply nat.le_refl },
+  { apply le_refl }
+}
+end
+
+lemma asc_heights_succ_option (n : ℕ) (xs : list (option ℕ))
+  : asc_heights n.succ (xs.map (opt_default 0 ∘ option_map nat.succ))
+  ≤ (asc_heights n (xs.map (opt_default 0))).succ
+:= begin
+revert n;
+induction xs; intros; dsimp [asc_heights],
+{ constructor, },
+{ repeat { rw nat.add_one },
+  apply le_trans, apply ih_1,
+  apply nat.succ_le_succ, apply asc_heights_helper_mono,
+  repeat { rw ← nat.add_one }, rw ← max_add,
+  apply max_mono,
+  { induction a; dsimp [opt_default, function.comp, option_map, option_bind],
+    apply nat.zero_le, apply le_refl,
+  },
+  { apply le_refl }
+}
+end
+
+lemma option_map_compose {A B C} (f : A → B) (g : B → C)
+  : option_map (g ∘ f) = option_map g ∘ option_map f
+:= begin
+apply funext; intros x, induction x; reflexivity,
+end
+
+lemma stupid_lemma {A} (a : A)
+  : ((opt_default 0 ∘ option_map tree.height) ((some ∘ tree.leaf) a))
+  = 0 := rfl
+
+lemma asc_heights_lemma {A : Type}
+  (f : A → A → A) (t : lptree A)
+  : asc_heights 0 (list.map (opt_default 0 ∘ option_map tree.height) (lptree_to_tree_helper_option f t))
+  ≤ lptree.height t
+:= begin
+induction t; dsimp [lptree_to_tree_helper_option, lptree.height, asc_heights],
+{ apply nat.zero_le, },
+{ rw ← list.map_compose,
+  rw function.comp.assoc
+    (opt_default 0) (option_map tree.height) (option_map (untwice_tree f)),
+  rw ← option_map_compose,
+  rw tree_height_untwice_tree,
+  rw option_map_compose (tree.height) (nat.succ),
+  rw ← function.comp.assoc
+    (opt_default 0) (option_map nat.succ) (option_map tree.height),
+  rw list.map_compose,
+  apply le_trans, apply asc_heights_list_mono_lemma,
+  rw ← list.map_compose,
+  rw function.comp.assoc
+    (nat.succ) (opt_default 0) (option_map tree.height),
+  rw list.map_compose,
+  repeat { rw nat.add_one },
+  apply le_trans,
+  apply asc_heights_succ,
+  apply nat.succ_le_succ,
+  induction a; dsimp [option_map, option_bind
+  , lptree_to_tree_helper_option, lptree.height
+  , asc_heights],
+  {
+    apply ih_1,
+  },
+  { rw stupid_lemma,
+    dsimp [max], rw (if_pos (le_refl 0)),
+    apply ih_1,
+  }
+}
+end
+
+lemma lptree_to_tree_option_height
+  {A : Type}
+  (f : A → A → A) (lpt : lptree A)
+  : (match lptree_to_tree_option f lpt with
+    | none := true
+    | some t := t.height ≤ lpt.height
+    end : Prop)
+:= begin
+destruct (lptree_to_tree_option f lpt),
+{ intros Hnone, rw Hnone, dsimp, constructor },
+{ intros t Ht, rw Ht, dsimp,
+  unfold lptree_to_tree_option at Ht,
+  have H := assemble_left_subtrees_option_height
+    f (lptree_to_tree_helper_option f lpt),
+  rw Ht at H, dsimp at H,
+  apply le_trans, assumption,
+  apply asc_heights_lemma,
+}
+end
+
+lemma map_filter_some {A B} (f : A → B) (xs : list (option A))
+  : filter_some (list.map (option_map f) xs)
+  = list.map f (filter_some xs)
+:= begin
+induction xs; dsimp [list.map, option_map, option_bind, filter_some],
+{ reflexivity },
+{ induction a; dsimp [option_map, option_bind, function.comp, filter_some],
+  { assumption },
+  { rw ih_1 }
+}
+end
+
+lemma lptree_to_tree_helper_option_equiv
+  {A : Type}
+  (f : A → A → A) (lpt : lptree A)
+  : lptree_to_tree_helper f lpt
+  = filter_some (lptree_to_tree_helper_option f lpt)
+:= begin
+induction lpt;
+  dsimp [lptree_to_tree_helper, lptree_to_tree_helper_option, filter_some],
+{ reflexivity },
+{ induction a;
+    dsimp [option_map, option_bind, lptree_to_tree_helper, lptree_to_tree_helper_option, filter_some],
+    { rw map_filter_some, f_equal,
+    apply ih_1, },
+    { f_equal, rw map_filter_some, f_equal, apply ih_1 }
+ }
+end
+
+lemma assemble_left_subtrees_option_filter_some
+  {A : Type} (f : A → A → A)
+  (xs : list (option (tree A)))
+  : assemble_left_subtrees_option f xs = match filter_some xs with
+  | [] := none
+  | (y :: ys) := some (assemble_left_subtrees f y ys)
+  end
+:= begin
+induction xs; dsimp [filter_some, assemble_left_subtrees_option],
+{ reflexivity },
+{ rename a x, induction x; dsimp [filter_some, assemble_left_subtrees_option],
+  { rw ih_1, },
+  { reflexivity }
+}
+end
+
+lemma lptree_to_tree_option_equiv
+  {A : Type}
+  (f : A → A → A) (lpt : lptree A)
+  : lptree_to_tree_option f lpt = lptree_to_tree f lpt
+:= begin
+unfold lptree_to_tree_option lptree_to_tree,
+rw assemble_left_subtrees_option_filter_some,
+destruct (lptree_to_tree_helper f lpt),
+{ intros Hnone, rw Hnone, dsimp [lptree_to_tree],
+  rw lptree_to_tree_helper_option_equiv at Hnone,
+  rw Hnone,
+},
+{ intros t ts Hts, rw Hts, dsimp [lptree_to_tree],
+  rw lptree_to_tree_helper_option_equiv at Hts,
+  rw Hts,
+}
+end
+
 /-- Decision procedure to determine whether
     an lptree is nonempty
 -/
-def lptree_nonzero_bool
+def lptree.nonzero_bool
   : ∀ {A : Type}, lptree A -> bool
 | _ lptree.nil := false
 | _ (lptree.cons (some x) t) := true
-| _ (lptree.cons none t) := lptree_nonzero_bool t
+| _ (lptree.cons none t) := lptree.nonzero_bool t
 
-def lptree_nonzero_bool_equiv {A : Type}
+def lptree.nonzero_bool_equiv {A : Type}
   (t : lptree A)
-  : lptree_nonzero_bool t = true ↔ lptree_nonzero t
+  : lptree.nonzero_bool t = true ↔ lptree.nonzero t
 :=
 begin
 split; intro H,
 { induction t,
   { contradiction },
-  { cases a, simp [lptree_nonzero_bool] at H,
+  { cases a, simp [lptree.nonzero_bool] at H,
     { constructor,
       apply ih_1, assumption },
     { constructor }
   }
 },
 { induction H,
-  { simp [lptree_nonzero_bool] },
+  { simp [lptree.nonzero_bool] },
   { cases ma,
-    { simp [lptree_nonzero_bool], assumption },
+    { simp [lptree.nonzero_bool], assumption },
     { reflexivity }
   }
 }
 end
 
-def lptree_nonzero_dec {A : Type}
+def lptree.nonzero_dec {A : Type}
   (t : lptree A)
-  : decidable (lptree_nonzero t)
+  : decidable (lptree.nonzero t)
 :=
 begin
-rw <- lptree_nonzero_bool_equiv,
+rw <- lptree.nonzero_bool_equiv,
 apply bool.decidable_eq
 end
 
 lemma lptree_to_tree_some_nonzero {A}
   (f : A -> A -> A)
   (t : lptree A) :
-  ∀ (x : tree A) (H : lptree_to_tree f t = some x), lptree_nonzero t :=
+  ∀ (x : tree A) (H : lptree_to_tree f t = some x), lptree.nonzero t :=
 begin
 intros, apply (lptree_to_tree_helper_nonempty_nonzero f),
 unfold lptree_to_tree at H,
@@ -396,7 +870,7 @@ lemma assemble_left_subtrees_preserves_nodes
 lemma assemble_left_subtrees_preserves_leaves
   {A} (f : A -> A -> A) (xs : list (tree A))
   : ∀ (x : tree A),
-   tree_leaves (assemble_left_subtrees f x xs)
+   (assemble_left_subtrees f x xs).leaves
    = left_subtrees_leaves f xs x :=
 begin
 induction xs; intros,
@@ -557,16 +1031,16 @@ end
 
 lemma lptree_leaves_cons {A} (t : lptree A)
   (x : A)
-  : lptree_leaves (lptree_cons x t) =
+  : lptree_leaves (t.insert x) =
      x :: lptree_leaves t
   :=
 begin
 induction t,
 { reflexivity },
 { cases a,
-  { simp [lptree_cons, lptree_to_tree, lptree_to_tree_helper],
+  { simp [lptree.insert, lptree_to_tree, lptree_to_tree_helper],
     simp [lptree_leaves]},
-  { simp [lptree_cons],
+  { simp [lptree.insert],
     simp [lptree_leaves],
     rw ih_1,
     simp [depair]
@@ -608,19 +1082,19 @@ end
 
 lemma depair_tree_leaves {A} (f : A -> A -> A)
   (t : tree (A × A))
-  : depair (tree_leaves t) = tree_leaves (untwice_tree f t)
+  : depair t.leaves = (untwice_tree f t).leaves
 :=
 begin
 induction t,
-{ cases item, simp [tree_leaves, untwice_tree],
+{ cases item, simp [tree.leaves, untwice_tree],
   simp [depair]
 },
-{ simp [tree_leaves],
+{ simp [tree.leaves],
   rw depair_app,
   rw [ih_1, ih_2],
   cases item with i1 i2,
   simp [untwice_tree],
-  simp [tree_leaves] }
+  simp [tree.leaves] }
 end
 
 
@@ -656,7 +1130,7 @@ induction t,
   { simp [lptree_leaves],
     simp [lptree_to_tree_helper],
     simp [left_subtrees_leaves'],
-    simp [tree_leaves] with empt,
+    simp only [tree.leaves],
     f_equal,
     rw (ih_1 (twice f)),
     apply depair_leaves },
@@ -683,19 +1157,19 @@ end
 
 lemma lptree_not_nonzero_no_leaves {A : Type}
   (t : lptree A)
-  (H : ¬ lptree_nonzero t)
+  (H : ¬ lptree.nonzero t)
   : lptree_leaves t = []
 := begin
-rw <- lptree_nonzero_bool_equiv at H,
+rw <- lptree.nonzero_bool_equiv at H,
 induction t,
 { reflexivity },
 { cases a,
   { simp [lptree_leaves],
     apply depair_nil, apply ih_1,
-    simp [lptree_nonzero_bool] at H,
+    simp [lptree.nonzero_bool] at H,
     assumption
      },
-  { simp [lptree_nonzero_bool] at H,
+  { simp [lptree.nonzero_bool] at H,
     contradiction }
 }
 end
@@ -712,13 +1186,13 @@ generalize P : (lptree_to_tree f t) = Q,
 cases Q,
 { simp [tree_leaves_option],
 
-  cases (lptree_nonzero_dec t),
+  cases (lptree.nonzero_dec t),
   apply lptree_not_nonzero_no_leaves,
   assumption,
   cases t,
   reflexivity,
   exfalso,
-  have H' := lptree_nonzero_tree _ f a,
+  have H' := lptree.nonzero_tree _ f a,
   rw P at H',
   apply (@not_Issome_none (tree A)),
   assumption
@@ -752,16 +1226,6 @@ transitivity,
 rw <-(lptree_leaves_list xs),
 unfold merge_to_tree,
 rw (tree_lptree_leaves f)
-end
-
-lemma list.map_compose {A B C : Type}
-  (f : A -> B) (g : B -> C) (xs : list A)
-  : list.map (g ∘ f) xs = list.map g (list.map f xs)
-:=
-begin
-induction xs,
-{ reflexivity },
-{ simp [list.map] }
 end
 
 lemma reverse_core_app {A : Type} (xs ys zs : list A)
@@ -986,9 +1450,9 @@ def compute_parent_correct := forall (left right : A) dir,
     = combine_data left right
 
 lemma tree_leaves_all_paths_rev_len (x : tree A)
-  : (tree_leaves x).length = (all_paths_rev x).length
+  : x.leaves.length = (all_paths_rev x).length
 := begin
-induction x; dsimp [tree_leaves, all_paths_rev, list.length],
+induction x; dsimp [tree.leaves, all_paths_rev, list.length],
 { reflexivity },
 { repeat { rw list.length_append },
   repeat { rw list.length_map },
@@ -1043,11 +1507,11 @@ revert ys, induction xs; intros,
 end
 
 lemma tree_leaves_all_paths_rev {X : Type u} (l r : tree A) (f g : list link → X) :
-  (list.zip (tree_leaves r ++ tree_leaves l)
+  (list.zip (r.leaves ++ l.leaves)
        (list.map f (all_paths_rev r) ++ list.map g (all_paths_rev l)))
   =
-  list.zip (tree_leaves r) (list.map f (all_paths_rev r))
-  ++ list.zip (tree_leaves l) (list.map g (all_paths_rev l))
+  list.zip r.leaves (list.map f (all_paths_rev r))
+  ++ list.zip l.leaves (list.map g (all_paths_rev l))
 := begin
 apply list.zip_same_length, rw list.length_map,
 apply tree_leaves_all_paths_rev_len,
@@ -1065,14 +1529,14 @@ lemma reconstruct_root_correct
   (H : internal_nodes_ok combine_data t)
   (comp_par_corr : compute_parent_correct)
   : list.Forall (λ p : A × list link,
-    reconstruct_root p.snd p.fst = root t) (list.zip (tree_leaves t) (all_paths_rev t))
+    reconstruct_root p.snd p.fst = root t) (list.zip t.leaves (all_paths_rev t))
 := begin
 induction H,
 { simp [all_paths_rev], constructor,
   { dsimp, simp [reconstruct_root], reflexivity },
   { constructor }
 },
-{ dsimp [all_paths_rev, tree_leaves],
+{ dsimp [all_paths_rev, tree.leaves],
   rw tree_leaves_all_paths_rev,
   apply list.concat_Forall,
   { clear ih_1, rw list.zip_map_r, apply list.map_Forall,
@@ -1124,13 +1588,13 @@ lemma reconstruct_items_correct
   : internal_nodes_ok combine_data t
   -> list.Forall (λ p : A × list link, let (lf, pth) := p in
       path_in_tree_rev lf (reconstruct_items_rev pth lf) t)
-        (list.zip (tree_leaves t) (all_paths_rev t))
+        (list.zip t.leaves (all_paths_rev t))
 := begin
 intros H, induction H,
 { dsimp [all_paths_rev],
   constructor, dsimp, constructor, constructor },
 { dsimp at ih_1 ih_2,
-  dsimp, dsimp [all_paths_rev, tree_leaves],
+  dsimp, dsimp [all_paths_rev, tree.leaves],
   rw tree_leaves_all_paths_rev,
   apply list.concat_Forall,
   { rw list.zip_map_r, apply list.map_Forall,
@@ -1164,8 +1628,6 @@ intros H, induction H,
 end
 
 end paths
-
-end trees
 
 --#eval (lptree_to_tree nat.add (list_to_lptree [7,6,5,4,3,2,1]))
 
