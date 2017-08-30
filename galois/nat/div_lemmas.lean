@@ -14,8 +14,8 @@ begin
     exact base n h,
   },
   {
-    have n_ge_c : n ≥ c := (lt_or_ge n c).resolve_left h,
-    have n_pos : n > 0 := nat.lt_of_lt_of_le c_pos n_ge_c,
+    have n_ge_c : n ≥ c := le_of_not_gt h,
+    have n_pos : n > 0 := lt_of_lt_of_le c_pos n_ge_c,
     have cong : (n-c)+c = n := nat.sub_add_cancel n_ge_c,
     have lt : n-c < n := nat.sub_lt n_pos c_pos,
     rw [cong.symm],

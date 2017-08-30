@@ -117,31 +117,6 @@ begin
 end
 
 ------------------------------------------------------------------------
--- Negation
-
--- This rewrites a negation of a le into a lt.
-protected lemma lt_of_not_le : ∀(m n : ℕ),  ¬(n ≤ m) ↔ m < n :=
-begin
-  intros m n,
-  apply iff.intro,
-  { intro pr,
-    cases (lt_trichotomy n m) with n_lt_m or_pr,
-    { have n_le_m := pr (nat.le_of_lt n_lt_m),
-      contradiction,
-    },
-    cases or_pr with n_eq_m m_lt_n,
-    {
-      simp [n_eq_m, nat.le_refl] at pr,
-      contradiction,
-    },
-    { exact m_lt_n, },
-  },
-  { intros m_lt_n n_le_m,
-    apply le_lt_antisymm n_le_m m_lt_n,
-  },
-end
-
-------------------------------------------------------------------------
 -- Specialized lemmas
 
 protected lemma sub_add_iff : ∀(m n p : ℕ),

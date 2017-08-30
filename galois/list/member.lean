@@ -9,10 +9,26 @@ inductive member {A : Type u} : list A → Type u
 | there : ∀ {x : A} {xs : list A}, member xs → member (x :: xs)
 
 namespace member
-definition value {A : Type u} 
+
+definition value {A : Type u}
   : ∀ {xs : list A}, member xs -> A
 | (x :: xs) member.here := x
 | (x :: xs) (member.there m) := value m
+
+-- Given a member of the append of two lists, this returns a member
+-- of one or the other depending on which list is referenced.
+def case_append {α : Type u} :
+ Π {l1 l2 : list α}, member (l1 ++ l2) →  member l1 ⊕ member l2
+| (h::r) _ member.here := sum.inl member.here
+| (h::r) l2 (member.there m) :=
+  match @case_append r l2 m with
+  | sum.inr z := sum.inr z
+  | sum.inl z := sum.inl (member.there z)
+  end
+| [] l2  m :=
+  let q := congr_arg member (list.nil_append l2) in
+  sum.inr (cast q m)
+
 end member
 
 definition remove_member {A : Type u}
@@ -61,16 +77,16 @@ end el_member
 
 inductive void : Type
 
-def member_st_decide' {A : Type u} 
+def member_st_decide' {A : Type u}
   (P : A → Prop) [decidable_pred P]
   (xs : list A)
   : member_st P xs ⊕ (member_st P xs → void)
 := begin
 induction xs,
-{ right, 
+{ right,
   intros H, cases H },
 { induction ih_1,
-  { left, 
+  { left,
     apply member_st.there, assumption
   },
   { apply (@decidable.by_cases (P a)); intros,
@@ -82,7 +98,7 @@ induction xs,
 }
 end
 
-def member_st_decide {A : Type u} 
+def member_st_decide {A : Type u}
   (P : A → Prop) [decidable_pred P]
   : ∀ (xs : list A)
   , member_st P xs ⊕ (member_st P xs → void)
@@ -90,7 +106,7 @@ def member_st_decide {A : Type u}
 | (x :: xs) := if H : P x
     then sum.inl (@member_st.here _ _ x xs H)
     else match member_st_decide xs with
-      | (sum.inr f) := sum.inr 
+      | (sum.inr f) := sum.inr
         begin
           intros contra, cases contra,
           contradiction, apply f, assumption
@@ -98,7 +114,7 @@ def member_st_decide {A : Type u}
       | (sum.inl m) := sum.inl (member_st.there m)
       end
 
-def check_member_st {A : Type u} 
+def check_member_st {A : Type u}
   (P : A → Prop) [decidable_pred P]
   (xs : list A) : option (member_st P xs)
   := match member_st_decide P xs with
@@ -111,7 +127,7 @@ lemma member_st_decide_present {A : Type u}
   {P : A → Prop} [decP : decidable_pred P]
   {xs : list A}
   (m : member_st P xs)
-  : psigma (λ m' : member_st P xs, 
+  : psigma (λ m' : member_st P xs,
      member_st_decide P xs = sum.inl m')
 := begin
 induction m; clear xs; rename xs_1 xs,
@@ -119,7 +135,7 @@ induction m; clear xs; rename xs_1 xs,
     rw (dif_pos a),
 },
 { have H := decP x, induction H,
-  { induction ih_1 with mxs Pmxs, 
+  { induction ih_1 with mxs Pmxs,
     constructor,
     unfold member_st_decide,
     rw (dif_neg a_1), rw Pmxs,
@@ -139,7 +155,7 @@ def el_member_decide {A : Type u} [decidable_eq A]
 | (x :: xs) := if H : z = x
     then begin induction H, exact sum.inl el_member.here end
     else match el_member_decide xs with
-      | (sum.inr f) := sum.inr 
+      | (sum.inr f) := sum.inr
         begin
           intros contra, clear _match, cases contra,
           contradiction, apply f, assumption
@@ -157,7 +173,7 @@ induction m; clear z xs; rename xs_1 xs,
     rw (dif_pos (eq.refl x)),
 },
 { have H := deceqA y x, induction H,
-  { induction ih_1 with mxs Pmxs, 
+  { induction ih_1 with mxs Pmxs,
     constructor,
     unfold el_member_decide,
     rw (dif_neg a_1), rw Pmxs,
@@ -181,7 +197,7 @@ def check_member {A : Type u} [decidable_eq A]
 lemma el_member_value {A : Type u}
   (x : A) (xs : list A) (m : el_member x xs)
   : m.to_member.value = x
-:= begin 
+:= begin
 induction m; simp [member.value, el_member.to_member],
 assumption
 end

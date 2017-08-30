@@ -34,20 +34,9 @@ def add  : intmod n → intmod n → intmod n
     let q : (x+y)-n < n :=
          begin
            simp [nat.sub_lt_iff],
-           constructor,
-           -- Prove x + y < n + n
-           {
-             transitivity,
-             exact nat.add_lt_add_left y_lt _,
-             exact nat.add_lt_add_right x_lt _,
-           },
-           {
-             apply or.inr,
-              -- Let h := n ≤ x + y
-              have h := lt_or_ge (x+y) n,
-              simp [ge, p] at h,
-              exact h,
-           }
+           have xy_lt_nn : x + y < n + n := add_lt_add x_lt y_lt,
+           have n_le_xy  : n ≤ x + y := le_of_not_gt p,
+           cc,
          end in
     ⟨ (x+y)-n, q⟩
 
@@ -70,7 +59,7 @@ def neg  : intmod n → intmod n
         -- Decompose and
         constructor,
         -- n < n + x
-        exact lt_add_of_le_of_pos (nat.le_refl n) x_pos,
+        exact lt_add_of_le_of_pos (le_refl n) x_pos,
         -- show 0 < n
         exact or.inr (lt_trans x_pos p),
       }
@@ -95,9 +84,7 @@ def sub  : intmod n → intmod n → intmod n
             constructor,
             { apply add_lt_add_left,
               -- Enforce h := x < y
-              have h := lt_or_ge x y,
-              simp [ge, p] at h,
-              exact h,
+              exact lt_of_not_ge p,
             },
             { -- Pick right branch to prove y ≤ n + x
               apply or.inr,
