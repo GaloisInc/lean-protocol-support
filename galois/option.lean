@@ -75,7 +75,7 @@ lemma map_some {A B} {ma : option A} {f : A → B}
 cases ma,
 contradiction,
 existsi a, split, reflexivity,
-dsimp [option_map, function.comp, option_bind] at H, 
+dsimp [option_map, function.comp, option_bind] at H,
 injection H with H',
 end
 
@@ -146,5 +146,22 @@ lemma precondition_true_bind {P : Prop} {A : Type} [decP : decidable P]
   (H : P)
   : precondition P >>= f = f (plift.up H)
 := precondition_true H
+
+lemma map_compose {A B C} (f : A → B) (g : B → C)
+  : option_map (g ∘ f) = option_map g ∘ option_map f
+:= begin
+apply funext; intros x, induction x; reflexivity,
+end
+
+inductive Issome {A} : option A -> Prop
+  | MkIsSome : forall a : A, Issome (some a)
+
+lemma not_Issome_none {A : Type} : ¬ Issome (@none A) :=
+begin
+generalize b : (@none A) = a,
+intros contra,
+induction contra,
+contradiction
+end
 
 end option
