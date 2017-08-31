@@ -10,7 +10,7 @@ namespace binary_tree
 
 run_cmd mk_simp_attr `empt
 
-universe u
+universes u v
 
 /-- An `lptree A` represents a binary tree (without internal nodes)
     whose left subtrees are all perfect, where the sizes of these
@@ -25,6 +25,10 @@ universe u
 inductive lptree : Type u -> Type (u + 1)
 | nil : ∀ {A}, lptree A
 | cons : ∀ {A}, option A -> lptree (A × A) -> lptree A
+
+def double {A : Type u} {B : Type v} (f : A → B)
+  (x : A × A) : B × B :=
+  let (a, b) := x in (f a, f b).
 
 namespace lptree
 
@@ -59,7 +63,21 @@ def insert : ∀ {A : Type u}, A -> lptree A -> lptree A
 | A x (lptree.cons none t') := lptree.cons (some x) t'
 | A x (lptree.cons (some y) t') := lptree.cons none (insert (y, x) t')
 
+def map : ∀ {A : Type u} {B : Type v}, (A → B) → lptree A → lptree B
+| A B f lptree.nil := lptree.nil
+| A B f (lptree.cons none t') := lptree.cons none (map (double f) t')
+| A B f (lptree.cons (some y) t') := lptree.cons (some (f y)) (map (double f) t')
+
 end lptree
+
+lemma map_insert {A B} (f : A → B) (t : lptree A) (x : A)
+  : (t.insert x).map f = (t.map f).insert (f x)
+:= begin
+revert B,
+induction t; intros, dsimp [lptree.insert, lptree.map], reflexivity,
+induction a; simp [lptree.insert, lptree.map],
+rw ih_1, reflexivity,
+end
 
 lemma insert_size {A : Type u} (x : A) (t : lptree A)
   : (t.insert x).size = t.size + 1
@@ -72,6 +90,24 @@ induction t; dsimp [lptree.size, lptree.insert],
     rw mul_add, repeat { rw add_assoc },
     f_equal, }
 }
+end
+
+lemma map_height {A B} (f : A → B) (t : lptree A)
+  : (t.map f).height = t.height
+:= begin
+revert B,
+induction t; intros; simp [lptree.map, lptree.height],
+induction a; simp [lptree.map, lptree.height]; f_equal; apply ih_1,
+end
+
+lemma map_size {A B} (f : A → B) (t : lptree A)
+  : (t.map f).size = t.size
+:= begin
+revert B,
+induction t; intros; simp [lptree.map, lptree.size],
+induction a; simp [lptree.map, lptree.size],
+rw mul_comm, f_equal, apply ih_1,
+f_equal, rw mul_comm, f_equal, apply ih_1,
 end
 
 lemma mul_2_add {n : nat} : n * 2 = n + n
@@ -117,6 +153,29 @@ induction t; dsimp [lptree.size, lptree.height, nat.pow],
 }
 end
 
+inductive nz_minimal : ∀ {A}, lptree A → Prop
+| last : ∀ {A} x : A, nz_minimal (lptree.cons (some x) lptree.nil)
+| cons : ∀ {A} (mx : option A) t, nz_minimal t → nz_minimal (lptree.cons mx t)
+
+inductive minimal {A} : lptree A → Prop
+| zero : minimal (lptree.nil)
+| nz_minimal : ∀ t, nz_minimal t → minimal t
+
+lemma insert_nz_minimal {A : Type u} (t : lptree A)
+  (mint : minimal t) (x : A)
+  : nz_minimal (t.insert x)
+:= begin
+induction mint,
+{ constructor },
+{ induction a,
+  { dsimp [lptree.insert], constructor, constructor },
+  { induction mx; dsimp [lptree.insert],
+    { constructor, assumption },
+    { constructor, apply ih_1, assumption }
+  }
+}
+end
+
 /-- If you add one to an lptree, it is nonzero
 -/
 def insert_nonzero {A : Type u} (t : lptree A)
@@ -134,6 +193,17 @@ end
 def list_to_lptree {A : Type u} : list A -> lptree A :=
   list.foldr lptree.insert lptree.nil
 
+lemma map_list_to_lptree {A : Type u} {B : Type v}
+  (f : A → B) (xs : list A)
+  : (list_to_lptree xs).map f = list_to_lptree (xs.map f)
+:= begin
+revert B,
+induction xs; intros, reflexivity,
+dsimp [list_to_lptree, lptree.map, list.map],
+rw map_insert, f_equal, unfold list_to_lptree at ih_1,
+apply ih_1,
+end
+
 lemma list_to_lptree_length {A : Type u} (xs : list A)
   : (list_to_lptree xs).size = xs.length
 := begin
@@ -141,6 +211,98 @@ unfold list_to_lptree,
 induction xs; dsimp [list.foldr, lptree.size],
 { reflexivity },
 { rw insert_size, rw ih_1, }
+end
+
+/-- This only is correct if the lptree is minimal. -/
+def log2_of_succ_lptree {A} (t : lptree A)
+  := t.height
+
+def log2_of_succ (n : ℕ) :=
+  log2_of_succ_lptree (list_to_lptree (list.repeat unit.star n))
+
+def log2 (n : ℕ) : ℕ := log2_of_succ n.pred
+
+lemma list_to_lptree_nz_minimal {A} (x : A) (xs : list A)
+  : nz_minimal (list_to_lptree (x :: xs))
+:= begin
+revert x,
+induction xs; intros,
+constructor,
+dsimp [list_to_lptree],
+apply insert_nz_minimal, apply minimal.nz_minimal,
+apply ih_1,
+end
+
+lemma repeat_length {A} (x : A) (n : ℕ)
+  : (list.repeat x n).length = n
+:= begin
+induction n; simp [list.repeat, list.length],
+end
+
+lemma list_to_lptree_minimal {A} (xs : list A)
+  : minimal (list_to_lptree xs)
+:= begin
+cases xs, apply minimal.zero,
+apply minimal.nz_minimal, apply list_to_lptree_nz_minimal
+end
+
+lemma list.pair_induction_same_length {X Y}
+  (P : list X → list Y → Sort u)
+  (P0 : P [] [])
+  (PS : ∀ x y xs ys, P xs ys → P (x :: xs) (y :: ys))
+  (xs : list X) (ys : list Y) (H : xs.length = ys.length)
+  : P xs ys
+:= begin
+revert xs, induction ys; intros; dsimp at H,
+{ apply_in H list.eq_nil_of_length_eq_zero, subst xs,
+  assumption, },
+{ cases xs; dsimp at H, contradiction,
+  apply PS, apply ih_1,
+  apply nat.add_right_cancel, assumption,
+}
+end
+
+lemma same_length_map {A : Type u} {B : Type v}
+  (xs : list A) (ys : list B) (Hlen : xs.length = ys.length)
+  : xs.map (λ _, unit.star) = ys.map (λ _, unit.star)
+:= begin
+apply list.pair_induction_same_length _ _ _ xs ys Hlen,
+simp, reflexivity, intros,
+simp [list.map], simp [list.map], f_equal,
+assumption
+end
+
+lemma lptree_height_skeleton {A} (t : lptree A)
+  : t.height = (t.map (λ _, unit.star)).height
+:= begin
+symmetry, apply map_height,
+end
+
+lemma lptree_height_length {A B} (xs : list A) (ys : list B)
+  (Hlen : xs.length = ys.length)
+  : (list_to_lptree xs).height = (list_to_lptree ys).height
+:= begin
+rw (lptree_height_skeleton (list_to_lptree xs)),
+rw (lptree_height_skeleton (list_to_lptree ys)),
+repeat { rw map_list_to_lptree },
+rw same_length_map, assumption,
+end
+
+lemma list_to_tree_height {A} (xs : list A)
+  : (list_to_lptree xs).height = log2_of_succ xs.length
+:= begin
+rw ← list_to_lptree_length,
+unfold log2_of_succ log2_of_succ_lptree,
+rw list_to_lptree_length,
+apply lptree_height_length,
+rw repeat_length,
+end
+
+lemma list_to_tree_height' {A} (xs : list A)
+  : (list_to_lptree xs).height = log2 xs.length.succ
+:= begin
+unfold log2, dsimp [nat.pred],
+apply list_to_tree_height,
 end
 
 /-- Binary trees *with* internal nodes
@@ -1314,6 +1476,49 @@ def all_paths_rev : tree A -> list (list link)
      list.map (list.cons (mk_link lr.left (root l) (root r))) (all_paths_rev r)
   ++ list.map (list.cons (mk_link lr.right (root l) (root r))) (all_paths_rev l)
 
+lemma all_paths_rev_height (t : tree A)
+  : list.Forall (λ ls : list link, ls.length ≤ t.height) (all_paths_rev t)
+:= begin
+induction t; dsimp [all_paths_rev, tree.height],
+{ constructor, apply le_refl, constructor },
+{ apply list.concat_Forall; apply list.map_Forall;
+  apply list.impl_Forall; try { assumption },
+  { intros x H,
+    dsimp [list.length], apply nat.add_le_add_right,
+    apply le_trans, assumption, apply le_max_right,
+  },
+  { intros x H,
+    dsimp [list.length], apply nat.add_le_add_right,
+    apply le_trans, assumption, apply le_max_left, }
+}
+end
+
+def all_paths_rev_option : option (tree A) → list (list link)
+| none := []
+| (some t) := all_paths_rev t
+
+theorem end_to_end_height (xs : list A)
+  (f : A → A → A)
+  (n : ℕ)
+  (Hlen : log2 (xs.length + 1) ≤ n)
+  : list.Forall (λ ls : list link, ls.length ≤ n) $
+      all_paths_rev_option (lptree_to_tree f (list_to_lptree xs))
+:= begin
+destruct (lptree_to_tree f (list_to_lptree xs)),
+{ intros Hnone, rw Hnone, constructor, },
+{ intros t Ht, rw Ht, dsimp [all_paths_rev_option],
+  apply list.impl_Forall, apply all_paths_rev_height,
+  intros, apply le_trans, assumption,
+  clear a x,
+  rw ← lptree_to_tree_option_equiv at Ht,
+  have H2 := lptree_to_tree_option_height f (list_to_lptree xs),
+  rw Ht at H2, dsimp at H2,
+  apply le_trans, apply H2, clear H2,
+  rw list_to_tree_height' xs,
+  apply Hlen,
+ }
+end
+
 lemma all_paths_core_app (t : tree A) (p p' : list link)
   : all_paths_core t (p ++ p') =
     list.map (λ z, z ++ p') (all_paths_core t p)
@@ -1460,23 +1665,6 @@ induction x; dsimp [tree.leaves, all_paths_rev, list.length],
 }
 end
 
-
-
-lemma list.pair_induction_same_length {X Y}
-  (P : list X → list Y → Sort u)
-  (P0 : P [] [])
-  (PS : ∀ x y xs ys, P xs ys → P (x :: xs) (y :: ys))
-  (xs : list X) (ys : list Y) (H : xs.length = ys.length)
-  : P xs ys
-:= begin
-revert xs, induction ys; intros; dsimp at H,
-{ apply_in H list.eq_nil_of_length_eq_zero, subst xs,
-  assumption, },
-{ cases xs; dsimp at H, contradiction,
-  apply PS, apply ih_1,
-  apply nat.add_right_cancel, assumption,
-}
-end
 
 lemma list.zip_same_length {X Y}
   (xs ys : list X) (xs' ys' : list Y) (H : xs.length = xs'.length)
