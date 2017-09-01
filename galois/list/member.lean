@@ -10,14 +10,17 @@ inductive member {A : Type u} : list A → Type u
 
 namespace member
 
-definition value {A : Type u}
-  : ∀ {xs : list A}, member xs -> A
+section
+parameter {α : Type u}
+
+def value
+  : ∀ {xs : list α}, member xs -> α
 | (x :: xs) member.here := x
 | (x :: xs) (member.there m) := value m
 
 -- Given a member of the append of two lists, this returns a member
 -- of one or the other depending on which list is referenced.
-def case_append {α : Type u} :
+def case_append :
  Π {l1 l2 : list α}, member (l1 ++ l2) →  member l1 ⊕ member l2
 | (h::r) _ member.here := sum.inl member.here
 | (h::r) l2 (member.there m) :=
@@ -29,6 +32,7 @@ def case_append {α : Type u} :
   let q := congr_arg member (list.nil_append l2) in
   sum.inr (cast q m)
 
+end
 end member
 
 definition remove_member {A : Type u}

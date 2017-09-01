@@ -1,5 +1,6 @@
 import galois.tactic
-       .init .tail .inter .map_accum_lemmas .take_drop_lemmas .preds .fin_nth
+       .init .tail .inter .map_accum_lemmas .nth
+       .take_drop_lemmas .preds .fin_nth
 
 namespace list
 

@@ -13,6 +13,12 @@ variable {α : Type u}
 @[simp]
 theorem take_succ_cons (n : ℕ) (x : α) (xs : list α) : take (nat.succ n) (x :: xs) = x :: take n xs := rfl
 
+theorem take_cons_ite (n : ℕ) (e : α) (l : list α)
+: take n (e :: l) = if n = 0 then [] else e :: take (n-1) l :=
+begin
+  cases n; simp,
+end
+
 theorem take_ge {n : ℕ} {l : list α} (pr : length l ≤ n): take n l = l :=
 begin
   revert l,
@@ -49,6 +55,38 @@ begin
   simp [cons_append, take_succ_cons],
   simp [take_append, cons_append, nat.succ_add],
  end
+
+lemma take_bound {α : Type} {m n : ℕ} {l : list α}
+(pr : l.length ≤ m)
+(m_le_n : m ≤ n)
+: l.take n = l.take m :=
+begin
+  revert m n,
+  induction l,
+  case nil { simp, },
+  case cons e r ind {
+    intros m n le_m le_n,
+    cases m,
+    case nat.zero {
+      simp [nat.succ_add, nat.not_succ_le_zero] at le_m,
+      contradiction,
+    },
+    case nat.succ m {
+      cases n,
+      case nat.zero {
+        simp [nat.not_succ_le_zero] at le_n,
+        contradiction,
+      },
+      case nat.succ n {
+        simp [list.length, nat.succ_add, nat.succ_le_succ_iff] at le_m,
+        simp [nat.succ_le_succ_iff] at le_n,
+        simp [list.take],
+        apply congr_arg,
+        exact ind le_m le_n,
+      }
+    },
+  }
+end
 
 /- drop theorems -/
 
