@@ -29,7 +29,7 @@ lemma le_of_div_succ
   {n k p : ℕ}
   (H : n / k = nat.succ p)
  : k ≤ n
-:= 
+:=
 begin
 rw nat.div_def at H,
 by_cases ((0 < k ∧ k ≤ n)) with h; simp [h] at H,
@@ -42,8 +42,8 @@ by_cases ((0 < k ∧ k ≤ n)) with h; simp [h] at H,
 end
 
 lemma drop_drops_one : forall index drop_size,
-drop_size ≠ 0 → 
-drop_size ≤ index -> 
+drop_size ≠ 0 →
+drop_size ≤ index ->
 index / drop_size = ((index - drop_size) / drop_size) + 1 :=
 begin
 intros, rw nat.div_def,
@@ -81,7 +81,7 @@ lemma lt_of_div_succ_2
   {n k p : ℕ}
   (H : n / k = p.succ)
  : (n - k) / k = p
-:= 
+:=
 begin
 cases k with k, simp at *, contradiction,
 have dps := drop_drops_one n (nat.succ k),
@@ -89,7 +89,7 @@ have neO : nat.succ k ≠ 0, {contradiction},
 specialize dps neO,
 clear neO,
 specialize dps (nat.le_of_div_succ H),
-rw dps at H, rw <- nat.succ_eq_add_one at H, 
+rw dps at H, rw <- nat.succ_eq_add_one at H,
 injection H
 end
 
@@ -154,6 +154,81 @@ apply (if H : a ≤ b then _ else _),
   apply le_refl,
  },
 { rw (if_neg H), }
+end
+
+lemma mul_2_add {n : nat} : n * 2 = n + n
+:= begin
+induction n, simp,
+dsimp [has_mul.mul, nat.mul],
+simp,
+end
+
+lemma le_add_r {x y : nat} : x ≤ x + y
+:= begin
+induction y, simp,
+apply le_trans, assumption,
+apply nat.add_le_add_left, constructor,
+constructor,
+end
+
+lemma le_add_compat {x y x' y' : nat}
+  (Hx : x ≤ x') (Hy : y ≤ y') : x + y ≤ x' + y'
+:= begin
+induction Hx, apply nat.add_le_add_left, assumption,
+apply le_trans, apply ih_1,
+simp, apply nat.add_le_add_left, constructor,
+constructor,
+end
+
+lemma max_same (n : ℕ) : max n n = n
+:= begin
+unfold max, rw (if_pos (le_refl n)),
+end
+
+lemma max_add {m n k : ℕ} : max (m + k) (n + k) = max m n + k
+:= begin
+unfold max,
+apply (if H : m ≤ n then _ else _),
+rw (if_pos H), rw if_pos,
+apply nat.add_le_add_right, assumption,
+rw (if_neg H), rw if_neg,
+intros contra, apply H, rw ← nat.add_le_add_iff_le_right,
+assumption,
+end
+
+lemma neg_le_le (x y : ℕ) (H : ¬ x ≤ y)
+  : y ≤ x
+:= begin
+apply (if H' : y ≤ x then _ else _),
+assumption, exfalso,
+have H1 := @nat.le_total x y,
+induction H1; contradiction,
+end
+
+lemma max_mono {x y x' y' : ℕ} (Hx : x ≤ x') (Hy : y ≤ y')
+  : max x y ≤ max x' y'
+:= begin
+unfold max,
+apply (if H : x ≤ y then _ else _),
+{ rw (if_pos H),
+  apply (if H' : x' ≤ y' then _ else _),
+  rw (if_pos H'), assumption,
+  rw (if_neg H'), apply le_trans, assumption,
+  apply nat.neg_le_le, assumption,
+},
+{ rw (if_neg H),
+  apply (if H' : x' ≤ y' then _ else _),
+  rw (if_pos H'), apply le_trans; assumption,
+  rw (if_neg H'), assumption,
+}
+end
+
+lemma max_0_r (x : ℕ) : max x 0 = x
+:= begin
+unfold max,
+apply (if H : x ≤ 0 then _ else _),
+rw (if_pos H), symmetry, rw ← nat.le_zero_iff,
+assumption, rw if_neg, assumption,
 end
 
 end nat

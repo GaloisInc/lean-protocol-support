@@ -2,6 +2,16 @@ import galois.tactic
        .init .tail .inter .map_accum_lemmas .nth
        .take_drop_lemmas .preds .fin_nth
 
+universe u
+
+def second {X A B : Type} (f : A -> B) : X × A -> X × B
+| (x, y) := (x, f y)
+
+lemma second_simpl {X A B : Type} (f : A -> B)
+  (x : X) (y : A)
+  : second f (x, y) = (x, f y)
+  := rfl
+
 namespace list
 
 -- This runs a function over a list returning the intermediate results and a
@@ -137,6 +147,133 @@ cases n,
   simp at *,
   assumption,
 }
+end
+
+lemma pair_induction_same_length {X Y}
+  (P : list X → list Y → Sort u)
+  (P0 : P [] [])
+  (PS : ∀ x y xs ys, P xs ys → P (x :: xs) (y :: ys))
+  (xs : list X) (ys : list Y) (H : xs.length = ys.length)
+  : P xs ys
+:= begin
+revert xs, induction ys; intros; dsimp at H,
+{ apply_in H list.eq_nil_of_length_eq_zero, subst xs,
+  assumption, },
+{ cases xs; dsimp at H, contradiction,
+  apply PS, apply ih_1,
+  apply nat.add_right_cancel, assumption,
+}
+end
+
+lemma map_compose {A B C : Type}
+  (f : A -> B) (g : B -> C) (xs : list A)
+  : map (g ∘ f) xs = map g (map f xs)
+:=
+begin
+induction xs,
+{ reflexivity },
+{ simp [map] }
+end
+
+lemma reverse_core_app {A : Type} (xs ys zs : list A)
+  : list.reverse_core xs (ys ++ zs)
+  = list.reverse_core xs ys ++ zs
+:= begin
+revert ys zs,
+induction xs; intros,
+{ simp [list.reverse_core] },
+{ simp [list.reverse_core],
+  rw <- list.cons_append,
+  rw ih_1 }
+end
+
+lemma cons_reverse {A : Type} (x : A) (xs : list A)
+  : list.reverse (x :: xs) = list.reverse xs ++ [x]
+:=
+begin
+unfold list.reverse,
+simp [list.reverse_core],
+induction xs,
+{ reflexivity },
+{ simp [list.reverse_core],
+  rw <- (reverse_core_app a_1 [a] [x]),
+  dsimp, reflexivity
+ }
+end
+
+lemma cons_reverse_app {A : Type} (x : A) (xs : list A)
+: (list.reverse ∘ list.cons x) xs =
+   ((λ xs, xs ++ [x]) ∘ list.reverse) xs
+:=
+begin
+induction xs,
+{ reflexivity },
+{ simp [function.comp], }
+end
+
+lemma zip_same_length {X Y}
+  (xs ys : list X) (xs' ys' : list Y) (H : xs.length = xs'.length)
+  : zip (xs ++ ys) (xs' ++ ys')
+  = zip xs xs' ++ zip ys ys'
+:= begin
+revert H xs' xs,
+apply list.pair_induction_same_length,
+reflexivity, intros, dsimp [list.zip, list.zip_with],
+f_equal, assumption
+end
+
+lemma zip_map_r {X Y Z} (xs : list X) (ys : list Y)
+  (f : Y → Z)
+  : zip xs (map f ys) =
+  list.map (second f) (list.zip xs ys)
+:= begin
+revert ys, induction xs; intros,
+{ reflexivity },
+{ cases ys,
+  { reflexivity },
+  { dsimp [list.zip, list.zip_with], f_equal,
+    specialize (ih_1 a_3),
+    unfold list.zip at ih_1,
+    rw ih_1,
+  }
+ }
+end
+
+lemma map_fst_second {X A B : Type}
+  (xs : list (X × A)) (f : A -> B)
+  : map (prod.fst ∘ second f) xs
+  = map prod.fst xs
+:= begin
+induction xs,
+{ reflexivity },
+{ simp only [list.map],
+  cases a with i1 i2,
+  simp only [second],
+  rw ih_1, reflexivity
+}
+end
+
+lemma map_not_nil {A B} xs (f : A -> B)
+  (H : xs ≠ []) : list.map f xs ≠ [] :=
+begin
+cases xs,
+{ contradiction },
+{ simp [list.map], }
+end
+
+lemma map_nil {A B : Type} (f : A -> B)
+  (xs : list A)
+  (H : xs = [])
+  : list.map f xs = []
+  :=
+begin
+rw H, reflexivity
+end
+
+lemma repeat_length {A} (x : A) (n : ℕ)
+  : (list.repeat x n).length = n
+:= begin
+induction n; simp [list.repeat, list.length],
 end
 
 end list
