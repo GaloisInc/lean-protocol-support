@@ -7,6 +7,67 @@ inductive Exists {a : Type u} (P : a -> Prop) : list a -> Prop
 | here : ∀ {h t}, P h -> Exists (h :: t)
 | there : ∀ {h t}, Exists t -> Exists (h::t)
 
+-- Desugar list.Exists into existential.
+theorem mem_implies_Exists {α:Type} (P : α → Prop) (l : list α)
+  (pr : ∃(v : α), v ∈ l ∧ P v)
+: Exists P l :=
+begin
+  induction l,
+  case nil {
+    apply exists.elim pr,
+    intros v f,
+    simp at f,
+    contradiction,
+  },
+  case list.cons h r ind {
+    simp at pr,
+    apply exists.elim pr,
+    intros v v_pr,
+
+    cases v_pr with pv mem,
+
+    cases mem,
+    { apply list.Exists.here,
+      simp [eq.symm a, pv],
+    },
+    { apply list.Exists.there,
+      apply ind,
+      exact exists.intro v (and.intro a pv),
+    },
+  },
+end
+
+theorem exists_map {α β : Type} (P : β → Prop) (f : α → β) (l : list α)
+: Exists P (l.map f) ↔ Exists (P ∘ f) l :=
+begin
+  induction l with h r ind,
+  case list.nil {
+    apply iff.intro; intro hyp; cases hyp,
+  },
+  case list.cons h r ind {
+    apply iff.intro; intro hyp,
+    { cases hyp,
+      { apply Exists.here,
+        simp [function.comp],
+        exact a,
+      },
+      { apply Exists.there,
+        rw [← ind],
+        exact a,
+      },
+    },
+    { cases hyp,
+      { apply Exists.here,
+        simp [function.comp] at a,
+        exact a,
+      },
+      { apply Exists.there,
+        rw [← ind] at a,
+        exact a,
+      },
+    },
+  },
+end
 
 inductive Forall {A} (P : A -> Prop) : list A -> Prop
 | nil : Forall []
