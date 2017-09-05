@@ -1,5 +1,6 @@
 /- This module defines lemmas to simplify equalities between literals. -/
-import galois.vector
+import data.bitvec
+import ..vector
 
 namespace bitvec
 

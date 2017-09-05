@@ -10,12 +10,12 @@ def filter_some {A : Type u} : list (option A) → list A
   end) (filter_some xs)
 
 lemma map_filter_some {A B} (f : A → B) (xs : list (option A))
-  : filter_some (map (option_map f) xs)
+  : filter_some (map (option.map f) xs)
   = map f (filter_some xs)
 := begin
-induction xs; dsimp [list.map, option_map, option_bind, filter_some],
+induction xs; dsimp [list.map, option.map, option.bind, filter_some],
 { reflexivity },
-{ induction a; dsimp [option_map, option_bind, function.comp, filter_some],
+{ induction a; dsimp [option.map, option.bind, function.comp, filter_some],
   { assumption },
   { rw ih_1 }
 }

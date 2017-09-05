@@ -1,5 +1,5 @@
-import galois.list.map_accum_lemmas
-import galois.vector.zero_length_lemmas
+import ..list.map_accum_lemmas
+import .zero_length_lemmas
 
 universe variables u
 

@@ -40,8 +40,8 @@ def lptree_to_tree_helper_option
   : ∀ {A}, (A -> A -> A) -> lptree A -> list (option (tree A))
 | A f lptree.nil := []
 | A f (lptree.cons mx t') := list.cons
-   (option_map tree.leaf mx)
-      (list.map (option_map (untwice_tree f)) (lptree_to_tree_helper_option (twice f) t'))
+   (option.map tree.leaf mx)
+      (list.map (option.map (untwice_tree f)) (lptree_to_tree_helper_option (twice f) t'))
 
 
 def asc_heights : ℕ → list ℕ → ℕ
@@ -200,7 +200,7 @@ def opt_default {A} (default : A) : option A → A
 lemma asc_heights_filter_some1 {A} (n : ℕ) (xs : list (option (tree A))) :
  asc_heights n (list.map tree.height xs.filter_some) ≤
     asc_heights n
-      (list.map (opt_default 0 ∘ option_map tree.height) xs)
+      (list.map (opt_default 0 ∘ option.map tree.height) xs)
 := begin
 revert n,
 induction xs; intros; dsimp [asc_heights, list.map, list.filter_some],
@@ -224,7 +224,7 @@ end
 lemma asc_heights_filter_some {A} (n : ℕ) (xs : list (option (tree A))) :
  asc_heights n (list.map tree.height xs.filter_some) ≤
     asc_heights (n + 1)
-      (list.map (opt_default 0 ∘ option_map tree.height) xs)
+      (list.map (opt_default 0 ∘ option.map tree.height) xs)
 := begin
 apply le_trans, apply asc_heights_filter_some1,
 apply asc_heights_helper_mono, constructor, constructor,
@@ -234,7 +234,7 @@ lemma assemble_left_subtrees_option_height {A : Type}
   (f : A → A → A) (xs : list (option (tree A)))
   : (match assemble_left_subtrees_option f xs with
     | none := true
-    | some t := t.height ≤ asc_heights 0 (list.map (opt_default 0 ∘ option_map tree.height) xs)
+    | some t := t.height ≤ asc_heights 0 (list.map (opt_default 0 ∘ option.map tree.height) xs)
     end : Prop)
 := begin
 destruct (assemble_left_subtrees_option f xs),
@@ -255,7 +255,7 @@ destruct (assemble_left_subtrees_option f xs),
       unfold max_tree_list_height,
       apply le_trans, apply asc_heights_filter_some,
       apply asc_heights_helper_mono,
-      dsimp [option_map, opt_default, option_bind, function.comp],
+      dsimp [option.map, opt_default, option.bind, function.comp],
       rw nat.max_0_r,
     }
   }
@@ -263,7 +263,7 @@ destruct (assemble_left_subtrees_option f xs),
 end
 
 lemma asc_heights_list_mono_lemma (n : ℕ) (xs : list (option ℕ)) :
-  asc_heights n (xs.map (opt_default 0 ∘ option_map nat.succ))
+  asc_heights n (xs.map (opt_default 0 ∘ option.map nat.succ))
 ≤ asc_heights n (xs.map (nat.succ ∘ opt_default 0))
 := begin
 revert n,
@@ -274,14 +274,14 @@ induction xs; intros; dsimp [list.map, asc_heights],
   apply nat.add_le_add_right,
   apply nat.max_mono,
   { dsimp [function.comp], induction a;
-      dsimp [option_map, option_bind, opt_default],
+      dsimp [option.map, option.bind, opt_default],
     apply nat.zero_le, apply nat.le_refl },
   { apply le_refl }
 }
 end
 
 lemma asc_heights_succ_option (n : ℕ) (xs : list (option ℕ))
-  : asc_heights n.succ (xs.map (opt_default 0 ∘ option_map nat.succ))
+  : asc_heights n.succ (xs.map (opt_default 0 ∘ option.map nat.succ))
   ≤ (asc_heights n (xs.map (opt_default 0))).succ
 := begin
 revert n;
@@ -292,7 +292,7 @@ induction xs; intros; dsimp [asc_heights],
   apply nat.succ_le_succ, apply asc_heights_helper_mono,
   repeat { rw ← nat.add_one }, rw ← nat.max_add,
   apply nat.max_mono,
-  { induction a; dsimp [opt_default, function.comp, option_map, option_bind],
+  { induction a; dsimp [opt_default, function.comp, option.map, option.bind],
     apply nat.zero_le, apply le_refl,
   },
   { apply le_refl }
@@ -300,35 +300,35 @@ induction xs; intros; dsimp [asc_heights],
 end
 
 lemma stupid_lemma {A} (a : A)
-  : ((opt_default 0 ∘ option_map tree.height) ((some ∘ tree.leaf) a))
+  : ((opt_default 0 ∘ option.map tree.height) ((some ∘ tree.leaf) a))
   = 0 := rfl
 
 lemma asc_heights_lemma {A : Type}
   (f : A → A → A) (t : lptree A)
-  : asc_heights 0 (list.map (opt_default 0 ∘ option_map tree.height) (lptree_to_tree_helper_option f t))
+  : asc_heights 0 (list.map (opt_default 0 ∘ option.map tree.height) (lptree_to_tree_helper_option f t))
   ≤ lptree.height t
 := begin
 induction t; dsimp [lptree_to_tree_helper_option, lptree.height, asc_heights],
 { apply nat.zero_le, },
 { rw ← list.map_compose,
   rw function.comp.assoc
-    (opt_default 0) (option_map tree.height) (option_map (untwice_tree f)),
+    (opt_default 0) (option.map tree.height) (option.map (untwice_tree f)),
   rw ← option.map_compose,
   rw tree_height_untwice_tree,
   rw option.map_compose (tree.height) (nat.succ),
   rw ← function.comp.assoc
-    (opt_default 0) (option_map nat.succ) (option_map tree.height),
+    (opt_default 0) (option.map nat.succ) (option.map tree.height),
   rw list.map_compose,
   apply le_trans, apply asc_heights_list_mono_lemma,
   rw ← list.map_compose,
   rw function.comp.assoc
-    (nat.succ) (opt_default 0) (option_map tree.height),
+    (nat.succ) (opt_default 0) (option.map tree.height),
   rw list.map_compose,
   repeat { rw nat.add_one },
   apply le_trans,
   apply asc_heights_succ,
   apply nat.succ_le_succ,
-  induction a; dsimp [option_map, option_bind
+  induction a; dsimp [option.map, option.bind
   , lptree_to_tree_helper_option, lptree.height
   , asc_heights],
   {
@@ -371,7 +371,7 @@ induction lpt;
   dsimp [lptree_to_tree_helper, lptree_to_tree_helper_option, list.filter_some],
 { reflexivity },
 { induction a;
-    dsimp [option_map, option_bind, lptree_to_tree_helper
+    dsimp [option.map, option.bind, lptree_to_tree_helper
       , lptree_to_tree_helper_option, list.filter_some],
     { rw list.map_filter_some, f_equal,
     apply ih_1, },

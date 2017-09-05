@@ -217,16 +217,20 @@ lemma weak_until_always_mono {T : Type u} (A B P : tProp T)
 := begin
 intros tr H AWP n,
 specialize (AWP n), revert tr,
-induction n; simp [iterate]; intros tr AB H,
-assumption,
-unfold until_fixpoint, unfold until_fixpoint at H,
-induction H with H H, apply or.inl, assumption,
-apply or.inr, induction H with Hl Hr,
-constructor, rw ← (delayn_zero tr), apply AB,
-rw delayn_zero, assumption,
-unfold next nextn, apply ih_1,
-intros n, rw delayn_combine, apply AB,
-apply Hr
+induction n,
+case nat.zero { simp [iterate], },
+case nat.succ a ih_1 {
+  simp [iterate],
+  intros tr AB H,
+  unfold until_fixpoint, unfold until_fixpoint at H,
+  induction H with H H, apply or.inl, assumption,
+  apply or.inr, induction H with Hl Hr,
+  constructor, rw ← (delayn_zero tr), apply AB,
+  rw delayn_zero, assumption,
+  unfold next nextn, apply ih_1,
+  intros n, rw delayn_combine, apply AB,
+  apply Hr
+},
 end
 
 lemma weak_until_mono {T : Type u} {A B P : tProp T}
@@ -343,7 +347,6 @@ lemma weak_until_implies_release {T : Type u} {P Q : tProp T}
 intros tr HP HPimpQ n,
 specialize (HPimpQ n), revert tr,
 induction n; simp [iterate]; intros tr H0 HS,
-trivial,
 unfold until_fixpoint, unfold until_fixpoint at HS,
 induction HS with HS HS,
 { apply or.inl, constructor; assumption },

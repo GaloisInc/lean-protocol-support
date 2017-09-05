@@ -64,7 +64,7 @@ def insert : ∀ {A : Type u}, A -> lptree A -> lptree A
 
 def map : ∀ {A : Type u} {B : Type v}, (A → B) → lptree A → lptree B
 | A B f lptree.nil := lptree.nil
-| A B f (lptree.cons x t') := lptree.cons (option_map f x) (map (double f) t')
+| A B f (lptree.cons x t') := lptree.cons (option.map f x) (map (double f) t')
 
 /-- Enumerate the leaves of an lptree from right to left
     (i.e., going up towards larger left-perfect subtrees
@@ -124,7 +124,7 @@ lemma map_insert {A B} (f : A → B) (t : lptree A) (x : A)
 := begin
 revert B,
 induction t; intros, dsimp [lptree.insert, lptree.map], reflexivity,
-induction a; simp [lptree.insert, lptree.map, option_map, option_bind],
+induction a; simp [lptree.insert, lptree.map, option.map, option.bind],
 rw ih_1, reflexivity,
 end
 
@@ -154,7 +154,7 @@ lemma map_size {A B} (f : A → B) (t : lptree A)
 := begin
 revert B,
 induction t; intros; simp [lptree.map, lptree.size],
-induction a; simp [lptree.map, option_map, option_bind, lptree.size],
+induction a; simp [lptree.map, option.map, option.bind, lptree.size],
 rw mul_comm, f_equal, apply ih_1,
 f_equal, rw mul_comm, f_equal, apply ih_1,
 end

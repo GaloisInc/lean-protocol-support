@@ -123,14 +123,14 @@ apply (if H : list.index_of x xs = list.length xs then _ else _),
   rw list.index_of_append, tactic.rotate 2, assumption,
   tactic.swap, intros contra, apply H, subst n, assumption,
   rw list.index_of_eq_length at H, subst Hn',
-  apply_in H not_not_elim,
+  rw [not_not] at H,
   rw ← list.index_of_lt_length at H,
   have H1 : list.index_of x xs ≠ list.length (xs ++ ys),
   apply ne_of_lt, rw list.length_append,
   apply lt_of_lt_of_le, assumption,
   rw add_comm,
   apply le_add_of_nonneg_left, apply nat.zero_le,
-  rw (if_neg H1), apply_instance,
+  simp [H1],
  }
 end
 

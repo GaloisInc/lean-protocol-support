@@ -115,10 +115,11 @@ def formula_entails_auto {T : Type} {vTy : Type}
 meta def intern_var (xs : list expr) (e : expr) : list expr × ℕ
   := (if e ∈ xs then xs else xs ++ [e], xs.index_of e)
 
+
 meta def reify_helper
   : list expr → expr → tactic (expr ff × list expr)
-| xs `((⊤ : tProp %%T)) := pure (``(formula.top), xs)
-| xs `((⊥ : tProp %%T)) := pure (``(formula.bot), xs)
+| xs `(lattice.has_top.top %%TT) := pure (``(formula.top), xs)
+| xs `(lattice.has_bot.bot %%TT) := pure (``(formula.bot), xs)
 | xs `(always %%P) := do
     (P', xs') ← reify_helper xs P,
     pure (``(formula.always %%P'), xs')

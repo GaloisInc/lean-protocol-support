@@ -47,7 +47,7 @@ def indLabel {A} (P : agent_label → Prop)
   := λ a_next, P ∘ @dlabel_to_label A a_next
 
 
-instance inLabeld_decidable {ag : agent} (P : agent_label → Prop) 
+instance inLabeld_decidable {ag : agent} (P : agent_label → Prop)
   [decP : decidable_pred P]
   : decidable_pred (@loc.inLabeld ag (indLabel P))
 := begin
@@ -83,7 +83,7 @@ apply propext, split; intros H,
     dsimp [indLabel] at H,
     apply H },
   { rw (option.precondition_false Hag) at H,
-    dsimp [has_bind.bind, option_bind] at H,
+    dsimp [has_bind.bind, option.bind] at H,
     dsimp [inSkipLabel] at H, contradiction,
   },
 },
@@ -99,7 +99,7 @@ end
 
 instance decidable_sys_agent_does a P
   [decidable_pred P] : decidable_pred (sys_agent_does a P)
-:= begin 
+:= begin
 intros l, induction l with s l,
 induction l with a' l,
 apply (if Hip : a = a' then _ else _),
@@ -145,9 +145,9 @@ def fairness_specd : @TP agents
   := λ tr, ∀ (a : agents.member),
    fair (now (sys_agent_does a (λ _, true))) tr
 
-/-- Indicates that an agent is at the beginning of running 
+/-- Indicates that an agent is at the beginning of running
     an iteration of its loop (or doing something equivalent
-    to that) 
+    to that)
 -/
 def starts_loop {a : agents.member} (next : act a.value.state_type) : Prop :=
   ∃ (s : a.value.state_type), next = a.value.loop s
@@ -191,7 +191,7 @@ lemma agent_has_state_refine_eq (ag : agents.member)
 apply funext, intros x, reflexivity
 end
 
-/-- A statement of the fact that a particular agent's state 
+/-- A statement of the fact that a particular agent's state
     doesn't change (weak-) until it takes a step within
     temporal logic.
     (Using the sort of Leibniz equality: Any predicate `P`
@@ -237,7 +237,7 @@ lemma blocks_until_not_never_receives_always_polls
   (s : socket)
   : ⊩ valid_trace (@LTSd agents)
     => (◇ (now (inLocalState a (polls_on_socket s ∘ a.value.loop))
-           ∩ now (sys_agent_does a (λ _, true))) 
+           ∩ now (sys_agent_does a (λ _, true)))
         𝓦 (now (sys_agent_does a (receives P))))
     => □ (tNot (now (sys_agent_does a (receives P))))
     => fair (now (inLocalState a (polls_on_socket s ∘ a.value.loop))
@@ -298,7 +298,7 @@ end
 
 /-- Agent fairness in the global transition system implies
     "skip fairness" in the local system, where there is only
-    a single agent 
+    a single agent
 -/
 lemma fairness_Skip_impl (agents : map ip agent) (ag : agents.member) :
  ⊩ fairness_specd => (fairness_SkipLTS ∘ trace.map (Refinement.SL_refine (refinesd ag)))

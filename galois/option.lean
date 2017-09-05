@@ -1,4 +1,5 @@
 /- This module defines lemmas for option -/
+import data.option
 
 universe variables u v
 
@@ -60,29 +61,31 @@ begin
 end
 
 lemma bind_some {A B} {ma : option A} {f : A → option B}
-  {b : B} (H : option_bind ma f = some b)
+  {b : B} (H : option.bind ma f = some b)
   : ∃ a : A, ma = some a ∧ f a = some b
 := begin
-cases ma,
-contradiction,
-existsi a, split, reflexivity, assumption
+  cases ma,
+  contradiction,
+  existsi a, split, reflexivity, assumption
 end
 
 lemma map_some {A B} {ma : option A} {f : A → B}
-  {b : B} (H : option_map f ma = some b)
+  {b : B} (H : option.map f ma = some b)
   : ∃ a : A, ma = some a ∧ f a = b
 := begin
 cases ma,
 contradiction,
 existsi a, split, reflexivity,
-dsimp [option_map, function.comp, option_bind] at H,
+dsimp [option.map, function.comp, option.bind] at H,
 injection H with H',
 end
 
+/-
 def filter {A : Type u}
    (P : A → Prop) [decidable_pred P] : option A → option A
 | (some x) := if P x then some x else none
 | none := none
+-/
 
 lemma filter_some {A : Type u}
   {P : A → Prop} [decP : decidable_pred P] {mx : option A} {x : A}
@@ -121,12 +124,12 @@ def precondition (P : Prop) [decP : decidable P] : option (plift P) :=
 lemma precondition_true {P : Prop} {A : Type u} [decP : decidable P]
   {f : plift P → option A}
   (H : P)
-  : option_bind (precondition P) f = f (plift.up H)
+  : option.bind (precondition P) f = f (plift.up H)
 := begin
 unfold precondition,
 induction decP; dsimp [precondition],
 { contradiction },
-{ simp [option_bind],
+{ simp [option.bind],
 }
 end
 
@@ -136,7 +139,7 @@ lemma precondition_false {P : Prop} [decP : decidable P]
 := begin
 unfold precondition,
 induction decP; dsimp [precondition],
-{ simp [option_bind], },
+{ simp [option.bind], },
 { contradiction
 }
 end
@@ -148,7 +151,7 @@ lemma precondition_true_bind {P : Prop} {A : Type} [decP : decidable P]
 := precondition_true H
 
 lemma map_compose {A B C} (f : A → B) (g : B → C)
-  : option_map (g ∘ f) = option_map g ∘ option_map f
+  : option.map (g ∘ f) = option.map g ∘ option.map f
 := begin
 apply funext; intros x, induction x; reflexivity,
 end
