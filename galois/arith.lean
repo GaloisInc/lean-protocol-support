@@ -380,7 +380,7 @@ parameter {n:ℕ}
 def evaluate (l : linear_expr_list n) (a : assignment ℚ n) : list ℚ :=
   l.map (λe, e.evaluate a)
 
-theorem evaluate_cons (e : linear_expr n) (l : linear_expr_list n)
+theorem evaluate_cons (e : linear_expr n) (l : linear_expr_list n) (a : assignment ℚ n)
 : evaluate (e :: l) a = e.evaluate a :: l.evaluate a := sorry
 
 theorem mem_evaluate_implies {l: linear_expr_list n} {a:assignment ℚ n} {q : ℚ}
@@ -585,19 +585,16 @@ begin
     case bound.lower e {
       cases l,
       simp [satisfies, add_bound, bound.satisfies, lower_bound, upper_bound],
-      intro pr,
+      intros ineq_sat ge_b le_b,
       constructor,
       { cc, },
       constructor,
-      { have h := pr.right.right,
-        admit,
+      { admit,
       },
       constructor,
-      { have h := pr.right.left,
-        cc,
+      { cc,
       },
-      { have h := pr.right.right,
-        admit,
+      { admit,
       },
     },
     case bound.upper e {

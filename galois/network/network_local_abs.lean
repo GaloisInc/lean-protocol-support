@@ -30,7 +30,7 @@ def inLabeld (P : ∀ (a_next : act ag.state_type), dlabel a_next → Prop)
 induction x, apply P; assumption
 end
 
-instance sends_message_st_decidable (P : socket → message_t → Prop) 
+instance sends_message_st_decidable (P : socket → message_t → Prop)
   [decP : ∀ x y, decidable (P x y)] : decidable_pred (sends_message_st P)
 := begin
 intros x, unfold sends_message_st,
@@ -46,7 +46,7 @@ end loc
 open temporal
 
 def sys_dlabel_to_local {agents : map ip agent}
- (ag : agents.member) (s : @system_state agents) : 
+ (ag : agents.member) (s : @system_state agents) :
   sys_dlabel s → option (dlabel (ag.value.loop (s.local_state ag)))
 | (sys_dlabel.mk ag' aupdate) := do
   plift.up H ← option.precondition (ag' = ag),
@@ -54,7 +54,7 @@ def sys_dlabel_to_local {agents : map ip agent}
 
 universes u
 
-lemma next_state_local 
+lemma next_state_local
   (agents : map ip agent)
   (ag : mapd.member agents)
   (incoming : incoming_items)
@@ -96,7 +96,7 @@ def refinesd
    injection Hx2 with Hx2', clear Hx2,
    subst s', dsimp,
    apply (if Hag : ag' = ag then _ else _),
-   { -- I go! 
+   { -- I go!
      rw (option.precondition_true_bind Hag),
      dsimp [sys_dlabel_to_local], induction Hag,
      dsimp, unfold SkipLTS,
@@ -108,7 +108,7 @@ def refinesd
    },
    { --Someone else goes
    rw (option.precondition_false Hag),
-   dsimp [has_bind.bind, option_bind],
+   dsimp [has_bind.bind, option.bind],
    dsimp [SkipLTS],
    rw (lookup_update_different Hag),
    },

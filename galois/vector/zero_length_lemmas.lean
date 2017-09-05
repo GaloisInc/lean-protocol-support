@@ -1,4 +1,5 @@
 /- Lemmas for simplify terms involving zero-length vectors. -/
+import data.vector
 universe variables u
 
 namespace vector

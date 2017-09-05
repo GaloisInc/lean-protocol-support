@@ -84,16 +84,16 @@ structure sys_dlabel (st : system_state) :=
 section
 parameters (a_ip : ip) (ag : agent) (incoming : incoming_items)
 
-def apply_message_updates (ms : list (socket × message_t)) 
+def apply_message_updates (ms : list (socket × message_t))
    (updatef : global_state_t → global_state_t)
-  : global_state_t → global_state_t 
-  := let fs := (list.map (λ p : socket × message_t, let (sock, mess) := p in 
+  : global_state_t → global_state_t
+  := let fs := (list.map (λ p : socket × message_t, let (sock, mess) := p in
       add_message (a_ip, sock.snd) mess sock.fst) ms) in
      list.foldr function.comp updatef fs
 
 def next_agent_state_poll_dlabel {A : Type} {ports : list port} {sockets : list socket}
   {bound : time} (cont : poll_result ports sockets bound → A)
-  : poll_result ports sockets bound 
+  : poll_result ports sockets bound
   → option (global_state_t → global_state_t)
 | poll_result.timeout := some id
 | (poll_result.message elapsed_fin sock mess H) := do
@@ -110,10 +110,10 @@ def next_agent_state_from_dlabel
 
 end
 
-def next_state_from_dlabel (system : system_state) 
+def next_state_from_dlabel (system : system_state)
   : sys_dlabel system → option system_state
 | (sys_dlabel.mk ag aupdate) :=
-  option_bind (next_agent_state_from_dlabel ag.key ag.value
+  option.bind (next_agent_state_from_dlabel ag.key ag.value
      (system.global_state ag.key) aupdate)
      $ λ p, let (new_state, updatef) := p in
    some  { local_state  := lookup_update ag new_state system.local_state

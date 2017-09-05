@@ -3,4 +3,4 @@ name = "lean-protocol-support"
 version = "0.1"
 
 [dependencies]
-stdlib = {git = "https://github.com/leanprover/stdlib.git", rev = "6d9072821b60d6a4a7293c943c07fba65041f25e"}
+mathlib = {git = "git@github.com:leanprover/mathlib.git", rev = "c7a3c75dc301ef29d3977b14212385ba9a1bd1e8"}

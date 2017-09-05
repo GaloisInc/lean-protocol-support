@@ -1,8 +1,8 @@
 /- Defines basic lemmas for equality  -/
-
-import galois.list.simplify_eq
-import galois.list.take_drop_lemmas
-import galois.subtype
+import data.vector
+import ..list.simplify_eq
+import ..list.take_drop_lemmas
+import ..subtype
 
 universe variables u
 
@@ -14,7 +14,8 @@ variable {n : ℕ}
 local infix `++`:65 := vector.append
 
 
-theorem cons_eq_cons {n : ℕ} (a b : α) (x y : vector α n) : a :: x = b :: y ↔ a = b ∧ x = y :=
+theorem cons_eq_cons {n : ℕ} (a b : α) (x y : vector α n)
+: a :: x = b :: y ↔ a = b ∧ x = y :=
 begin
   apply iff.intro,
   {
@@ -24,8 +25,8 @@ begin
     simp [ vector.cons ],
     -- Simplify equalities
     simp [ @subtype.mk_eq_mk (list α) (λ (l : list α), @list.length α l = nat.succ n)
-         , list.cons_eq_cons],
-    exact id
+         ],
+    cc,
   },
   {
     intro h,

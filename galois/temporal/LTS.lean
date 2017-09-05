@@ -47,7 +47,7 @@ A trace is valid if it is a labeled transition system
 structure valid_trace (t : trace (sigma L)) : Prop :=
   (next_step : LTS_trace LTS t)
 
-lemma prove_next {P : sigma L → Prop} 
+lemma prove_next {P : sigma L → Prop}
   {Q : S → Prop}
   (H : ∀ s l s', LTS s l s' → P ⟨ s, l ⟩ → Q s')
   : ⊩ valid_trace
@@ -82,7 +82,7 @@ intros tr validtr n,
 apply H, apply valid_trace_always, assumption
 end
 
-lemma prove_always {P : sigma L → Prop} 
+lemma prove_always {P : sigma L → Prop}
   {Q : S → Prop}
   (H : ∀ s l s', LTS s l s' → P ⟨ s, l ⟩ → Q s')
   : ⊩ valid_trace
@@ -125,7 +125,7 @@ end
 
 lemma LTS_now_next (P' : S → Prop) (P Q : sigma L → Prop)
   (H : ∀ s l s', LTS s l s' → P ⟨ _, l⟩ → P' s' ∨ Q ⟨ _, l ⟩)
-  : ⊩ valid_trace 
+  : ⊩ valid_trace
     => now P
     => ( ◯ (now (inState P')) ∪ now Q)
 := begin
@@ -158,7 +158,7 @@ def inSkipLabel (P : sigma L → Prop) : sigma (WithSkip L) → Prop
   | some l' := P (sigma.mk s l')
   end
 
-instance inSkipLabel_decidable P [decP : decidable_pred P] 
+instance inSkipLabel_decidable P [decP : decidable_pred P]
   : decidable_pred (inSkipLabel P)
 := begin
 intros x, induction x with s l,
@@ -167,7 +167,7 @@ apply decidable.is_false, trivial,
 apply decP,
 end
 
-def fairness_SkipLTS : tProp (sigma (WithSkip L)) := 
+def fairness_SkipLTS : tProp (sigma (WithSkip L)) :=
   fair (now (inSkipLabel (λ _, true)))
 
 lemma SkipLTS_next_state
@@ -186,7 +186,7 @@ destruct ((tr 0)), intros s l Hsl,
 rw Hsl at goes,
 induction l; dsimp [inSkipLabel] at goes,
 { contradiction },
-{ apply HLTS, rw Hsl at H, dsimp [SkipLTS] at H, 
+{ apply HLTS, rw Hsl at H, dsimp [SkipLTS] at H,
   apply H, rw Hsl at nowP, assumption, assumption
 }
 end
@@ -214,11 +214,11 @@ rw a, assumption,
 end
 
 lemma SkipLTS_state_stays_constant
-  (P : S → Prop) : 
+  (P : S → Prop) :
   ⊩  valid_trace SkipLTS
   => □ (now (inState P)
   => ((◯ (now (inState P)))
-       𝓦 
+       𝓦
        now (inSkipLabel (λ _, true)))
   )
 := begin
@@ -243,7 +243,7 @@ end LTS_refinement
 
 namespace Refinement
 section
-parameters {S : Type u} {S' : Type u'} {L : S → Type v} {L' : S' → Type v'} 
+parameters {S : Type u} {S' : Type u'} {L : S → Type v} {L' : S' → Type v'}
   {LTS : ∀ s : S, L s → S → Prop}
   {LTS' : ∀ s : S', L' s → S' → Prop}
 
@@ -259,7 +259,7 @@ def SL_refine_valid_trace (r : Refinement LTS LTS')
   (valid : valid_trace LTS tr)
   : valid_trace LTS' (tr.map r.SL_refine)
 := begin
-constructor, unfold LTS_trace, 
+constructor, unfold LTS_trace,
 dsimp [trace.map],
 intros n, dsimp [SL_refine], apply refines, apply valid.next_step,
 end
@@ -272,7 +272,7 @@ def SL_refine_transform
 := begin
 intros tr validtr, dsimp [function.comp],
 apply H, apply SL_refine_valid_trace, assumption
-end 
+end
 
 end
 end Refinement

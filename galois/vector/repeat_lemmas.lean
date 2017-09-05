@@ -1,3 +1,5 @@
+import data.vector
+
 universe variables u
 
 namespace vector

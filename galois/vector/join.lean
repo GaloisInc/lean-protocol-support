@@ -1,5 +1,5 @@
-import galois.vector.basic
-import galois.list.take_drop_lemmas
+import .basic
+import ..list.take_drop_lemmas
 
 universe variables u
 

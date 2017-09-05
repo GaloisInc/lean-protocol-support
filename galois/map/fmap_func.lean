@@ -22,9 +22,9 @@ end
 
 end option
 
-/-- 
+/--
 The type of Dependent maps. Takes a total mapping from keys to type and
-represents a partial mapping from keys of type K to values of type defined by V 
+represents a partial mapping from keys of type K to values of type defined by V
 -/
 def mapd {K : Type u} (V : K → Type v) : Type (max u v)
   := ∀ k, option (V k)
@@ -40,7 +40,7 @@ namespace mapd
 
 section
 /- We parameterize the key type and require decidable equality on it -/
-parameter {K : Type u} 
+parameter {K : Type u}
 parameter [decidable_eq K]
 parameter {V : K → Type v}
 
@@ -54,7 +54,7 @@ def find (k : K) (m : mapd V) : option (V k) := m k
 lemma empty_char (k : K) : find k empty = none := rfl
 
 /-- Put an item into the map, shadowing any previous definitions-/
-def insert (k : K) (v : V k) (m : mapd V) : mapd V := 
+def insert (k : K) (v : V k) (m : mapd V) : mapd V :=
   λ k' : K, if H : k = k'
        then some (eq.rec_on H v)
        else find k' m
@@ -90,7 +90,7 @@ lemma eq_rel (m m' : mapd V) (H : ∀ k, find k m = find k m') : m = m'
 
 /-- Map over all values contained in the map-/
 def fmapd {V' : K → Type w} (f : ∀ k : K, V k → V' k) (m : mapd V) : mapd V'
-:= λ k, option_map (f k) (find k m)
+:= λ k, option.map (f k) (find k m)
 end
 
 /--
@@ -98,20 +98,20 @@ Interaction between fmapd and find
 -/
 lemma fmapd_char {K : Type u} [decidable_eq K] {V : K → Type v}
   {V' : K → Type w} (f : ∀ k : K, V k → V' k) (m : mapd V)
-  (k : K) : find k (fmapd f m) = option_map (f k) (find k m)
+  (k : K) : find k (fmapd f m) = option.map (f k) (find k m)
   := rfl
 
 /-- Map over non-dependent maps-/
 def fmap {K : Type u} [decidable_eq K] {V : Type v}
   {V' : Type w} (f : V → V') (m : map K V) : map K V'
-:= λ k, option_map f (find k m)
+:= λ k, option.map f (find k m)
 
 /--
 Interaction between fmap and find
 -/
 lemma fmap_char {K : Type u} [decidable_eq K] {V : Type v}
   {V' : Type w} (f : V → V') (m : map K V)
-  (k : K) : find k (fmap f m) = option_map f (find k m)
+  (k : K) : find k (fmap f m) = option.map f (find k m)
   := rfl
 
 attribute [irreducible] mapd
@@ -120,7 +120,7 @@ attribute [irreducible] insert
 attribute [irreducible] remove
 
 section
-parameter {K : Type u} 
+parameter {K : Type u}
 parameter [decidable_eq K]
 parameter {V : K → Type v}
 
@@ -129,7 +129,7 @@ Update the value already contained at key k by function f.
 Has no effect if there is no existing mapping for k
 -/
 def updatef (k : K) (f : V k → V k) (m : mapd V) : mapd V
-  := 
+  :=
   match find k m with
   | none := m
   | some v := insert k (f v) m
@@ -139,7 +139,7 @@ def updatef (k : K) (f : V k → V k) (m : mapd V) : mapd V
      are about distinct keys
 -/
 def permutable (f : ∀ k : K, V k → mapd V → mapd V) :=
-  ∀ (m : mapd V) (k k' : K) (v : V k) (v' : V k'), 
+  ∀ (m : mapd V) (k k' : K) (v : V k) (v' : V k'),
      k ≠ k' → f k v (f k' v' m) = f k' v' (f k v m)
 
 lemma neq_symm {A : Type u} {x y : A}
@@ -165,7 +165,7 @@ apply (if Hkz : k = z then _ else _),
 }
 end
 
-/-- 
+/--
 Relationship between find and insert with the same key
 -/
 lemma find_insert_refl (m : mapd V)
@@ -199,11 +199,11 @@ def has_value_to_member {m : mapd V} {k : K} (x : (find k m).has_value)
   : member m
 := { key := k, value := x.value, in_map := x.value_ok  }
 
-/-- 
+/--
 Get the member, if there is a member at k
 -/
 def check_member (m : mapd V) (k : K) : option (member m) :=
-  option_map has_value_to_member (find k m).check_has_value
+  option.map has_value_to_member (find k m).check_has_value
 
 def check_member_same_key {m : mapd V} {k : K} {v : m.member}
 (H : check_member m k = some v)
@@ -212,15 +212,15 @@ begin
 dsimp [check_member] at H,
 destruct ((find k m).check_has_value); intros,
 { rw a at H, contradiction },
-{ rw a_1 at H, 
-  simp [option_map, option_bind, function.comp] at H, 
+{ rw a_1 at H,
+  simp [option.map, option.bind, function.comp] at H,
   injection H with H', clear H,
   subst v, simp [has_value_to_member], }
 end
 
 lemma member_eq_value {m : mapd V} {k : K} {v v' : V k}
   (H : v = v')
-  {in1 : find k m = some v} {in2 : find k m = some v'} 
+  {in1 : find k m = some v} {in2 : find k m = some v'}
   : member.mk k v in1 = member.mk k v' in2 :=
 begin
 induction H,
@@ -234,8 +234,8 @@ lemma check_member_same {m : mapd V} {x x' : m.member}
 dsimp [check_member] at H,
 destruct ((find x.key m).check_has_value); intros,
 { rw a at H, contradiction },
-{ rw a_1 at H, 
-  simp [option_map, option_bind, function.comp] at H, 
+{ rw a_1 at H,
+  simp [option.map, option.bind, function.comp] at H,
   injection H with H', clear H, subst x',
   simp [has_value_to_member],
   have H2 := a.value_ok,
@@ -246,7 +246,7 @@ destruct ((find x.key m).check_has_value); intros,
 end
 
 def mfind (k : K) (m : mapd V) (mem : is_member k m) : V k
-:= begin 
+:= begin
 destruct (find k m); intros,
 { exfalso, induction mem,
   rw a at a_1,
@@ -254,7 +254,7 @@ destruct (find k m); intros,
 { assumption }
 end
 
-instance member_decidable (m : mapd V) 
+instance member_decidable (m : mapd V)
   : decidable_eq (member m)
 := begin
 unfold decidable_eq, unfold decidable_rel,
@@ -280,7 +280,7 @@ def value {K : Type u} [decidable_eq K] {V : K → Type v}
    : V k :=
    begin
    destruct (mapd.find k m); intros,
-   { exfalso, destruct H; intros, 
+   { exfalso, destruct H; intros,
     rw a at a_1, contradiction
    },
    { assumption }
@@ -294,7 +294,7 @@ lemma update {K : Type u} [decidable_eq K] {V : K → Type v}
 induction H,
 unfold update,
 apply (if H : k' = k then _ else _),
-{ induction H, 
+{ induction H,
   existsi v', rw find_insert_refl },
 { apply (is_member.mk value),
   rw insert_char,
@@ -302,12 +302,12 @@ apply (if H : k' = k then _ else _),
 }
 end
 
-end is_member 
+end is_member
 
-def member_unfmap {K : Type u} 
+def member_unfmap {K : Type u}
   [decidable_eq K]
   {V : K → Type v}
-  {V' : K → Type w} {f : ∀ k : K, V k → V' k} 
+  {V' : K → Type w} {f : ∀ k : K, V k → V' k}
   (m : mapd V)
   (x : member (fmapd f m)) : member m
   :=
@@ -316,25 +316,25 @@ cases x,
 destruct (find key m); intros,
 { unfold fmapd at in_map,
   unfold find at in_map, unfold find at a,
-  unfold option_map at in_map,
+  unfold option.map at in_map,
   rw a at in_map,
-  simp [option_bind] at in_map,
+  simp [option.bind] at in_map,
   contradiction },
-{ constructor, assumption } 
+{ constructor, assumption }
 end
 
-def member_fmap {K : Type u} 
+def member_fmap {K : Type u}
   [decidable_eq K]
   {V : K → Type v}
-  {V' : K → Type w} 
+  {V' : K → Type w}
   (m : mapd V)
   (x : member m)
   (f : ∀ k : K, V k → V' k) : member (fmapd f m)
   :=
 begin
 constructor, rw fmapd_char,
-rw x.in_map, simp [option_map],
-simp [option_bind], 
+rw x.in_map, simp [option.map],
+simp [option.bind],
 end
 
 def depv {K : Type u} [decidable_eq K] {V : Type v}
@@ -359,7 +359,7 @@ inductive liftProp (P : Prop) : Type
 def insert_member_invert {m : map K V}
   {k : K} {v : V}
   (x : (insert k v m).member)
-  : (liftProp (k = x.key)) ⊕ 
+  : (liftProp (k = x.key)) ⊕
   ((find x.key m).has_value × liftProp (¬ k = x.key))
 := begin
 apply (if H : k = x.key then _ else _),
@@ -391,7 +391,7 @@ induction H with H H,
 { induction H with H H1,
   induction H1 with H1,
   induction x,
-  let H' := member.mk key H.value H.value_ok, 
+  let H' := member.mk key H.value H.value_ok,
   dsimp, dsimp at H, dsimp at H1,
   rw (find_insert_neq H1) at in_map,
   rename in_map in_map',

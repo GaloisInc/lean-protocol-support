@@ -1,5 +1,6 @@
 /- Lemmas for tail, and a total tail function. -/
-import galois.list.tail
+import data.vector
+import ..list.tail
 
 universe variables u
 
