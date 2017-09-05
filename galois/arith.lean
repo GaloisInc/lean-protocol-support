@@ -1,9 +1,9 @@
 import data.int.basic
 import data.rat
-import data.vector
 import galois.nat.div_lemmas
 import data.nat.basic
 import galois.sum
+import init.data.ordering
 
 import galois.nat
 import .bool
@@ -158,6 +158,7 @@ def scale_mul {α:Type u} [has_mul α] {n:ℕ} (c:α) (v : vector α n)
 end vector
 -/
 
+
 namespace list
 
 protected
@@ -246,9 +247,8 @@ end
 -----------------------------------------------------------------------
 -- assignment
 
-structure assignment (α:Type _) (n:ℕ) :=
--- A vector of bindings stored in reverse order.
-(bindings : vector α n)
+@[reducible]
+def assignment (α:Type _) (n:ℕ) := vector α n
 
 namespace assignment
 
@@ -256,35 +256,40 @@ section
 parameter {α:Type _}
 
 /-- The empty assignment. -/
-def empty : assignment α 0 := ⟨vector.nil⟩
+def empty : assignment α 0 := vector.nil
 
 def zero_assignment_is_empty (a:assignment α 0) : a = empty :=
 begin
-  cases a,
   simp [empty],
-  apply congr_arg,
   apply vector.eq_nil,
 end
 
-def concat {n:ℕ} : assignment α n → α → assignment α (n+1) := sorry
+def concat {n:ℕ} (xs : assignment α n) (x : α) : assignment α (n+1) :=
+  vector.cons x xs
 
 def shrink {n:ℕ} (a:assignment α n) (i : fin n) : assignment α i.val :=
-  sorry
+begin
+have H1 : i.val ≤ n,
+apply le_of_lt, apply fin.is_lt,
+have H := vector.take i.val a,
+unfold min at H,
+rw (if_pos H1) at H, apply H
+end
 
-def last_of_fin {n:ℕ} (a:assignment α n) (i : fin n) : α :=
-  sorry
+-- def last_of_fin {n:ℕ} (a:assignment α n) (i : fin n) : α :=
+--   sorry
 
-def init {n:ℕ} (a:assignment α (n+1)) : assignment α n :=
-  sorry
+-- def init {n:ℕ} (a:assignment α (n+1)) : assignment α n :=
+--   sorry
 
-def last {n:ℕ} (a:assignment α (n+1)) : α :=
-  sorry
+-- def last {n:ℕ} (a:assignment α (n+1)) : α :=
+--   sorry
 
-@[simp]
-theorem init_concat {n:ℕ} (a:assignment α n) (z:α) : init (concat a z) = a := sorry
+-- @[simp]
+-- theorem init_concat {n:ℕ} (a:assignment α n) (z:α) : init (concat a z) = a := sorry
 
-@[simp]
-theorem last_concat {n:ℕ} (a:assignment α n) (z:α) : last (concat a z) = z := sorry
+-- @[simp]
+-- theorem last_concat {n:ℕ} (a:assignment α n) (z:α) : last (concat a z) = z := sorry
 
 end
 end assignment
@@ -294,7 +299,105 @@ inductive linear_expr : ℕ → Type
 | const : Π {n:ℕ}, ℚ → linear_expr n
 | add : Π {n:ℕ} (c:ℚ) (pr : c ≠ 0) (i : fin n), linear_expr i.val → linear_expr n
 
+lemma nat_ordering_char (x y : ℕ)
+  : (match nat.cmp x y with
+  | ordering.lt := x < y
+  | ordering.eq := x = y
+  | ordering.gt := x > y
+  end : Prop)
+:= begin
+dsimp [nat.cmp],
+apply (if H : x < y then _ else _),
+rw (if_pos H), assumption,
+rw (if_neg H),
+apply (if H' : x = y then _ else _),
+rw (if_pos H'), assumption,
+rw (if_neg H'), dsimp,
+dsimp [(>)],
+rw lt_iff_not_ge,
+intros contra, apply H', apply le_antisymm,
+assumption, apply le_of_not_gt, assumption,
+end
+
+namespace fin
+
+lemma lt_char {n : ℕ}
+  (x y : fin n) : x < y ↔ x.val < y.val
+:= begin
+induction x; induction y; reflexivity
+end
+
+def extend_le {m n : ℕ} (H : m ≤ n) (x : fin m) : fin n
+:= begin
+constructor, apply lt_of_lt_of_le, apply fin.is_lt, assumption,
+assumption,
+end
+
+def restrict_lt {n : ℕ} (x y : fin n) (H : x < y)
+  : fin y.val
+:= ⟨ x.val, begin
+rw lt_char at H, assumption
+end ⟩
+
+def ordering_elim {n : ℕ}
+  (C : Sort _)
+  (x y : fin n)
+  (Hlt : x < y → C)
+  (Heq : x = y → C)
+  (Hgt : x > y → C)
+  : C
+:= begin
+have H := nat_ordering_char x.val y.val,
+cases (nat.cmp x.val y.val);
+  dsimp at H,
+{ apply Hlt, rw lt_char, assumption },
+{ induction x, induction y, dsimp at H,
+  apply Heq, subst H, },
+{ apply Hgt, unfold gt, rw fin.lt_char, assumption },
+end
+
+end fin
+
 namespace linear_expr
+
+def scale_mul (x : ℚ) (xne0 : x ≠ 0) : ∀ {n}, linear_expr n → linear_expr n
+| _ (const c) := const (x * c)
+| _ (add c cne0 i e) := add (x * c) (mul_ne_zero xne0 cne0) i (scale_mul e)
+
+def add_constant (x : ℚ) : ∀ {n}, linear_expr n → linear_expr n
+| _ (const c) := const (x + c)
+| _ (add c cne0 i e) := add c cne0 i (add_constant e)
+
+def extend {i n :ℕ} : linear_expr i → i ≤ n → linear_expr n
+| (const c) is_le := const c
+| (add c pr j e) is_le := add c pr ⟨j.val, lt_of_lt_of_le j.is_lt is_le⟩ e
+
+def add_variable (x : ℚ) : ∀ {n}, fin n → linear_expr n → linear_expr n
+| _ i (const c) := if xne0 : x ≠ 0
+    then add x xne0 i (const c)
+    else const c
+| n i (add c cne0 i' e) := begin
+  apply (fin.ordering_elim (linear_expr n) i i');
+    intros,
+    { apply (add c cne0 i'),
+      apply add_variable,
+      apply fin.restrict_lt, assumption,
+      assumption,
+    },
+    { apply (if H : x + c ≠ 0 then _ else _),
+      { apply (add (x + c) H i' e), },
+      { apply e.extend, apply le_of_lt, apply fin.is_lt, }
+    },
+    { apply (if H : x ≠ 0 then _ else _),
+      { apply (add x H i),
+        apply (add c cne0), admit, admit },
+      { apply e.extend, apply le_of_lt, apply fin.is_lt, }
+    }
+   end
+
+def sum : ∀ {n}, linear_expr n → linear_expr n → linear_expr n
+| _ (const c) e := add_constant c e
+| _ (add c cne0 i e) e' := sorry
 
 def as_const : linear_expr 0 → ℚ
 | (const c) := c
@@ -329,10 +432,6 @@ def to_string  {n:ℕ} (e:linear_expr n) : string := to_string_core e ""
 
 def var {n:ℕ} (i : fin n) : linear_expr n := add 1 dec_trivial i (const 0)
 
-def extend {i n :ℕ} : linear_expr i → i ≤ n → linear_expr n
-| (const c) is_le := const c
-| (add c pr j e) is_le := add c pr ⟨j.val, lt_of_lt_of_le j.is_lt is_le⟩ e
-
 /-- Return the last coefficient of the linear_expression. -/
 def last {n:ℕ} : linear_expr (n+1) → ℚ
 | (const c) := 0
@@ -352,13 +451,11 @@ parameter {n:ℕ}
 
 def evaluate_core : ℚ → Π{n:ℕ}, linear_expr n → assignment ℚ n → ℚ
 | r _ (const c) _ := c + r
-| r _ (add c pr i e) a := evaluate_core (r + c * a.last_of_fin i) e (a.shrink i)
+| r _ (add c pr i e) a := evaluate_core (r + c * a.nth i) e (a.shrink i)
 
 def evaluate : Π{n:ℕ}, linear_expr n → assignment ℚ n → ℚ := @evaluate_core 0
 
 end evaluate
-
-def scale_mul : Π{n:ℕ}, ℚ → linear_expr n → linear_expr n := sorry
 
 end linear_expr
 
@@ -381,11 +478,15 @@ def evaluate (l : linear_expr_list n) (a : assignment ℚ n) : list ℚ :=
   l.map (λe, e.evaluate a)
 
 theorem evaluate_cons (e : linear_expr n) (l : linear_expr_list n)
-: evaluate (e :: l) a = e.evaluate a :: l.evaluate a := sorry
+  (a : assignment ℚ n)
+: evaluate (e :: l) a = e.evaluate a :: l.evaluate a := rfl
 
 theorem mem_evaluate_implies {l: linear_expr_list n} {a:assignment ℚ n} {q : ℚ}
 (pr : q ∈ l.evaluate a)
-: ∃(e:linear_expr n), e ∈ l ∧ e.evaluate a = q := sorry
+: ∃(e:linear_expr n), e ∈ l ∧ e.evaluate a = q
+:= begin
+apply list.exists_of_mem_map pr,
+end
 
 end
 end linear_expr_list
@@ -801,18 +902,16 @@ namespace lexpr
 
 section to_string
 
-parameter {tp:type}
-
 protected
-meta def to_string : lexpr tp → string
-| (foreign _ x) := "<" ++ has_to_string.to_string x ++ ">"
-| (add x y) := "(add " ++ to_string x ++ " " ++ to_string y ++ ")"
-| (zero tp) := "(zero)"
-| (one tp) := "(one)"
-| (bit0 x) := "(bit0 " ++ to_string x ++ ")"
-| (bit1 x) := "(bit1 " ++ to_string x ++ ")"
+meta def to_string : ∀ {tp:type}, lexpr tp → string
+| tp (foreign ._ x) := "<" ++ has_to_string.to_string x ++ ">"
+| _ (add x y) := "(add " ++ to_string x ++ " " ++ to_string y ++ ")"
+| tp (zero ._) := "(zero)"
+| tp (one ._) := "(one)"
+| _ (bit0 x) := "(bit0 " ++ to_string x ++ ")"
+| _ (bit1 x) := "(bit1 " ++ to_string x ++ ")"
 
-meta instance : has_to_string (lexpr tp) := ⟨to_string⟩
+meta instance {tp:type} : has_to_string (lexpr tp) := ⟨@lexpr.to_string tp⟩
 
 end to_string
 
