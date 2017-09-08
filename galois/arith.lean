@@ -1,6 +1,6 @@
 import data.int.basic
 import data.rat
-import data.vector
+import init.data.vector
 import galois.nat.div_lemmas
 import data.nat.basic
 import galois.sum

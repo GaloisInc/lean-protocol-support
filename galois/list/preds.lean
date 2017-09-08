@@ -154,4 +154,23 @@ induction xs,
 }
 end
 
+instance Forall_decidable {A} (P : A -> Prop)
+  [decidable_pred P] : decidable_pred (list.Forall P) :=
+begin
+intros xs,
+induction xs,
+{ apply decidable.is_true, constructor },
+{ apply (@decidable.by_cases (list.Forall P a_1)); intros,
+  {
+  apply (@decidable.by_cases (P a)); intros,
+    { apply decidable.is_true, constructor; assumption },
+    { apply decidable.is_false, intros contra,
+      cases contra; contradiction
+    }
+  },
+  { apply decidable.is_false, intros contra, apply a_2,
+    cases contra, assumption, }
+}
+end
+
 end list
