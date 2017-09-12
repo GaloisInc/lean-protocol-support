@@ -92,6 +92,35 @@ def add_expr {n:ℕ} (e e':linear_expr n) : linear_expr n :=
  { coef := vector.map₂ (+) e.coef e'.coef , offset := e.offset + e'.offset}
 
 
+lemma vector.map₂_nil {A B C} (f : A → B → C)
+  : vector.map₂ f vector.nil vector.nil = vector.nil
+  := rfl
+
+lemma vector.map₂_cons {A B C} (f : A → B → C)
+  (a : A) (b : B) {n : ℕ} (as : vector A n) (bs : vector B n)
+  : vector.map₂ f (a :: as) (b :: bs) = f a b :: vector.map₂ f as bs
+:= begin
+induction as, induction bs, reflexivity,
+end
+
+lemma instantiate_head_add_expr
+  {n : ℕ} (e e' : linear_expr (n + 1)) (c : ℚ)
+  : instantiate_head (add_expr e e') c
+  = add_expr (instantiate_head e c) (instantiate_head e' c)
+:= begin
+induction e with e eoff,
+induction e' with e' e'off,
+dsimp [instantiate_head, add_expr],
+have He := e.invert_succ, induction He with ehd etl eprf,
+have He' := e'.invert_succ, induction He' with e'hd e'tl e'prf,
+subst e, subst e',
+f_equal,
+{ rw vector.map₂_cons, repeat { rw vector.tail_cons }, },
+{ rw vector.map₂_cons, repeat { rw vector.head_cons },
+  rw mul_add, simp }
+end
+
+
 inductive bound_expr (n : ℕ)
 | lower_bound : ℚ → linear_expr n → bound_expr
 | upper_bound : ℚ → linear_expr n → bound_expr
@@ -112,17 +141,6 @@ induction xs, induction ys,
 reflexivity,
 end
 
-lemma vector.map₂_nil {A B C} (f : A → B → C)
-  : vector.map₂ f vector.nil vector.nil = vector.nil
-  := rfl
-
-lemma vector.map₂_cons {A B C} (f : A → B → C)
-  (a : A) (b : B) {n : ℕ} (as : vector A n) (bs : vector B n)
-  : vector.map₂ f (a :: as) (b :: bs) = f a b :: vector.map₂ f as bs
-:= begin
-induction as, induction bs, reflexivity,
-end
-
 lemma dot_product_nil : dot_product vector.nil vector.nil = 0
   := rfl
 
@@ -140,6 +158,10 @@ induction n; dsimp [vector.repeat, vector.generate],
 reflexivity,
 rw ih_1, reflexivity,
 end
+
+lemma vector.repeat_unfold {A} (n : ℕ) (x : A)
+  : vector.repeat x n.succ = x :: vector.repeat x n
+:= rfl
 
 lemma dot_product_0 {n : ℕ} (xs : vector ℚ n)
   : dot_product (vector.generate n (λ _, 0)) xs = 0
@@ -1089,6 +1111,51 @@ def satisfiable_bool' {n : ℕ}
   : bool
 := list.band ((eliminate_all xs).map (λ e, e.evaluate vector.nil ≤ 0))
 
+lemma decidable.to_bool_equiv {P Q : Prop}
+  [decP : decidable P] [decQ : decidable Q]
+  (H : P ↔ Q)
+  : decidable.to_bool P = decidable.to_bool Q
+:= begin
+dsimp [decidable.to_bool],
+induction decP; induction decQ;
+try { reflexivity }; exfalso,
+apply a, rw H, assumption,
+apply a_1, rw ← H, assumption,
+end
+
+lemma band_tt_left (b : bool) : tt && b = b
+:= begin
+induction b; reflexivity
+end
+
+lemma to_bool_Forall {A} (xs : list A) (P : A → Prop) [decidable_pred P] :
+  to_bool (list.Forall P xs) = list.band (xs.map (λ x, to_bool (P x)))
+:= begin
+unfold to_bool,
+cases (list.Forall_decidable P xs) with no yes,
+{ induction xs; dsimp [list.band, list.all],
+  exfalso, apply no, constructor,
+  cases (_inst_1 a); dsimp, reflexivity,
+  rw band_tt_left, apply ih_1, intros contra,
+  apply no, constructor; assumption },
+{ dsimp, induction xs; dsimp [list.band, list.all],
+  reflexivity,
+  apply_in yes list.Forall_invert, dsimp at yes, induction yes with yes yes',
+  cases (_inst_1 a); dsimp,
+  contradiction, rw band_tt_left, apply ih_1, assumption,
+}
+end
+
+lemma satisfiable_bool_equiv {n : ℕ} (xs : list (linear_expr n))
+  : satisfiable_bool xs = satisfiable_bool' xs
+:= begin
+unfold satisfiable_bool satisfiable_bool',
+rw (decidable.to_bool_equiv (eliminate_all_equiv _)),
+unfold satisfiable,
+rw (decidable.to_bool_equiv (vector_nil_exists _)),
+apply to_bool_Forall, apply_instance,
+end
+
 inductive aexpr (vTy : Type) : Type
 | var {} : ℚ → vTy → aexpr
 | const {} : ℚ → aexpr
@@ -1171,13 +1238,13 @@ def interp {vTy : Type} (ctxt : vTy → ℚ)
 end eqn
 
 
-def nat_to_fin_option {k : ℕ} (n : ℕ) : option (fin k)
+def nat_to_fin_option (k n : ℕ) : option (fin k)
   := if H : n < k then some ⟨ _, H ⟩ else none
 
 namespace aexpr
 def interp_expr_context (hyp : aexpr ℕ)
   (n : ℕ) : linear_expr n
-  := (aexpr.var_map_default nat_to_fin_option 0 hyp).to_linear_expr
+  := (aexpr.var_map_default (nat_to_fin_option _) 0 hyp).to_linear_expr
 def instantiate_head (c' : ℚ) : aexpr ℕ → aexpr ℕ
 | (var c n) := match n with
   | 0 := const (c * c')
@@ -1186,10 +1253,44 @@ def instantiate_head (c' : ℚ) : aexpr ℕ → aexpr ℕ
 | (const q) := const q
 | (add x y) := add (instantiate_head x) (instantiate_head y)
 
-def no_big_vars (nvars : ℕ) : aexpr ℕ → bool
+def no_big_vars_bool (nvars : ℕ) : aexpr ℕ → bool
 | (var c x) := decidable.to_bool (x < nvars)
 | (const q) := tt
-| (add x y) := band (no_big_vars x) (no_big_vars y)
+| (add x y) := band (no_big_vars_bool x) (no_big_vars_bool y)
+
+def no_big_vars (nvars : ℕ) : aexpr ℕ → Prop
+| (var c x) := x < nvars
+| (const q) := true
+| (add x y) := no_big_vars x ∧ no_big_vars y
+
+instance no_big_vars_decidable (nvars : ℕ)
+  : decidable_pred (no_big_vars nvars)
+:= begin
+intros x, induction x; dsimp [no_big_vars]; apply_instance,
+end
+
+lemma to_bool_and (P Q : Prop) [decP : decidable P]
+  [decQ : decidable Q]
+  : to_bool P && to_bool Q = to_bool (P ∧ Q)
+:= begin
+unfold to_bool, cases (@and.decidable _ _ decP decQ) with H H;
+cases decP with HP HP; cases decQ with HQ HQ;
+dsimp;
+try {reflexivity}; exfalso, apply H, split; assumption,
+{ induction H with H H', apply HP, assumption },
+{ induction H with H H', apply HP, assumption },
+{ induction H with H H', apply HQ, assumption },
+end
+
+lemma no_big_vars_equiv (nvars : ℕ)
+  : no_big_vars_bool nvars = λ e, to_bool (no_big_vars nvars e)
+:= begin
+apply funext; intros e,
+induction e; dsimp [no_big_vars, no_big_vars_bool],
+reflexivity, rw to_bool_tt, trivial,
+rw [ih_1, ih_2], rw to_bool_and,
+end
+
 end aexpr
 
 def interp_list_exprs (hyps : list (aexpr ℕ))
@@ -1200,44 +1301,300 @@ end linear_expr
 
 open linear_expr
 
--- The pattern matching compiler could not determine that
--- this definition was well-founded, so I wrote it with
--- the recursor
+def linear_expr_negation_statement_0
+  : list (linear_expr 0) → Prop
+| [] := false
+| (e :: es) := e.evaluate vector.nil ≤ 0 → linear_expr_negation_statement_0 es
+
 def linear_expr_negation_statement :
   ∀ {n : ℕ}, list (linear_expr n) → Prop
-:= begin
-intros n, induction n,
-{ intros es, induction es,
-  { exact false },
-  { exact a.evaluate vector.nil ≤ 0 → ih_1 } },
-{ intros es, exact (∀ x : ℚ, ih_1 (es.map (λ e, e.instantiate_head x))) }
-end
+| 0 := linear_expr_negation_statement_0
+| (nat.succ n) := λ es, ∀ x : ℚ, linear_expr_negation_statement
+    (es.map (λ e, e.instantiate_head x))
+
+def aexpr_negation_statement_0
+  : list (aexpr ℕ) → Prop
+| [] := false
+| (e :: es) := e.interp (λ _, 0) ≤ 0 → aexpr_negation_statement_0 es
 
 def aexpr_negation_statement :
   ∀ nvars : ℕ, list (aexpr ℕ) → Prop
-:= begin
-intros n, induction n,
-{ intros es, induction es,
-  { exact false },
-  { exact a.interp (λ _, 0) ≤ 0 → ih_1 } },
-{ intros es, exact (∀ x : ℚ, ih_1 (es.map (λ e, e.instantiate_head x))) }
-end
+| 0 := aexpr_negation_statement_0
+| (nat.succ n) := λ es, ∀ x : ℚ, aexpr_negation_statement n
+    (es.map (λ e, e.instantiate_head x))
 
 lemma satisfiable_bool_correct_linear {n : ℕ} (e : list (linear_expr n))
   : satisfiable_bool' e = ff →
     linear_expr_negation_statement e
 := begin
-admit
+rw ← satisfiable_bool_equiv,
+unfold satisfiable_bool,
+rw to_bool_ff_iff,
+intros H,
+revert e,
+induction n; intros; dsimp [linear_expr_negation_statement],
+{ induction e; dsimp [linear_expr_negation_statement],
+  { exfalso, apply H, unfold satisfiable,
+    rw vector_nil_exists, constructor,
+  },
+  { intros H', apply ih_1, intros contra,
+    apply H, unfold satisfiable at contra,
+    rw vector_nil_exists at contra,
+    unfold satisfiable,
+    rw vector_nil_exists, constructor;
+    assumption, }
+},
+{ intros x, apply ih_1, intros contra, apply H,
+  induction contra with asn Hasn,
+  existsi (x :: asn), rw list.map_Forall_iff at Hasn,
+  apply list.impl_Forall, assumption,
+  intros expr H, dsimp [evaluate, instantiate_head] at H,
+  dsimp [evaluate],
+  apply le_trans, tactic.swap, apply H_1,
+  rw ← add_assoc, apply add_le_add, clear H_1,
+  generalize Hys : expr.coef = ys,
+  have Hys' := ys.invert_succ, induction Hys',
+  rw equiv, rw dot_product_cons,
+  rw vector.tail_cons, rw vector.head_cons, simp,
+  apply le_refl,
+}
+end
+
+lemma to_bool_tt_iff (P : Prop) [decP : decidable P]
+  : to_bool P = tt ↔ P
+:= begin
+unfold to_bool, cases decP; dsimp,
+split; intros; contradiction,
+split; intros H, assumption, reflexivity,
+end
+
+lemma vector_nil_of_fn {A} : @vector.nil A = vector.of_fn (begin
+  intros i, exfalso, apply fin_0_empty, assumption,
+  end)
+:= eq.symm (vector.eq_nil _)
+
+lemma  no_vars_nil_interp (e : aexpr ℕ)
+  (H : e.no_big_vars 0)
+  : e.interp (λ _, 0) = evaluate (e.interp_expr_context 0) vector.nil
+:= begin
+dsimp [aexpr.interp_expr_context],
+rw vector_nil_of_fn,
+rw ← aexpr.to_linear_expr_sound,
+induction e; dsimp [aexpr.interp, aexpr.var_map_default];
+  dsimp [aexpr.no_big_vars] at H,
+{ exfalso, apply nat.not_lt_zero, assumption },
+{ reflexivity },
+{ induction H with H1 H2,
+  specialize (ih_1 H1), specialize (ih_2 H2),
+  rw [ih_1, ih_2], }
+end
+
+lemma no_big_vars_instantiate_head {n : ℕ} {e : aexpr ℕ} (x : ℚ)
+  : aexpr.no_big_vars (nat.succ n) e
+  → (e.instantiate_head x).no_big_vars n
+:= begin
+induction e with;
+  dsimp [aexpr.no_big_vars, aexpr.instantiate_head];
+  intros H,
+{ induction a_1; dsimp [aexpr.instantiate_head, aexpr.no_big_vars],
+  { constructor },
+  { rw ← nat.succ_lt_succ_iff, assumption }
+},
+{ assumption },
+{ induction H with H1 H2,
+  split, apply ih_1, assumption, apply ih_2, assumption,
+}
+end
+
+lemma nat_to_fin_option_pred_none {n i : ℕ}
+  : nat_to_fin_option n.succ i.succ = none
+  → nat_to_fin_option n i = none
+:= begin
+unfold nat_to_fin_option,
+apply (if Hlt : i.succ < n.succ then _ else _),
+{ rw (dif_pos Hlt), intros H,
+  contradiction,
+},
+{ rw (dif_neg Hlt), intros H', clear H',
+  have H : ¬ (i < n),
+  intros contra, apply Hlt,
+  apply nat.succ_lt_succ, assumption,
+  rw (dif_neg H),
+}
+end
+
+lemma nat_to_fin_option_succ_nz {n k : ℕ} {i : fin n.succ}
+  : nat_to_fin_option n.succ k.succ = some i
+  → i ≠ 0
+:= begin
+dsimp [nat_to_fin_option],
+apply (if H : (nat.succ k < nat.succ n) then _ else _),
+{ rw (dif_pos H), intros H', injection H' with H'', clear H',
+  intros contra, subst i, injection contra,
+  injection h,
+},
+{ rw (dif_neg H), intros contra, contradiction, }
+end
+
+lemma nat_to_fin_option_pred_some {n k : ℕ} (i : fin n.succ)
+  : ∀ H : nat_to_fin_option n.succ k.succ = some i
+  , nat_to_fin_option n k = some (i.pred (nat_to_fin_option_succ_nz H))
+:= begin
+dsimp [nat_to_fin_option],
+intros H,
+apply (if H' : (nat.succ k < nat.succ n) then _ else _),
+{ rw (dif_pos H') at H, injection H with H2, clear H,
+  rw nat.succ_lt_succ_iff at H',
+  rename H' H'1,
+  rw (dif_pos H'1), f_equal, subst i,
+  dsimp [fin.pred], reflexivity,
+},
+{ rw (dif_neg H') at H, contradiction, }
+end
+
+lemma instantiate_head_var_0 (n : ℕ) (a x : ℚ)
+  (i : fin n.succ) (Hi : i.val = 0)
+  : instantiate_head (var a i) x = const n (a * x)
+:= begin
+dsimp [var, const, instantiate_head], f_equal,
+{ dsimp [vector.generate], rw vector.tail_cons,
+  rw ← vector.generate_const_repeat,
+  f_equal, apply funext, intros x,
+  dsimp [function.comp], rw Hi,
+  rw (if_neg), contradiction,
+ },
+{ dsimp [vector.generate], rw vector.head_cons,
+  rw (if_pos), simp, assumption,
+}
+end
+
+lemma instantiate_head_var_succ {n : ℕ} (a x : ℚ)
+  (i : fin n.succ) (H : i ≠ 0)
+  :
+  instantiate_head (var a i) x = var a (fin.pred i H)
+:= begin
+dsimp [var, const, instantiate_head], f_equal,
+{ dsimp [vector.generate], rw vector.tail_cons,
+  f_equal, apply funext, intros x,
+  dsimp [function.comp], rw (ite_iff (succ_pred_equiv _ _ _)),
+ },
+{ dsimp [vector.generate], rw vector.head_cons,
+  rw (if_neg), simp, intros contra, apply H,
+  apply fin.val_inj, rw contra, reflexivity,
+}
+end
+
+lemma nat_to_fin_option_val {n k : ℕ} {i : fin n}
+  (H : nat_to_fin_option n k = some i)
+  : i.val = k
+:= begin
+dsimp [nat_to_fin_option] at H,
+apply (if H' : k < n then _ else _),
+{ rw (dif_pos H') at H, injection H with H2,
+  clear H, subst i,
+},
+{ rw (dif_neg H') at H, contradiction }
+end
+
+lemma instantiate_head_commutes {n : ℕ} (x : ℚ)
+  (e : aexpr ℕ)
+  (Hnobigvars : e.no_big_vars n.succ)
+  : (e.interp_expr_context n.succ).instantiate_head x
+  = (e.instantiate_head x).interp_expr_context n
+:= begin
+dsimp [aexpr.interp_expr_context],
+induction e; dsimp [aexpr.instantiate_head
+  , aexpr.var_map_default],
+{ destruct (nat_to_fin_option n.succ a_1),
+  { intros Hnone, rw Hnone, dsimp [aexpr.var_map_default],
+    cases a_1; dsimp [aexpr.instantiate_head],
+    dsimp [nat_to_fin_option] at Hnone,
+    rw (dif_pos (nat.zero_lt_succ _)) at Hnone, contradiction,
+    dsimp [aexpr.var_map_default],
+    dsimp [aexpr.no_big_vars] at Hnobigvars,
+    apply_in Hnone nat_to_fin_option_pred_none,
+    rw Hnone,
+    dsimp [aexpr.var_map_default],
+    dsimp [aexpr.to_linear_expr],
+    dsimp [instantiate_head, const],
+    repeat { rw vector.repeat_unfold },
+    rw vector.head_cons, rw vector.tail_cons,
+    f_equal, simp, },
+  { intros i Hi, rw Hi, dsimp [aexpr.var_map_default],
+    cases a_1; dsimp [aexpr.instantiate_head, aexpr.var_map_default],
+    { dsimp [aexpr.to_linear_expr],
+      rw instantiate_head_var_0,
+      apply nat_to_fin_option_val, assumption,
+    },
+    { rw nat_to_fin_option_pred_some, tactic.swap, assumption,
+      dsimp [aexpr.var_map_default],
+      dsimp [aexpr.to_linear_expr],
+      apply instantiate_head_var_succ,
+    }
+  },
+},
+{ dsimp [instantiate_head, aexpr.to_linear_expr, const],
+  repeat { rw vector.repeat_unfold }, rw vector.tail_cons,
+  rw vector.head_cons, f_equal, simp, },
+{ dsimp [aexpr.no_big_vars] at Hnobigvars,
+  induction Hnobigvars with H1 H2,
+  specialize (ih_1 H1), specialize (ih_2 H2),
+  dsimp [aexpr.to_linear_expr],
+  rw instantiate_head_add_expr, f_equal; assumption, }
+end
+
+lemma instantiate_head_commutes_list {n : ℕ} (x : ℚ)
+  (es : list (aexpr ℕ))
+  (Hnobigvars : list.Forall (aexpr.no_big_vars (nat.succ n)) es)
+  : list.map (λ e, instantiate_head e x) (interp_list_exprs es (nat.succ n))
+  = list.map (λ e, aexpr.interp_expr_context (aexpr.instantiate_head x e) n) es
+:= begin
+induction Hnobigvars; dsimp [interp_list_exprs, list.map],
+reflexivity,
+f_equal, rw instantiate_head_commutes, assumption,
+apply ih_1,
+end
+
+lemma linear_implies_aexpr_negation (es : list (aexpr ℕ))
+  (nvars : ℕ)
+  (H : list.Forall (λ (x : aexpr ℕ), aexpr.no_big_vars nvars x) es)
+  : linear_expr_negation_statement (interp_list_exprs es nvars)
+  → aexpr_negation_statement nvars es
+:= begin
+revert es,
+induction nvars;
+  dsimp [linear_expr_negation_statement, aexpr_negation_statement];
+  intros,
+{ induction es; dsimp [aexpr_negation_statement_0],
+    dsimp [interp_list_exprs, linear_expr_negation_statement_0] at a,
+  { assumption },
+  { intros H', apply_in H list.Forall_invert,
+    dsimp at H, induction H with H1 H2, apply ih_1, assumption,
+    apply a, dsimp, rw ← no_vars_nil_interp; assumption
+  }
+},
+{ apply ih_1; clear ih_1, apply list.map_Forall,
+  apply list.impl_Forall, assumption,
+  intros e He, apply no_big_vars_instantiate_head, assumption,
+  specialize (a_1 x), unfold interp_list_exprs,
+  rw list.map_map, dsimp [function.comp],
+  rw ← instantiate_head_commutes_list; assumption,
+}
 end
 
 
 lemma satisfiable_bool_correct  (es : list (aexpr ℕ))
   (nvars : ℕ)
-  : list.band (es.map (λ e, e.no_big_vars nvars)) = tt →
+  : list.band (es.map (aexpr.no_big_vars_bool nvars)) = tt →
     satisfiable_bool' (interp_list_exprs es nvars) = ff →
     aexpr_negation_statement nvars es
 := begin
-admit
+rw aexpr.no_big_vars_equiv,
+rw ← to_bool_Forall,
+rw to_bool_tt_iff,
+intros H1 H2, apply linear_implies_aexpr_negation,
+assumption,
+apply satisfiable_bool_correct_linear, assumption,
 end
 
 
@@ -1326,11 +1683,11 @@ meta def whole_thing : tactic unit := do
     let num_vars := make_nat ctxt.length,
     let hyps'' := make_list hyps',
     hyps''' ← i_to_expr hyps'',
-    res ← i_to_expr ``(interp_list_exprs %%hyps''' %%num_vars),
-    tactic.trace res,
-    ans ← i_to_expr ``(satisfiable_bool %%res),
-    ans' ← tactic.eval_expr bool ans,
-    whnf ans >>= tactic.trace,
+    --res ← i_to_expr ``(interp_list_exprs %%hyps''' %%num_vars),
+    --tactic.trace res,
+    --ans ← i_to_expr ``(satisfiable_bool %%res),
+    --ans' ← tactic.eval_expr bool ans,
+    --whnf ans >>= tactic.trace,
     ap_expr ← i_to_expr ``(satisfiable_bool_correct %%hyps''' %%num_vars),
     tactic.apply ap_expr
 
