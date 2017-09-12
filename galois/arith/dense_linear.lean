@@ -1,8 +1,8 @@
 import data.rat
-       galois.list.preds
-       galois.list.fpow
        galois.tactic
        .dense_linear_lemmas
+       galois.list
+       galois.list.fpow
 
 universes u
 
@@ -126,10 +126,110 @@ end
 lemma dot_product_nil : dot_product vector.nil vector.nil = 0
   := rfl
 
-lemma dot_product_unit (n : ℕ) (i : fin n) (c : ℚ) (v : vector ℚ n) :
-  dot_product
-  (vector.generate n (λj, if i.val = j then c else 0))
-  v
+lemma dot_product_0_len (xs ys : vector ℚ 0)
+  : dot_product xs ys = 0
+:= begin
+rw vector.eq_nil xs, rw vector.eq_nil ys, reflexivity,
+end
+
+lemma vector.generate_const_repeat {A} (n : ℕ) (c : A)
+  : vector.generate n (λ _, c)
+  = vector.repeat c n
+:= begin
+induction n; dsimp [vector.repeat, vector.generate],
+reflexivity,
+rw ih_1, reflexivity,
+end
+
+lemma dot_product_0 {n : ℕ} (xs : vector ℚ n)
+  : dot_product (vector.generate n (λ _, 0)) xs = 0
+:= begin
+induction n,
+rw vector.eq_nil xs,
+rw dot_product_0_len,
+dsimp [vector.generate],
+have Hxs := xs.invert_succ, induction Hxs with x xs' Hxs,
+subst xs, rw dot_product_cons,
+rw ih_1, simp,
+end
+
+lemma vector.nth_cons_nz {A} {n : ℕ} (i : fin n.succ)
+  (H : i ≠ 0)
+  (x : A) (xs : vector A n)
+  : vector.nth (x :: xs) i = vector.nth xs (fin.pred i H)
+:= begin
+induction xs, induction i,
+dsimp [vector.cons, vector.nth, fin.pred],
+have H : val_1 ≠ 0, intros contra,
+apply H, unfold has_zero.zero, subst val_1,
+cases val_1, contradiction,
+dsimp [list.nth_le], reflexivity,
+end
+
+lemma vector.nth_cons_zero {A} {n : ℕ}
+  (x : A) (xs : vector A n)
+  : vector.nth (x :: xs) 0 = x
+:= begin
+apply vector.nth_0, reflexivity,
+end
+
+lemma succ_pred_equiv {k : ℕ} (i : fin k.succ)
+  (H : i ≠ 0)
+  (n : ℕ)
+ : (i.val = nat.succ n) ↔ ((fin.pred i H).val = n)
+:= begin
+induction i, dsimp [fin.pred],
+cases val, exfalso, apply H,
+unfold has_zero.zero,
+dsimp [nat.pred], split; intros H',
+injection H', subst H',
+end
+
+lemma fin.val_inj {n : ℕ} (i j : fin n)
+  (H : i.val = j.val) : i = j
+:= begin
+induction i, induction j, dsimp at H, induction H,
+reflexivity,
+end
+
+lemma fin.succ_pred_id {k : ℕ} (i : fin k.succ)
+  (H : i ≠ 0)
+  : fin.succ (fin.pred i H) = i
+:= begin
+induction i,
+dsimp [fin.pred, fin.succ],
+cases val, exfalso, apply H, unfold has_zero.zero,
+dsimp [nat.pred], reflexivity,
+end
+
+lemma vector.nth_of_fn {A} {n : ℕ} (f : fin n → A)
+  (i : fin n)
+  : vector.nth (vector.of_fn f) i = f i
+:= begin
+revert f i,
+induction n; intros; dsimp [vector.of_fn],
+{ exfalso, apply fin_0_empty, assumption, },
+{ apply (if H : i = 0 then _ else _),
+  { subst i, rw vector.nth_cons_zero, },
+  { rw vector.nth_cons_nz, tactic.swap, assumption,
+    rw ih_1, rw fin.succ_pred_id, }
+}
+end
+
+lemma ite_iff {P Q : Prop}
+  [decP : decidable P] [decQ : decidable Q]
+  (H : P ↔ Q) {A}
+  : @ite P _ A = ite Q
+:= begin
+apply funext, intros x, apply funext, intros y,
+have decP' := decP,
+cases decP' with HP HP, rw (if_neg HP),
+rw if_neg, rw ← H, assumption,
+rw (if_pos HP), rw if_pos, rw ← H, assumption,
+end
+
+lemma dot_product_unit (n : ℕ) (i : fin n) (c : ℚ) (v : vector ℚ n)
+  : dot_product (vector.generate n (λj, if i.val = j then c else 0)) v
   = c * v.nth i
 := begin
 induction n; dsimp [vector.generate],
@@ -140,8 +240,21 @@ rw dot_product_cons,
 apply (if H : i.val = 0 then _ else _),
 { rw (if_pos H), rw (vector.nth_0 _ _ H),
   dsimp [function.comp],
-  admit },
-{ rw (if_neg H), admit }
+  rw H,
+  have Hf : (λ (x : ℕ), ite (0 = nat.succ x) c 0) = λ _, 0,
+  apply funext; intros x,
+  rw if_neg, intros contra, cases contra,
+  rw Hf, clear Hf,
+  rw dot_product_0, simp,
+},
+{ rw (if_neg H), simp,
+  have H' : i ≠ 0,
+  intros contra, apply H, rw contra, reflexivity,
+  rw vector.nth_cons_nz _ H', dsimp [function.comp],
+  rw ← ih_1, f_equal, f_equal,
+  apply funext, intros n,
+  f_equal, apply ite_iff,
+  apply succ_pred_equiv, }
 end
 
 lemma vector.map₂_comm {A B} (f : A → A → B)
@@ -185,11 +298,7 @@ lemma dot_product_sum_r {n : ℕ} (x y z : vector ℚ n)
   = dot_product x y + dot_product x z
 := begin
 induction n,
-{ rw (vector.eq_nil x),
-  rw (vector.eq_nil y),
-  rw (vector.eq_nil z),
-  rw dot_product_nil,
-  rw vector.map₂_nil, rw dot_product_nil,
+{ repeat {rw dot_product_0_len },
   rw add_zero, },
 { have Hx := x.invert_succ, induction Hx with x' xs Hx, subst x,
   have Hy := y.invert_succ, induction Hy with y' ys Hy, subst y,
@@ -219,22 +328,100 @@ structure focused (n : ℕ) :=
   (ubs : list ({ q : ℚ // q > 0} × linear_expr n))
   (uninvolved : list (linear_expr n))
 
-lemma Forall_mem_equiv {A : Type u}
-  (P : A → Prop) (xs : list A)
-  : xs.Forall P ↔ (∀ x, x ∈ xs → P x)
+def minimum_opt (default : ℚ) : list ℚ → ℚ
+| [] := default
+| (x :: xs) := list.foldr min x xs
+
+def maximum_opt (default : ℚ) : list ℚ → ℚ
+| [] := default
+| (x :: xs) := list.foldr max x xs
+
+lemma maximum_opt_in (default : ℚ)
+  {x : ℚ} {xs : list ℚ} (H : x ∈ xs)
+  : x ≤ maximum_opt default xs
 := begin
-split; intros H,
-{ induction H,
-  intros, rw list.mem_nil_iff at a, contradiction,
-  intros, apply_in a_2 list.eq_or_mem_of_mem_cons,
-  induction a_2, subst x_1, assumption, apply ih_1,
-  assumption,
-},
-{ induction xs, constructor, constructor,
-  apply H, constructor, reflexivity,
-  apply ih_1, intros, apply H,
-  right, assumption,
-}
+cases xs; dsimp [maximum_opt],
+rw list.mem_nil_iff at H, contradiction,
+induction a_1; dsimp [list.foldr],
+dsimp [has_mem.mem, list.mem] at H,
+cases H, subst a, contradiction,
+dsimp [has_mem.mem, list.mem] at H,
+induction H, subst a,
+apply le_trans, tactic.swap, apply le_max_right,
+apply ih_1, constructor, reflexivity,
+induction a_3, subst a_1, apply le_max_left,
+apply le_trans, tactic.swap, apply le_max_right,
+apply ih_1, dsimp [has_mem.mem, list.mem], right,
+assumption
+end
+
+lemma minimum_opt_in (default : ℚ)
+  {x : ℚ} {xs : list ℚ} (H : x ∈ xs)
+  : minimum_opt default xs ≤ x
+:= begin
+cases xs; dsimp [minimum_opt],
+rw list.mem_nil_iff at H, contradiction,
+induction a_1; dsimp [list.foldr],
+dsimp [has_mem.mem, list.mem] at H,
+cases H, subst a, contradiction,
+dsimp [has_mem.mem, list.mem] at H,
+induction H, subst a,
+apply le_trans, apply min_le_right,
+apply ih_1, constructor, reflexivity,
+induction a_3, subst a_1, apply min_le_left,
+apply le_trans, apply min_le_right,
+apply ih_1, dsimp [has_mem.mem, list.mem], right,
+assumption
+end
+
+def focused_soln_ub_map {n : ℕ} (soln : vector ℚ n)
+  : { q : ℚ // q > 0} × linear_expr n → ℚ
+| (ub, ube) := -ub.val⁻¹ * (dot_product (ube.coef) soln + ube.offset)
+
+def focused_soln {n : ℕ} (prob : focused n)
+  (soln : vector ℚ n)
+  : ℚ
+:= minimum_opt
+   (maximum_opt 0
+     (prob.lbs.map (λ p : { q : ℚ // q < 0} × linear_expr n,
+     let (⟨ lb, _ ⟩, lbe) := p in
+  (-lb⁻¹ * (dot_product (lbe.coef) soln + lbe.offset)))))
+    $
+   prob.ubs.map (focused_soln_ub_map soln)
+
+lemma list.mem_map {A B} (f : A → B) (xs : list A)
+  (x : A) (y : B) (H : f x = y)
+  (H' : x ∈ xs)
+  : y ∈ xs.map f
+:= begin
+subst H, apply list.mem_induction _ _ _ _ _ H'; intros,
+left, reflexivity, right, assumption,
+end
+
+lemma focused_soln_ubs_empty {n : ℕ} (prob : focused n)
+  (soln : vector ℚ n)
+  (Hubs_empty : prob.ubs = [])
+  {lb : _} {lbe : _} (Hlb : (lb, lbe) ∈ prob.lbs)
+  : (-lb.val⁻¹ * (dot_product (lbe.coef) soln + lbe.offset)) ≤
+    focused_soln prob soln
+:= begin
+unfold focused_soln, rw Hubs_empty,
+dsimp [maximum_opt],
+apply maximum_opt_in,
+apply list.mem_map, tactic.swap, assumption,
+induction lb, dsimp [focused_soln], reflexivity
+end
+
+lemma focused_soln_ubs_inhabited {n : ℕ} (prob : focused n)
+  (soln : vector ℚ n)
+  {ub : _} {ube : _}
+  (Hubs_inh : (ub, ube) ∈ prob.ubs)
+  : focused_soln prob soln ≤ (-ub.val⁻¹ * (dot_product (ube.coef) soln + ube.offset))
+:= begin
+unfold focused_soln,
+apply minimum_opt_in,
+apply list.mem_map, tactic.swap, assumption,
+induction ub, dsimp [focused_soln], reflexivity
 end
 
 lemma Forall_equiv_list {A : Type _}
@@ -243,7 +430,7 @@ lemma Forall_equiv_list {A : Type _}
   : xs.Forall P ↔ ys.Forall P
 := begin
 unfold same_elements at H,
-repeat { rw Forall_mem_equiv },
+repeat { rw list.Forall_mem_equiv },
 split; intros H' x, rw ← H, apply H',
 rw H, apply H',
 end
@@ -338,14 +525,157 @@ case list.cons x xs IH
 }
 end
 
+lemma same_elements_satisfiable {n : ℕ}
+  {xs ys : list (linear_expr n)}
+  (H : same_elements xs ys)
+  : satisfiable xs ↔ satisfiable ys
+:= begin
+split; intros H'; induction H' with a Ha;
+  existsi a, rw Forall_equiv_list, assumption,
+  apply same_elements_symm, assumption,
+  rw Forall_equiv_list, assumption, assumption,
+end
+
+def bounds_list {n : ℕ} (prob : focused n)
+  : list (linear_expr n)
+:= do (lb, lbe) ← prob.lbs, (ub, ube) ← prob.ubs,
+       return (combine lb.val lbe ub.val ube)
+
 def eliminate_aux {n : ℕ} (prob : focused n)
   : list (linear_expr n)
-:= (do (lb, lbe) ← prob.lbs, (ub, ube) ← prob.ubs,
-       return (combine lb lbe ub ube)) ++ prob.uninvolved
+:= bounds_list prob ++ prob.uninvolved
 
 def eliminate {n : ℕ} (es : list (linear_expr (n + 1)))
   : list (linear_expr n)
 := eliminate_aux (focus_problem es)
+
+lemma add_zero_l (n : ℚ) : 0 + n = n
+:= by simp
+
+lemma evaluate_extend {n : ℕ} (x : linear_expr n)
+  (c q : ℚ) (cs : vector ℚ n)
+  : evaluate (extend q x) (c :: cs) = q * c + evaluate x cs
+:= begin
+dsimp [evaluate, extend],
+rw dot_product_cons,
+rw add_assoc,
+end
+
+lemma evaluate_extend_zero {n : ℕ} (x : linear_expr n)
+  (c : ℚ) (cs : vector ℚ n)
+  : evaluate (extend 0 x) (c :: cs) = evaluate x cs
+:= begin
+rw evaluate_extend,
+rw mul_comm, rw mul_zero,
+rw add_zero_l,
+end
+
+lemma list.mem_bind {A B} (xs : list A) (f : A → list B)
+  (y : B) (H : y ∈ xs >>= f)
+  : ∃ x : A, x ∈ xs ∧ y ∈ f x
+:= begin
+dsimp [(>>=), list.bind, list.join] at H,
+induction xs; dsimp [list.map, list.join] at H,
+rw list.mem_nil_iff at H, contradiction,
+rw list.mem_append at H,
+induction H with H H',
+existsi a, split, constructor, reflexivity, assumption,
+specialize (ih_1 H'),
+induction ih_1 with x H,
+induction H with H1 H2,
+existsi x, split,
+dsimp [has_mem.mem, list.mem],
+right, assumption, assumption,
+end
+
+lemma list.mem_bind_iff {A B} (xs : list A) (f : A → list B)
+  (y : B)
+  : y ∈ xs >>= f
+  ↔ ∃ x : A, x ∈ xs ∧ y ∈ f x
+:= begin
+split; intros H, apply list.mem_bind, assumption,
+induction H with x Hx, induction Hx with H1 H2,
+dsimp [(>>=), list.bind, list.join],
+induction xs; dsimp [list.map, list.join],
+rw list.mem_nil_iff at H1, contradiction,
+rw list.mem_append, dsimp [has_mem.mem, list.mem] at H1,
+induction H1 with H1 H1, subst a,
+left, assumption, right, apply ih_1, assumption,
+end
+
+lemma list.mem_singleton {A} (x y : A)
+  : x ∈ [y] ↔ x = y
+:= begin
+split; intros H, apply_in H list.eq_or_mem_of_mem_cons,
+induction H with H H, assumption, cases H,
+constructor, assumption,
+end
+
+def minimal_list {A} (xs : list A) (f : A → ℚ)
+  (H : xs ≠ [])
+  : ∃ x : A, x ∈ xs ∧ (∀ y : A, y ∈ xs → f x ≤ f y)
+:= begin
+cases xs, contradiction,
+rename a x, rename a_1 xs, clear H,
+induction xs,
+{ existsi x, split, constructor, reflexivity,
+  intros y Hy, dsimp [has_mem.mem, list.mem] at Hy,
+  cases Hy, subst y, contradiction, },
+{ induction ih_1 with x' Hx', induction Hx' with H H',
+  apply (if Hxa : f x' ≤ f a then _ else _),
+  { existsi x', split,
+    dsimp [has_mem.mem, list.mem] at H, cases H,
+    subst x, left, reflexivity, right, right, assumption,
+    intros y Hy, dsimp [has_mem.mem, list.mem] at Hy,
+    cases Hy, subst y,
+    dsimp [has_mem.mem, list.mem] at H, cases H,
+    subst x', apply H', left, reflexivity,
+    cases a_2, subst a, assumption, apply H',
+    right, assumption,
+   },
+  { existsi a, split, right, left, reflexivity,
+    have Hax : f a ≤ f x',
+    cases (rat.le_total (f a) (f x')), assumption, contradiction,
+    clear Hxa,
+    intros y Hy, dsimp [has_mem.mem, list.mem] at Hy,
+    cases Hy, subst y,  dsimp [has_mem.mem, list.mem] at H,
+    cases H, subst x', assumption,
+    apply le_trans, assumption, apply H', left, reflexivity,
+    cases a_2, subst a, apply le_trans, assumption,
+    apply H', right, assumption,
+   }
+ }
+end
+
+def minimal_list_opt {A} (xs : list A) (default : ℚ) (f : A → ℚ)
+  (H : xs ≠ [])
+  : ∃ x : A, x ∈ xs ∧ f x = minimum_opt default (xs.map f)
+:= begin
+have H' := minimal_list xs f H,
+induction H' with x Hx, induction Hx with H1 H2,
+existsi x, split, assumption,
+cases xs, rw list.mem_nil_iff at H1, contradiction,
+clear H, rename a y, rename a_1 ys,
+rw le_antisymm_iff, split,
+{ dsimp [minimum_opt, list.map], clear H1,
+  revert x y,
+  induction ys; intros,
+  dsimp [list.foldr, list.map], apply H2, left, reflexivity,
+  dsimp [list.foldr, list.map],
+  apply le_min, apply H2, right, left, reflexivity,
+  apply ih_1, intros, apply H2,
+  dsimp [has_mem.mem, list.mem] at a_2,
+  induction a_2 with H H, left, assumption,
+  right, right, assumption,
+ },
+{ apply minimum_opt_in,
+  apply list.mem_map, reflexivity, assumption,
+}
+end
+
+lemma id_rhs_list {A} (x : A) :
+  id_rhs (list A) (return x) = [x] := rfl
+
 
 lemma mul_le_zero_pos (c x : ℚ) (Hc : 0 < c)
   : x ≤ 0 ↔ c * x ≤ 0
@@ -378,6 +708,17 @@ split; intros H,
   rw ← neg_mul_eq_neg_mul,
   apply neg_le_of_neg_le, rw neg_zero, assumption,
  }
+end
+
+lemma mul_le_zero_neg_le (c x : ℚ) (Hc : c < 0)
+  : x ≤ 0 ↔ 0 ≤ c * x
+:= mul_le_zero_neg c x Hc
+
+lemma neg_le_neg_opp (x y : ℚ)
+  : - y ≤ - x → x ≤ y
+:= begin
+intros H, rw ← (neg_neg x), rw ← (neg_neg y),
+apply neg_le_neg, assumption,
 end
 
 lemma add_reassoc (lb ub : ℚ) (ube1 ube2 lbe1 lbe2 : ℚ)
@@ -416,6 +757,216 @@ split; intros H,
 }
 end
 
+lemma add_le_zero1 (x y : ℚ)
+  : 0 ≤ y - x ↔ x ≤ y
+:= begin
+split; intros H,
+{ rw ← (add_zero x), apply le_trans,
+  apply add_le_add_left, assumption,
+  rw ← add_sub_assoc, rw add_comm,
+  rw add_sub_cancel, },
+{ apply le_trans, tactic.swap, apply add_le_add_right,
+  assumption, rw add_comm, rw neg_add_self }
+end
+
+lemma add_le_zero2 (x y : ℚ)
+  : x - y ≤ 0 ↔ x ≤ y
+:= begin
+rw ← add_le_zero1,
+rw sub_eq_add_neg,
+rw neg_sub, rw add_zero_l,
+rw add_le_zero1,
+end
+
+lemma mul_le_mono_neg (c x y : ℚ) (Hc : c < 0)
+  (H : x ≤ y) : c * y ≤ c * x
+:= begin
+rw ← add_le_zero1, rw ← mul_sub,
+rw ← mul_le_zero_neg_le, rw add_le_zero2, assumption,
+assumption,
+end
+
+lemma mul_le_mono_pos (c x y : ℚ) (Hc : c > 0)
+  (H : x ≤ y) : c * x ≤ c * y
+:= begin
+rw ← add_le_zero1, rw ← mul_sub,
+apply mul_nonneg, apply le_of_lt, assumption,
+unfold ge, rw add_le_zero1, assumption,
+end
+
+lemma eliminate_aux_combine_sat {n : ℕ}
+  (c : ℚ)
+  (cs : vector ℚ n)
+  (lbe ube : linear_expr n)
+  (lb : ℚ)
+  (lblt0 : lb < 0)
+  (ub : ℚ)
+  (ubgt0 : ub > 0)
+  (H1 : evaluate (extend lb lbe) (c :: cs) ≤ 0)
+  (H2 : evaluate (extend ub ube) (c :: cs) ≤ 0)
+  : evaluate (combine lb lbe ub ube) cs ≤ 0
+:= begin
+  dsimp [evaluate] at *,
+  dsimp [combine, add_expr, scale_mul],
+  dsimp [extend] at H1 H2,
+  rw dot_product_cons at H1 H2,
+  rw dot_product_sum_l,
+  repeat { rw dot_product_scale_l },
+  rw (mul_le_zero_neg _ _ lblt0) at H2,
+  rw (mul_le_zero_pos _ _ ubgt0) at H1,
+  rw add_assoc at H1 H2,
+  rw mul_add at H1 H2,
+  rw add_reassoc,
+  rw add_neg_le_r at H2,
+  rw add_neg_le_l at H1,
+  rw ← mul_assoc at H1 H2,
+  rw mul_comm ub at H1,
+  rw add_neg_le_l,
+  rw ← neg_mul_eq_neg_mul,
+  apply le_trans, apply H2, apply H1,
+end
+
+lemma rat.inv_pos (x : ℚ) (Hx : 0 < x) : 0 < x⁻¹
+:= begin
+have H : 0 < x * x⁻¹,
+rw mul_inv_cancel, exact_dec_trivial,
+apply ne_of_gt, assumption,
+have H' := pos_and_pos_or_neg_and_neg_of_mul_pos H,
+induction H' with H' H'; induction H' with H1 H2, assumption,
+exfalso, clear H H2,
+rw lt_iff_not_ge at Hx, apply Hx,
+apply le_of_lt, assumption,
+end
+
+lemma eliminate_aux_preserves_sat {n : ℕ} (prob : focused n)
+  : focused_satisfiable prob
+  ↔ satisfiable (eliminate_aux prob)
+:= begin
+split; intros H,
+{ induction H with a Ha,
+  unfold satisfiable,
+  have Hx := a.invert_succ, induction Hx with c cs Hcs, subst a,
+  existsi cs,
+  unfold eliminate_aux,
+  unfold focused_linear_exprs at Ha,
+  rw list.Forall_app_iff at Ha,
+  induction Ha with H1 H3,
+  rw list.Forall_app_iff at H1,
+  induction H1 with H1 H2,
+  rw list.map_Forall_iff at H3 H2 H1,
+  apply list.concat_Forall,
+  { clear H3,
+    rw list.Forall_mem_equiv at H2 H1,
+    rw list.Forall_mem_equiv,
+    intros x Hx,
+    apply_in Hx list.mem_bind,
+    induction Hx with lbp Hx,
+    induction Hx with HA HB,
+    specialize (H1 lbp HA),
+    induction lbp with lb lbe,
+    dsimp [bounds_list] at HB,
+    apply_in HB list.mem_bind,
+    induction HB with ubp HB,
+    induction HB with HB HC,
+    specialize (H2 ubp HB),
+    induction ubp with ub ube,
+    dsimp at HC,
+    rw id_rhs_list at HC,
+    induction lb with lb lblt0,
+    rw list.mem_singleton at HC,
+    subst x,
+    induction ub with ub ubgt0,
+    dsimp at H2 H1,
+    dsimp,
+    apply eliminate_aux_combine_sat; assumption,
+    },
+  { apply list.impl_Forall, assumption,
+    intros x He,
+    rw evaluate_extend_zero at He, assumption }
+},
+{ unfold focused_satisfiable,
+  induction H with a Ha,
+  unfold satisfiable,
+  existsi (focused_soln prob a :: a),
+  unfold focused_linear_exprs,
+  unfold eliminate_aux at Ha,
+  rw list.Forall_app_iff at Ha,
+  induction Ha with H1 H2,
+  repeat { apply list.concat_Forall };
+    apply list.map_Forall,
+  { clear H2,
+    rw list.Forall_mem_equiv,
+    intros x xlbs, induction x with lb lbe,
+    dsimp,
+    rw evaluate_extend,
+    destruct (prob.ubs),
+    { intros Hnil,
+      have H := focused_soln_ubs_empty prob a Hnil xlbs,
+      apply le_trans, apply add_le_add,
+      apply mul_le_mono_neg, apply lb.property,
+      assumption, apply le_refl,
+      rw ← mul_assoc, rw ← neg_mul_eq_mul_neg,
+      rw mul_inv_cancel, rw ← neg_mul_eq_neg_mul,
+      rw [mul_comm, mul_one],
+      unfold evaluate,
+      rw neg_add_self, apply ne_of_lt, apply lb.property,
+    },
+    { intros ub ubs Hubs, rw list.Forall_mem_equiv at H1,
+      have Hubs' : prob.ubs ≠ [],
+      rw Hubs, contradiction, clear Hubs ubs ub,
+      have Hubs := minimal_list_opt _ _ (focused_soln_ub_map a) Hubs',
+      induction Hubs with ub Hub, induction Hub with Hub Hub',
+      induction ub with ub ube,
+      -- NO! The following line is a mistake. I should use the
+      -- "minimal" (- ube / ub)
+      specialize (H1 (combine lb.val lbe ub.val ube)),
+      have H2 : combine (lb.val) lbe (ub.val) ube ∈ bounds_list prob,
+      unfold bounds_list,
+      rw list.mem_bind_iff,
+      existsi (lb, lbe), split, assumption,
+      dsimp [bounds_list], rw list.mem_bind_iff,
+      existsi (ub, ube), split, assumption,
+      dsimp [bounds_list], constructor, reflexivity,
+      specialize (H1 H2), clear H2,
+      dsimp [evaluate, combine, add_expr, scale_mul] at H1,
+      rw dot_product_sum_l at H1,
+      repeat { rw dot_product_scale_l at H1 },
+      rw add_reassoc at H1,
+      have Hubinv : ub.val⁻¹ > 0,
+      apply rat.inv_pos, apply ub.property,
+      rw (mul_le_zero_pos _ _ Hubinv) at H1,
+      rw mul_add at H1,
+      rw ← mul_assoc _ ub.val at H1,
+      rw [mul_comm _ ub.val, mul_inv_cancel] at H1,
+      rw mul_comm (1 : ℚ) at H1, rw mul_one at H1,
+      apply le_trans, tactic.swap, apply H1,
+      apply add_le_add_right,
+      have Hub : (ub, ube) ∈ prob.ubs, assumption,
+      unfold focused_soln, rw ← Hub',
+      dsimp [focused_soln_ub_map], simp,
+      apply ne_of_gt, apply ub.property,
+    }
+  },
+  { clear H2,
+    rw list.Forall_mem_equiv,
+    intros x xubs, induction x with ub ube,
+    dsimp,
+    rw evaluate_extend,
+    apply_in xubs (focused_soln_ubs_inhabited prob a),
+    apply le_trans, apply add_le_add_right,
+    apply mul_le_mono_pos, apply ub.property,
+    assumption, rw ← mul_assoc,
+    rw ← neg_mul_eq_mul_neg, rw mul_inv_cancel,
+    rw ← neg_mul_eq_neg_mul, rw [mul_comm, mul_one],
+    unfold evaluate,
+    rw neg_add_self, apply ne_of_gt, apply ub.property,
+  },
+  { apply list.impl_Forall, assumption,
+    intros x He,
+    rw evaluate_extend_zero, assumption }
+   }
+end
+
 lemma satsfiable_elim {n : ℕ} (lb : ℚ)
   (lblt0 : lb < 0)
   (lbe : linear_expr n) (ub : ℚ)
@@ -433,23 +984,7 @@ split; intros H,
   induction Ha with x xs Ha, subst a,
   existsi xs, constructor,
   any_goals { constructor },
-  dsimp [evaluate] at *,
-  dsimp [combine, add_expr, scale_mul],
-  rw dot_product_cons at H1 H2,
-  rw dot_product_sum_l,
-  repeat { rw dot_product_scale_l },
-  rw (mul_le_zero_neg _ _ lblt0) at H2,
-  rw (mul_le_zero_pos _ _ ubgt0) at H1,
-  rw add_assoc at H1 H2,
-  rw mul_add at H1 H2,
-  rw add_reassoc,
-  rw add_neg_le_r at H2,
-  rw add_neg_le_l at H1,
-  rw ← mul_assoc at H1 H2,
-  rw mul_comm ub at H1,
-  rw add_neg_le_l,
-  rw ← neg_mul_eq_neg_mul,
-  apply le_trans, apply H2, apply H1,
+  apply eliminate_aux_combine_sat; assumption,
   } }
  },
 { dsimp [satisfiable] at H, induction H with a Ha,
@@ -496,10 +1031,10 @@ theorem satsfiable_eliminate {n : ℕ}
   : satisfiable xs
   ↔ satisfiable (eliminate xs)
 := begin
-split; intros H,
-{ induction H with a Ha,
-  admit },
-{ admit }
+unfold eliminate,
+rw ← eliminate_aux_preserves_sat,
+apply same_elements_satisfiable,
+apply focus_problem_equiv,
 end
 
 lemma vector_nil_exists
@@ -570,8 +1105,9 @@ lemma var_offset_0
 lemma var_evaluate {n : ℕ} (c : ℚ) (i : fin n) (x : vector ℚ n) :
   (var c i).evaluate x = c * x.nth i
 := begin
-dsimp [evaluate],
-admit
+dsimp [evaluate, var],
+rw add_zero,
+rw dot_product_unit,
 end
 
 namespace aexpr
@@ -614,13 +1150,17 @@ lemma to_linear_expr_sound {n : ℕ}
   (ctxt : fin n → ℚ)
   : e.interp ctxt = e.to_linear_expr.evaluate (vector.of_fn ctxt)
 := begin
-induction e; dsimp [interp, to_linear_expr, evaluate],
+induction e; dsimp [interp, to_linear_expr],
 case var c i
-{ rw var_offset_0,
-  rw add_zero,
-  admit },
-{ admit },
-{ admit }
+{ rw var_evaluate, rw vector.nth_of_fn, },
+{ unfold evaluate, dsimp [linear_expr.const],
+  rw ← vector.generate_const_repeat,
+  rw dot_product_0, simp,
+},
+{ rw [ih_1, ih_2],
+  dsimp [evaluate, linear_expr.add_expr],
+  rw dot_product_sum_l, simp,
+}
 end
 end aexpr
 
@@ -784,7 +1324,6 @@ meta def whole_thing : tactic unit := do
     hyps' ← mmap i_to_expr hyps,
     let ctxt' := make_list ctxt,
     let num_vars := make_nat ctxt.length,
-    --tactic.trace ctxt,
     let hyps'' := make_list hyps',
     hyps''' ← i_to_expr hyps'',
     res ← i_to_expr ``(interp_list_exprs %%hyps''' %%num_vars),
