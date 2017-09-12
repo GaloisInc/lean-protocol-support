@@ -1,6 +1,6 @@
 import galois.tactic
        .init .tail .inter .map_accum_lemmas .nth
-       .take_drop_lemmas .preds .fin_nth
+       .take_drop_lemmas .preds .fin_nth .mem
 
 universe u
 
@@ -274,19 +274,6 @@ lemma repeat_length {A} (x : A) (n : ℕ)
   : (list.repeat x n).length = n
 := begin
 induction n; simp [list.repeat, list.length],
-end
-
-def mem_induction {A : Type u}
-  (P : A → list A → Prop)
-  (Phere : ∀ x xs, P x (x :: xs))
-  (Pthere : ∀ x y ys, P x ys → P x (y :: ys))
-  (x : A) (xs : list A) (H : x ∈ xs)
-  : P x xs
-:= begin
-induction xs, cases H,
-dsimp [has_mem.mem, list.mem] at H,
-induction H, subst a, apply Phere,
-apply Pthere, apply ih_1, assumption,
 end
 
 end list
