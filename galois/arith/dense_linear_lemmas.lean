@@ -1,7 +1,7 @@
 -- Mostly lemmas about arithmetic?
 import data.rat
 
-lemma add_neg_le_r (x y : ℚ)
+lemma add_neg_le_r {A} [linear_ordered_comm_ring A] (x y : A)
   : x + y ≥ 0 ↔ x ≥ - y
 := begin
 dsimp [ge],
@@ -16,7 +16,7 @@ split; intros H,
 }
 end
 
-lemma add_neg_le_l (x y : ℚ)
+lemma add_neg_le_l {A} [linear_ordered_comm_ring A] (x y : A)
   : x + y ≤ 0 ↔ x ≤ - y
 := begin
 split; intros H,
@@ -30,7 +30,7 @@ split; intros H,
 }
 end
 
-lemma add_le_zero1 (x y : ℚ)
+lemma add_le_zero1 {A} [linear_ordered_comm_ring A] (x y : A)
   : 0 ≤ y - x ↔ x ≤ y
 := begin
 split; intros H,
