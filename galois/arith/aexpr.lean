@@ -82,13 +82,21 @@ end
 end aexpr
 
 namespace eqn
-def interp {vTy : Type} (ctxt : vTy → ℚ)
-  : eqn ℚ vTy → Prop
+def interp {A} [linear_ordered_comm_ring A] {vTy : Type} (ctxt : vTy → A)
+  : eqn A vTy → Prop
 | (le e e') := e.interp ctxt ≤ e'.interp ctxt
 
 def map_aexpr {A B} {vTy : Type} (f : aexpr A vTy → aexpr B vTy)
   : eqn A vTy → eqn B vTy
 | (le e e') := le (f e) (f e')
+
+lemma map_aexpr_compose {A B C} {vTy : Type} (f : aexpr A vTy → aexpr B vTy)
+  (g : aexpr B vTy → aexpr C vTy)
+  : map_aexpr g ∘ map_aexpr f = map_aexpr (g ∘ f)
+:= begin
+apply funext, intros e,
+induction e with e e', simp [function.comp, map_aexpr],
+end
 
 def to_aexpr {vTy : Type}
   : eqn ℚ vTy → aexpr ℚ vTy
@@ -178,15 +186,15 @@ def aexpr_negation_statement {A} [linear_ordered_comm_ring A] :
 | (nat.succ n) := λ es, ∀ x : A, aexpr_negation_statement n
     (es.map (λ e, e.instantiate_head x))
 
-def eqn_negation_statement_0
-  : list (eqn ℚ ℕ) → Prop
+def eqn_negation_statement_0 {A} [linear_ordered_comm_ring A]
+  : list (eqn A ℕ) → Prop
 | [] := false
-| (e :: es) := e.interp (λ _, 0) → eqn_negation_statement_0 es
+| (e :: es) := e.interp (λ _, (0 : A)) → eqn_negation_statement_0 es
 
-def eqn_negation_statement
-  : ∀ nvars : ℕ, list (eqn ℚ ℕ) → Prop
+def eqn_negation_statement {A} [linear_ordered_comm_ring A]
+  : ∀ nvars : ℕ, list (eqn A ℕ) → Prop
 | 0 := eqn_negation_statement_0
-| (nat.succ n) := λ es, ∀ x : ℚ, eqn_negation_statement n
+| (nat.succ n) := λ es, ∀ x : A, eqn_negation_statement n
     (es.map (λ e, e.map_aexpr (aexpr.instantiate_head x)))
 
 lemma coe_rat_of_int (x : ℤ)
@@ -312,23 +320,28 @@ induction nvars; intros xs; dsimp [aexpr_negation_statement],
 }
 end
 
-
-lemma Z_to_Q_sound (nvars : ℕ) (xs : list (aexpr ℤ ℕ))
-  : aexpr_negation_statement nvars (xs.map (aexpr.map coe) : list (aexpr ℚ ℕ))
-  → aexpr_negation_statement nvars xs
+lemma Z_to_Q_sound_eqn (nvars : ℕ) (xs : list (eqn ℤ ℕ))
+  : eqn_negation_statement nvars (xs.map (eqn.map_aexpr (aexpr.map coe)) : list (eqn ℚ ℕ))
+  → eqn_negation_statement nvars xs
 := begin
 revert xs,
-induction nvars; intros xs; dsimp [aexpr_negation_statement],
-{ induction xs; dsimp [aexpr_negation_statement_0],
+induction nvars; intros xs; dsimp [eqn_negation_statement],
+{ induction xs; dsimp [eqn_negation_statement_0],
   { intros H, assumption },
   { intros H H', apply ih_1, apply H,
-    rw Z_to_Q_le_iff at H', rw Z_to_Q_interp at H',
-    repeat { rw rat.coe_int_zero }, assumption,
+    induction a with e e',
+    dsimp [eqn.interp] at *,
+    rw Z_to_Q_le_iff at H', repeat { rw Z_to_Q_interp at H' },
+    dsimp [eqn.map_aexpr, eqn.interp],
+    repeat { rw ← rat.coe_int_zero },
+    assumption,
   }
 },
 { intros H x, specialize (H x), rw list.map_map at H,
+  rw eqn.map_aexpr_compose at H,
   rw ← instantiate_head_Z_to_Q at H,
-  apply ih_1, rw list.map_map, assumption }
+  apply ih_1, rw list.map_map,
+  rw eqn.map_aexpr_compose, assumption }
 end
 
 lemma satisfiable_bool_correct_linear {n : ℕ} (e : list (linear_expr n))
@@ -536,17 +549,6 @@ assumption,
 apply satisfiable_bool_correct_linear, assumption,
 end
 
-lemma satisfiable_bool_correct_Z  (es : list (aexpr ℤ ℕ))
-  (nvars : ℕ)
-  : list.band ((es.map (aexpr.map coe) : list (aexpr ℚ ℕ)).map (aexpr.no_big_vars_bool nvars)) = tt →
-    satisfiable_bool' (interp_list_exprs (es.map (aexpr.map coe)) nvars) = ff →
-    aexpr_negation_statement nvars es
-:= begin
-intros H H',
-apply Z_to_Q_sound,
-apply satisfiable_bool_correct; assumption,
-end
-
 lemma satisfiable_bool_correct_eqn  (es : list (eqn ℚ ℕ))
   (nvars : ℕ)
   : list.band ((es.map eqn.to_aexpr).map (aexpr.no_big_vars_bool nvars)) = tt →
@@ -558,13 +560,14 @@ apply eqn_to_aexpr_sound,
 apply satisfiable_bool_correct; assumption,
 end
 
-lemma satisfiable_bool_correct_eqn_Z  (es : list (eqn ℚ ℕ))
+lemma satisfiable_bool_correct_eqn_Z  (es : list (eqn ℤ ℕ))
   (nvars : ℕ)
-  : list.band ((es.map eqn.to_aexpr).map (aexpr.no_big_vars_bool nvars)) = tt →
-    satisfiable_bool' (interp_list_exprs (es.map eqn.to_aexpr) nvars) = ff →
+  : list.band (((es.map (eqn.map_aexpr (aexpr.map coe))).map eqn.to_aexpr).map (aexpr.no_big_vars_bool nvars)) = tt →
+    satisfiable_bool' (interp_list_exprs ((es.map (eqn.map_aexpr (aexpr.map coe))).map eqn.to_aexpr) nvars) = ff →
     eqn_negation_statement nvars es
 := begin
 intros H H',
+apply Z_to_Q_sound_eqn,
 apply eqn_to_aexpr_sound,
 apply satisfiable_bool_correct; assumption,
 end
@@ -635,18 +638,6 @@ meta def reify_all_helper (f : list expr → expr → tactic (option (expr ff ×
   | none := reify_all_helper ctxt xs
   end
 
-meta def reify_all_helper_eqn
-  : list expr → list expr → tactic (list (expr ff) × list expr)
-| ctxt [] := pure ([], ctxt)
-| ctxt (x :: xs) := do
-  r ← reify_eqn_helper ctxt x,
-  match r with
-  | some (x', ctxt') := do
-    (xs', ctxt'') ← reify_all_helper_eqn ctxt' xs,
-    pure (x' :: xs', ctxt'')
-  | none := reify_all_helper_eqn ctxt xs
-  end
-
 meta def my_reify (f : list expr → expr → tactic (option (expr ff × list expr))) (es : list expr)
   : tactic (list (expr ff) × list expr)
   := reify_all_helper f [] es
@@ -672,18 +663,18 @@ meta def reify_hyps_numvars (f : list expr → expr → tactic (option (expr ff 
     return (hyps''', num_vars)
 
 meta def fourier_Q_core : tactic unit := do
-    (hyps''', num_vars) ← reify_hyps_numvars reify_formula_helper,
-    ap_expr ← i_to_expr ``(satisfiable_bool_correct %%hyps''' %%num_vars),
+    (hyps, num_vars) ← reify_hyps_numvars reify_formula_helper,
+    ap_expr ← i_to_expr ``(satisfiable_bool_correct %%hyps %%num_vars),
     tactic.apply ap_expr
 
 meta def fourier_Q_core_eqn : tactic unit := do
-    (hyps''', num_vars) ← reify_hyps_numvars reify_eqn_helper,
-    ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn %%hyps''' %%num_vars),
+    (hyps, num_vars) ← reify_hyps_numvars reify_eqn_helper,
+    ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn %%hyps %%num_vars),
     tactic.apply ap_expr
 
-meta def fourier_Z_core : tactic unit := do
-    (hyps''', num_vars) ← reify_hyps_numvars reify_formula_helper,
-    ap_expr ← i_to_expr ``(satisfiable_bool_correct_Z %%hyps''' %%num_vars),
+meta def fourier_Z_core_eqn : tactic unit := do
+    (hyps, num_vars) ← reify_hyps_numvars reify_eqn_helper,
+    ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn_Z %%hyps %%num_vars),
     tactic.apply ap_expr
 
 end tactic.interactive
@@ -701,9 +692,9 @@ end
 lemma my_lemma2
   (x y z : ℤ)
   (Hx : 1 * x + 3 ≤ 0)
-  (Hy : -2 * x + (-5) ≤ 0)
+  (Hy : -2 * x ≤ 5)
   (Hz : (0 : ℤ) ≤ 0)
   : false
 := begin
-fourier_Z_core; reflexivity <|> assumption,
+fourier_Z_core_eqn; reflexivity <|> assumption,
 end

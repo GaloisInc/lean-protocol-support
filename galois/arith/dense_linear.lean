@@ -76,7 +76,6 @@ def scale_mul {n:ℕ} (c:ℚ) (e:linear_expr n) : linear_expr n :=
 def add_expr {n:ℕ} (e e':linear_expr n) : linear_expr n :=
  { coef := vector.map₂ (+) e.coef e'.coef , offset := e.offset + e'.offset}
 
-
 lemma instantiate_head_add_expr
   {n : ℕ} (e e' : linear_expr (n + 1)) (c : ℚ)
   : instantiate_head (add_expr e e') c
