@@ -155,9 +155,42 @@ def aexpr_negation_statement {A} [linear_ordered_comm_ring A] :
 | (nat.succ n) := λ es, ∀ x : A, aexpr_negation_statement n
     (es.map (λ e, e.instantiate_head x))
 
+lemma coe_rat_of_int (x : ℤ)
+  : ↑ x = rat.of_int x := rfl
+
 lemma rat.coe_int_mul (x y : ℤ)
   : (↑ (x * y) : ℚ) = (↑ x) * (↑ y)
-:= sorry
+:= begin
+repeat { rw coe_rat_of_int },
+dsimp [rat.of_int, has_mul.mul, rat.mul],
+dsimp [rat.mk_pnat],
+apply rat.coe_int_eq_mk,
+end
+
+lemma rat.coe_int_neg (x : ℤ)
+  : (↑ (- x) : ℚ) = - ↑ x
+:= rfl
+
+lemma nonneg_rat_nonneg (x : ℤ)
+  (H : 0 ≤ x) : rat.nonneg (↑ x)
+:= begin
+rw coe_rat_of_int, dsimp [rat.nonneg, rat.of_int],
+assumption,
+end
+
+
+lemma Z_to_Q_le_iff (x y : ℤ)
+  : x ≤ y ↔ (↑ x : ℚ) ≤ ↑ y
+:= begin
+split; intros H,
+{ dsimp [has_le.le, rat.le],
+  rw ← rat.coe_int_neg, rw ← rat.coe_int_add,
+  apply nonneg_rat_nonneg,
+  rw ← sub_eq_add_neg,
+  apply sub_nonneg_of_le, assumption,
+ },
+{ apply rat.le_of_of_int_le_of_int, assumption, }
+end
 
 lemma Z_to_Q_interp (e : aexpr ℤ ℕ) (ctxt : ℕ → ℤ)
   : (↑ (e.interp ctxt) : ℚ)
@@ -167,10 +200,6 @@ induction e; dsimp [aexpr.interp, aexpr.map],
 rw rat.coe_int_mul, reflexivity,
 rw [rat.coe_int_add, ih_1, ih_2],
 end
-
-lemma Z_to_Q_le_iff (x y : ℤ)
-  : x ≤ y ↔ (↑ x : ℚ) ≤ ↑ y
-:= sorry
 
 lemma rat.coe_int_zero
   : ↑ (0 : ℤ) = (0 : ℚ)
