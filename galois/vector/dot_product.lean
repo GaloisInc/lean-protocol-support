@@ -2,10 +2,15 @@ import data.rat
        galois.logic
        galois.vector.lemmas
 
-def dot_product {n : ℕ} (x y : vector ℚ n) : ℚ
+universes u
+
+section
+parameters {A : Type u} [comm_ring A]
+
+def dot_product {n : ℕ} (x y : vector A n) : A
   := list.foldr (+) 0 (vector.map₂ (*) x y).to_list
 
-lemma dot_product_cons {n : ℕ} (x y : ℚ) (xs ys : vector ℚ n)
+lemma dot_product_cons {n : ℕ} (x y : A) (xs ys : vector A n)
   : dot_product (x :: xs) (y :: ys)
   = x * y + dot_product xs ys
 := begin
@@ -13,18 +18,18 @@ induction xs, induction ys,
 reflexivity,
 end
 
-lemma dot_product_nil : dot_product vector.nil vector.nil = 0
+lemma dot_product_nil :  dot_product vector.nil vector.nil = 0
   := rfl
 
-lemma dot_product_0_len (xs ys : vector ℚ 0)
+lemma dot_product_0_len (xs ys : vector A 0)
   : dot_product xs ys = 0
 := begin
 rw vector.eq_nil xs, rw vector.eq_nil ys, reflexivity,
 end
 
 
-lemma dot_product_0 {n : ℕ} (xs : vector ℚ n)
-  : dot_product (vector.generate n (λ _, 0)) xs = 0
+lemma dot_product_0 {n : ℕ} (xs : vector A n)
+  : dot_product (vector.generate n (λ _, (0 : A))) xs = 0
 := begin
 induction n,
 rw vector.eq_nil xs,
@@ -36,7 +41,7 @@ rw ih_1, simp,
 end
 
 
-lemma dot_product_unit (n : ℕ) (i : fin n) (c : ℚ) (v : vector ℚ n)
+lemma dot_product_unit (n : ℕ) (i : fin n) (c : A) (v : vector A n)
   : dot_product (vector.generate n (λj, if i.val = j then c else 0)) v
   = c * v.nth i
 := begin
@@ -65,7 +70,7 @@ apply (if H : i.val = 0 then _ else _),
   apply fin.succ_pred_equiv, }
 end
 
-lemma dot_product_scale_l {n : ℕ} (c : ℚ) (xs ys : vector ℚ n)
+lemma dot_product_scale_l {n : ℕ} (c : A) (xs ys : vector A n)
   : dot_product (vector.map (λ x, c * x) xs) ys
   = c * dot_product xs ys
 := begin
@@ -80,14 +85,14 @@ induction n,
 }
 end
 
-lemma dot_product_comm {n : ℕ} (x y : vector ℚ n)
+lemma dot_product_comm {n : ℕ} (x y : vector A n)
   : dot_product x y = dot_product y x
 := begin
-unfold dot_product,
-rw vector.map₂_comm, apply mul_comm,
+dsimp [dot_product],
+rw vector.map₂_comm, intros, apply mul_comm,
 end
 
-lemma dot_product_sum_r {n : ℕ} (x y z : vector ℚ n)
+lemma dot_product_sum_r {n : ℕ} (x y z : vector A n)
   : dot_product x (vector.map₂ (+) y z)
   = dot_product x y + dot_product x z
 := begin
@@ -102,10 +107,12 @@ induction n,
 }
 end
 
-lemma dot_product_sum_l {n : ℕ} (x y z : vector ℚ n)
+lemma dot_product_sum_l {n : ℕ} (x y z : vector A n)
   : dot_product (vector.map₂ (+) x y) z
   = dot_product x z + dot_product y z
 := begin
 rw dot_product_comm, rw dot_product_sum_r,
 rw dot_product_comm z x, rw dot_product_comm z y,
+end
+
 end
