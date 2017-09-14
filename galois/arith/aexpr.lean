@@ -2,6 +2,23 @@ import .dense_linear
 
 universes u v
 
+class discrete_order_ring (α : Type u) extends semiring α, decidable_linear_order α :=
+(lt_iff_add_one_le : ∀ (a b : α), a < b ↔ a + 1 ≤ b)
+(gt_iff_add_one_le : ∀ (a b : α), a > b ↔ b + 1 ≤ a)
+
+lemma int.gt_iff_add_one_le (a b : ℤ) : a > b ↔ b + 1 ≤ a  := iff.refl _
+
+instance discrete_order_ring_ℤ : discrete_order_ring ℤ :=
+begin
+constructor, apply int.lt_iff_add_one_le, apply int.gt_iff_add_one_le
+end
+
+instance discrete_order_ring_ℕ : discrete_order_ring ℕ :=
+begin
+constructor, intros a b, reflexivity, intros a b, reflexivity,
+apply_instance,
+end
+
 open linear_expr
 
 inductive aexpr (A : Type u) (vTy : Type) : Type u
@@ -93,7 +110,7 @@ end
 end aexpr
 
 namespace eqn
-def interp {A} [linear_ordered_comm_ring A] {vTy : Type} (ctxt : vTy → A)
+def interp {A} [semiring A] [decidable_linear_order A] {vTy : Type} (ctxt : vTy → A)
   : eqn A vTy → Prop
 | (le e e') := e.interp ctxt ≤ e'.interp ctxt
 
@@ -109,8 +126,8 @@ apply funext, intros e,
 induction e with e e', simp [function.comp, map_aexpr],
 end
 
-def to_aexpr {vTy : Type}
-  : eqn ℚ vTy → aexpr ℚ vTy
+def to_aexpr {vTy : Type} {A} [ring A]
+  : eqn A vTy → aexpr A vTy
 | (le e e') := aexpr.add e (aexpr.scale (-1) e')
 end eqn
 
@@ -150,23 +167,30 @@ def map_aexpr {Z Z'} {vTy : Type} (f : aexpr Z vTy → aexpr Z' vTy)
 | (gt e e') := gt (f e) (f e')
 | (ge e e') := ge (f e) (f e')
 
-lemma int.gt_iff_add_one_le (a b : ℤ) : a > b ↔ b + 1 ≤ a  := iff.refl _
+lemma map_aexpr_compose {A B C} {vTy : Type} (f : aexpr A vTy → aexpr B vTy)
+  (g : aexpr B vTy → aexpr C vTy)
+  : map_aexpr g ∘ map_aexpr f = map_aexpr (g ∘ f)
+:= begin
+apply funext, intros e,
+induction e with e e'; simp [function.comp, map_aexpr],
+end
 
-lemma to_eqns_interp {vTy} (x : eqnd ℤ vTy) (ctxt : vTy → ℤ)
+lemma to_eqns_interp {A} [discrete_order_ring A]
+  {vTy} (x : eqnd A vTy) (ctxt : vTy → A)
   : x.interp ctxt ↔ list.foldr (∧) true (x.to_eqns.map (eqn.interp ctxt))
 := begin
 induction x; dsimp [to_eqns, interp, eqn.interp],
 case le e e' { simp, },
 case lt e e' {
   dsimp [aexpr.interp],
-  rw int.lt_iff_add_one_le, simp,
+  rw discrete_order_ring.lt_iff_add_one_le, simp,
  },
 case eq e e' {
   rw le_antisymm_iff, simp,
 },
 case gt e e' {
   dsimp [aexpr.interp],
-  rw int.gt_iff_add_one_le, simp,
+  rw discrete_order_ring.gt_iff_add_one_le, simp,
  },
 case ge e e' { simp, },
 end
@@ -245,31 +269,43 @@ def negation_statement_0 {A} (f : A → Prop)
 | [] := false
 | (e :: es) := f e → negation_statement_0 es
 
-
 def linear_expr_negation_statement :
   ∀ {n : ℕ}, list (linear_expr n) → Prop
 | 0 := negation_statement_0 (λ e, e.evaluate vector.nil ≤ 0)
 | (nat.succ n) := λ es, ∀ x : ℚ, linear_expr_negation_statement
     (es.map (λ e, e.instantiate_head x))
 
-def aexpr_negation_statement {A} [linear_ordered_comm_ring A] :
+def aexpr_negation_statement {A} [semiring A] [decidable_linear_order A] :
   ∀ nvars : ℕ, list (aexpr A ℕ) → Prop
 | 0 := negation_statement_0 (λ e, e.interp (λ _, 0) ≤ 0)
 | (nat.succ n) := λ es, ∀ x : A, aexpr_negation_statement n
     (es.map (λ e, e.instantiate_head x))
 
-def eqn_negation_statement {A} [linear_ordered_comm_ring A]
+def eqn_negation_statement {A} [semiring A] [decidable_linear_order A]
   : ∀ nvars : ℕ, list (eqn A ℕ) → Prop
 | 0 := negation_statement_0 (λ e, e.interp (λ _, (0 : A)))
 | (nat.succ n) := λ es, ∀ x : A, eqn_negation_statement n
     (es.map (λ e, e.map_aexpr (aexpr.instantiate_head x)))
 
-def eqnd_negation_statement {Z} [semiring Z] [has_zero Z]
-  [decidable_linear_order Z]
+def eqnd_negation_statement {Z} [semiring Z] [decidable_linear_order Z]
   : ∀ nvars : ℕ, list (eqnd Z ℕ) → Prop
 | 0 := negation_statement_0 (λ e, e.interp (λ _, (0 : Z)))
 | (nat.succ n) := λ es, ∀ x : Z, eqnd_negation_statement n
     (es.map (λ e, e.map_aexpr (aexpr.instantiate_head x)))
+
+def eqnd_negation_statement_nonneg {Z} [semiring Z] [decidable_linear_order Z]
+  : ∀ nvars : ℕ, list (eqnd Z ℕ) → Prop
+| 0 := negation_statement_0 (λ e, e.interp (λ _, (0 : Z)))
+| (nat.succ n) := λ es, ∀ x : Z, 0 ≤ x → eqnd_negation_statement_nonneg n
+    (es.map (λ e, e.map_aexpr (aexpr.instantiate_head x)))
+
+def nonzero_constraints {Z : Type} [has_zero Z]
+  : ℕ → list (eqn Z ℕ)
+| 0 := []
+| (nat.succ n) := eqn.le (aexpr.const 0) (aexpr.var1 n)
+               :: nonzero_constraints n
+
+
 
 lemma coe_rat_of_int (x : ℤ)
   : ↑ x = rat.of_int x := rfl
@@ -331,6 +367,20 @@ reflexivity, reflexivity,
 rw [ih_1, ih_2],
 end
 
+lemma instantiate_head_N_to_Z
+  (c : ℕ)
+  : aexpr.map coe ∘ aexpr.instantiate_head c = aexpr.instantiate_head (↑ c : ℤ) ∘ aexpr.map coe
+:= begin
+apply funext; intros e; dsimp [function.comp],
+induction e; dsimp [aexpr.instantiate_head, aexpr.map],
+cases a_1; dsimp [aexpr.instantiate_head, aexpr.map],
+rw int.coe_nat_mul, reflexivity,
+cases a; dsimp [aexpr.instantiate_head, aexpr.map],
+reflexivity,
+reflexivity, reflexivity,
+rw [ih_1, ih_2],
+end
+
 lemma nonneg_sub2 {A} [linear_ordered_comm_ring A] (x y : A)
   : x ≤ y ↔ x - y ≤ 0
 := begin
@@ -370,7 +420,7 @@ reflexivity, reflexivity,
 rw [ih_1, ih_2],
 end
 
-lemma eqn_aexpr_instantiate_head (x : _) :
+lemma eqn_aexpr_instantiate_head {A} [ring A] (x : A) :
    aexpr.instantiate_head x ∘ eqn.to_aexpr
  = eqn.to_aexpr ∘ eqn.map_aexpr (aexpr.instantiate_head x)
 := begin
@@ -428,19 +478,21 @@ end
 
 lemma negation_statement_0_app_conjunction {A}
   (f : A → Prop) (xs ys : list A)
-  (H : list.foldr and true (list.map f xs))
-  (H' : negation_statement_0 f (xs ++ ys))
-  : negation_statement_0 f ys
+  : negation_statement_0 f (xs ++ ys)
+  ↔ (list.foldr and true (list.map f xs) → negation_statement_0 f ys)
 := begin
-induction xs; dsimp [list.foldr] at H;
-  dsimp [negation_statement_0] at H',
-{ assumption },
-{ induction H with H1 H2,
-  apply ih_1, assumption, apply H', assumption
+induction xs; dsimp [list.foldr, negation_statement_0],
+{ rw true_implies_iff, },
+{ split; intros H,
+  { intros H', induction H' with H1 H2,
+    revert H2, rw ← ih_1, apply H, assumption,
+  },
+  { intros H', rw ih_1, intros H'',
+    apply H, split; assumption }
 }
 end
 
-lemma eqn_interp_map_aexpr
+lemma eqn_interp_map_aexpr_Z_Q
   : eqn.interp (λ (_x : ℕ), (0 : ℤ))
   = eqn.interp (λ (_x : ℕ), (0 : ℚ)) ∘ eqn.map_aexpr (aexpr.map coe)
 := begin
@@ -451,25 +503,27 @@ rw Z_to_Q_interp, rw Z_to_Q_interp,
 rw rat.coe_int_zero,
 end
 
-lemma eqnd_to_eqn_sound (nvars : ℕ) (xs : list (eqnd ℤ ℕ))
+lemma eqnd_to_eqn_sound {A} [discrete_order_ring A]
+  (nvars : ℕ) (xs : list (eqnd A ℕ))
   : eqn_negation_statement nvars (eqnd_to_aexprs xs)
-  → eqnd_negation_statement nvars xs
+  ↔ eqnd_negation_statement nvars xs
 := begin
 revert xs,
 induction nvars; intros xs; dsimp [eqn_negation_statement, eqnd_negation_statement],
 { induction xs; dsimp [negation_statement_0],
-  { intros H, assumption },
-  { intros H H', rw eqnd.to_eqns_interp at H',
-    dsimp [eqnd_to_aexprs] at H,
-    apply ih_1,
-    apply negation_statement_0_app_conjunction,
-    tactic.swap, apply H,
-    assumption,
+  { reflexivity },
+  { rw eqnd.to_eqns_interp,
+    dsimp [eqnd_to_aexprs],
+    rw ← ih_1, rw negation_statement_0_app_conjunction,
   }
 },
-{ intros H x, specialize (H x),
-  apply ih_1, rw ← eqnd_to_aexprs_map_aexpr_commutes,
-  assumption,
+{ split; intros H,
+  { intros x, specialize (H x),
+    rw ← ih_1, rw ← eqnd_to_aexprs_map_aexpr_commutes,
+    assumption, },
+  { intros x, specialize (H x),
+    rw ← ih_1 at H, rw ← eqnd_to_aexprs_map_aexpr_commutes at H,
+    assumption }
  }
 end
 
@@ -496,6 +550,197 @@ induction nvars; intros xs; dsimp [eqn_negation_statement],
   apply ih_1, rw list.map_map,
   rw eqn.map_aexpr_compose, assumption }
 end
+
+lemma aexpr_interp_N_Z (e : aexpr ℕ ℕ) (ctxt : ℕ → ℕ)
+  : (↑(aexpr.interp ctxt e) : ℤ)
+  = aexpr.interp (λ (x : ℕ), ↑(ctxt x)) (aexpr.map coe e)
+:= begin
+induction e; dsimp [aexpr.map, aexpr.interp],
+rw int.coe_nat_mul, reflexivity, reflexivity,
+rw int.coe_nat_add, rw [ih_1, ih_2],
+end
+
+lemma gt_lt {A} [has_lt A] (x y : A)
+  : x > y = (y < x)
+  := rfl
+
+lemma ge_le {A} [has_le A] (x y : A)
+  : x ≥ y = (y ≤ x)
+  := rfl
+
+lemma eqn_interp_N_Z (a : eqn ℕ ℕ) (ctxt : ℕ → ℕ)
+  : eqn.interp ctxt a
+  ↔ eqn.interp (λ x, (↑ (ctxt x) : ℤ)) (eqn.map_aexpr (aexpr.map coe) a)
+:= begin
+induction a with e e'; simp [eqn.interp, eqn.map_aexpr, aexpr.map],
+{ rw ← int.coe_nat_le_coe_nat_iff,
+  repeat {rw aexpr_interp_N_Z}, },
+end
+
+lemma eqnd_interp_N_Z (a : eqnd ℕ ℕ) (ctxt : ℕ → ℕ)
+  : eqnd.interp ctxt a
+  ↔ eqnd.interp (λ x, (↑ (ctxt x) : ℤ)) (eqnd.map_aexpr (aexpr.map coe) a)
+:= begin
+induction a; simp [eqnd.interp, eqnd.map_aexpr, aexpr.map],
+{ rw ← int.coe_nat_le_coe_nat_iff,
+  repeat {rw aexpr_interp_N_Z}, },
+{ rw ← int.coe_nat_lt_coe_nat_iff,
+  repeat {rw aexpr_interp_N_Z}, },
+{ rw ← int.coe_nat_eq_coe_nat_iff,
+  repeat {rw aexpr_interp_N_Z}, },
+{ repeat { rw gt_lt },
+  rw ← int.coe_nat_lt_coe_nat_iff,
+  repeat {rw aexpr_interp_N_Z}, },
+{ repeat { rw ge_le },
+  rw ← int.coe_nat_le_coe_nat_iff,
+  repeat {rw aexpr_interp_N_Z}, },
+end
+
+lemma Z_nonneg_roundtrip_N {x : ℤ}
+  (H : 0 ≤ x)
+  : ↑(int.to_nat x) = x
+:= begin
+induction x, reflexivity,
+cases H,
+end
+
+lemma N_to_Z_sound_eqn (nvars : ℕ) (xs : list (eqn ℕ ℕ))
+  : eqn_negation_statement nvars (xs.map (eqn.map_aexpr (aexpr.map coe)) : list (eqn ℤ ℕ))
+  → eqn_negation_statement nvars xs
+:= begin
+revert xs,
+induction nvars; intros xs; dsimp [eqn_negation_statement],
+{ induction xs; dsimp [negation_statement_0],
+  { intros H, assumption },
+  { intros H H', apply ih_1, apply H,
+    rw eqn_interp_N_Z at H',
+    rw ← int.coe_nat_zero, assumption,
+  }
+},
+{ intros H x, specialize (H x), rw list.map_map at H,
+  rw eqn.map_aexpr_compose at H,
+  rw ← instantiate_head_N_to_Z at H,
+  apply ih_1, rw list.map_map,
+  rw eqn.map_aexpr_compose, apply H,
+}
+end
+
+lemma N_to_Z_sound_eqnd (nvars : ℕ) (xs : list (eqnd ℕ ℕ))
+  : eqnd_negation_statement_nonneg nvars (xs.map (eqnd.map_aexpr (aexpr.map coe)) : list (eqnd ℤ ℕ))
+  ↔ eqnd_negation_statement nvars xs
+:= begin
+revert xs,
+induction nvars; intros xs; dsimp [eqnd_negation_statement_nonneg, eqnd_negation_statement],
+{ induction xs; dsimp [negation_statement_0],
+  { reflexivity },
+  { rw ih_1,
+    rw eqnd_interp_N_Z,
+    rw ← int.coe_nat_zero,
+  }
+},
+{ split,
+  { intros H x, specialize (H x), rw list.map_map at H,
+    rw eqnd.map_aexpr_compose at H,
+    rw ← instantiate_head_N_to_Z at H,
+    rw ← ih_1, rw list.map_map,
+    rw eqnd.map_aexpr_compose, apply H,
+    apply int.coe_zero_le
+  },
+  { intros H x x0,
+    specialize (H x.to_nat),
+    rw ← ih_1 at H,
+    rw list.map_map at H, rw list.map_map,
+    rw eqnd.map_aexpr_compose at H, rw eqnd.map_aexpr_compose,
+    rw instantiate_head_N_to_Z at H,
+    rw Z_nonneg_roundtrip_N at H, assumption, assumption,
+  }
+}
+end
+
+def always_true {A} [decidable_linear_order A] [semiring A]
+  (e : eqn A ℕ)
+  := ∀ ctxt, e.interp ctxt
+
+def ctxt_extend {A} (f : ℕ → A) (x : A) : ℕ → A
+| 0 := x
+| (nat.succ n) := f n
+
+lemma aexpr_interp_instantiate_head
+  {A} [semiring A] (ctxt : ℕ → A)
+  (e : aexpr A ℕ) (x : A)
+  : (e.instantiate_head x).interp ctxt
+  = e.interp (ctxt_extend ctxt x)
+:= begin
+induction e; dsimp [aexpr.instantiate_head, aexpr.interp],
+{ cases a_1; reflexivity },
+{ cases a; reflexivity },
+{ reflexivity },
+{ rw [ih_1, ih_2] }
+end
+
+lemma eqn_interp_instantiate_head
+  {A} [semiring A] [decidable_linear_order A] (ctxt : ℕ → A)
+  (e : eqn A ℕ) (x : A)
+  : (e.map_aexpr (aexpr.instantiate_head x)).interp ctxt
+  = e.interp (ctxt_extend ctxt x)
+:= begin
+induction e; dsimp [eqn.map_aexpr, eqn.interp],
+repeat { rw aexpr_interp_instantiate_head },
+end
+
+lemma eqnd_interp_instantiate_head
+  {A} [linear_ordered_comm_ring A] [decidable_linear_order A] (ctxt : ℕ → A)
+  (e : eqnd A ℕ) (x : A)
+  : (e.map_aexpr (aexpr.instantiate_head x)).interp ctxt
+  = e.interp (ctxt_extend ctxt x)
+:= begin
+induction e; dsimp [eqnd.map_aexpr, eqnd.interp];
+repeat { rw aexpr_interp_instantiate_head },
+end
+
+lemma always_true_instantiate_head
+  {A} [semiring A] [decidable_linear_order A]
+  (e : eqn A ℕ) (H : always_true e) (x : A)
+  : always_true (e.map_aexpr (aexpr.instantiate_head x))
+:= begin
+dsimp [always_true] at *, intros ctxt,
+rw eqn_interp_instantiate_head, apply H,
+end
+
+lemma eqn_negation_statement_always_true
+  {A} [semiring A] [decidable_linear_order A]
+  (nvars : ℕ) (xs : list (eqn A ℕ))
+  (x : eqn A ℕ) (Hx : always_true x)
+  : eqn_negation_statement nvars (x :: xs)
+  → eqn_negation_statement nvars xs
+:= begin
+intros H, revert xs Hx x,
+induction nvars;
+  dsimp [eqn_negation_statement];
+  intros xs x Hx H,
+{ dsimp [negation_statement_0] at H,
+  apply H, apply Hx },
+{ intros x, specialize (H x),
+  apply ih_1, tactic.swap, assumption,
+  apply always_true_instantiate_head,
+  assumption
+}
+end
+
+lemma nonzero_constraints_nat_no_op (nvars nvars' : ℕ) (xs : list (eqn ℕ ℕ))
+  : eqn_negation_statement nvars (nonzero_constraints nvars' ++ xs)
+  → eqn_negation_statement nvars xs
+:= begin
+revert xs;
+induction nvars'; dsimp [nonzero_constraints]; intros xs H,
+{ apply H },
+{ apply ih_1, apply eqn_negation_statement_always_true _ _ _ _ _,
+  tactic.rotate 2, assumption,
+  dsimp [always_true], intros ctxt,
+  dsimp [eqn.interp, aexpr.interp], apply nat.zero_le,
+}
+end
+
 
 lemma satisfiable_bool_correct_linear {n : ℕ} (e : list (linear_expr n))
   : satisfiable_bool' e = ff →
@@ -748,7 +993,7 @@ end
 
 lemma satisfiable_bool_correct_eqn_Z  (es : list (eqn ℤ ℕ))
   (nvars : ℕ)
-  : list.band (((es.map (eqn.map_aexpr (aexpr.map coe))).map eqn.to_aexpr).map (aexpr.no_big_vars_bool nvars)) = tt →
+  : list.band (((es.map (eqn.map_aexpr (aexpr.map coe)) : list (eqn ℚ ℕ)).map eqn.to_aexpr).map (aexpr.no_big_vars_bool nvars)) = tt →
     satisfiable_bool' (interp_list_exprs ((es.map (eqn.map_aexpr (aexpr.map coe))).map eqn.to_aexpr) nvars) = ff →
     eqn_negation_statement nvars es
 := begin
@@ -758,17 +1003,41 @@ apply eqn_to_aexpr_sound,
 apply satisfiable_bool_correct; assumption,
 end
 
+def eqn_Z_to_aexprs (es : list (eqnd ℤ ℕ))
+  : list (aexpr ℚ ℕ)
+  := ((eqnd_to_aexprs es).map (eqn.map_aexpr (aexpr.map coe))).map eqn.to_aexpr
+
 lemma satisfiable_bool_correct_eqn_Z' (es : list (eqnd ℤ ℕ))
   (nvars : ℕ)
-  : list.band ((((eqnd_to_aexprs es).map (eqn.map_aexpr (aexpr.map coe))).map eqn.to_aexpr).map (aexpr.no_big_vars_bool nvars)) = tt →
-    satisfiable_bool' (interp_list_exprs (((eqnd_to_aexprs es).map (eqn.map_aexpr (aexpr.map coe))).map eqn.to_aexpr) nvars) = ff →
+  : list.band ((eqn_Z_to_aexprs es).map (aexpr.no_big_vars_bool nvars)) = tt →
+    satisfiable_bool' (interp_list_exprs (eqn_Z_to_aexprs es) nvars) = ff →
     eqnd_negation_statement nvars es
 := begin
 intros H H',
-apply eqnd_to_eqn_sound,
+rw ← eqnd_to_eqn_sound,
 apply satisfiable_bool_correct_eqn_Z; assumption,
 end
 
+def eqn_N_to_aexprs (nvars : ℕ) (es : list (eqnd ℕ ℕ))
+  : list (aexpr ℚ ℕ)
+  := (((nonzero_constraints nvars ++ eqnd_to_aexprs es).map
+       (eqn.map_aexpr (aexpr.map coe)) : list (eqn ℤ ℕ)).map
+       (eqn.map_aexpr (aexpr.map coe)) : list (eqn ℚ ℕ)).map
+        eqn.to_aexpr
+
+lemma satisfiable_bool_correct_eqn_N (es : list (eqnd ℕ ℕ))
+  (nvars : ℕ)
+  : list.band ((eqn_N_to_aexprs nvars es).map (aexpr.no_big_vars_bool nvars)) = tt →
+    satisfiable_bool' (interp_list_exprs (eqn_N_to_aexprs nvars es) nvars) = ff →
+    eqnd_negation_statement nvars es
+:= begin
+intros H H',
+rw ← eqnd_to_eqn_sound nvars es,
+apply nonzero_constraints_nat_no_op,
+apply N_to_Z_sound_eqn,
+apply satisfiable_bool_correct_eqn_Z;
+assumption,
+end
 
 
 namespace tactic.interactive
@@ -823,7 +1092,7 @@ meta def reify_eqn_helper
   pure (``(eqn.le %%e %%e'), xs'')
 | xs other := pure none
 
-meta def reify_eqn_Z_helper
+meta def reify_eqnd_helper
   : list expr → expr → tactic (option (expr ff × list expr))
 | xs `(has_le.le %%ee %%ee') := do
   (e, xs') ← reify_axpr_helper xs ee,
@@ -899,8 +1168,13 @@ meta def fourier_Z_core_eqn : tactic unit := do
     tactic.apply ap_expr
 
 meta def fourier_Z_core_eqn' : tactic unit := do
-    (hyps, num_vars) ← reify_hyps_numvars reify_eqn_Z_helper,
+    (hyps, num_vars) ← reify_hyps_numvars reify_eqnd_helper,
     ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn_Z' %%hyps %%num_vars),
+    tactic.apply ap_expr
+
+meta def fourier_N_core_eqn : tactic unit := do
+    (hyps, num_vars) ← reify_hyps_numvars reify_eqnd_helper,
+    ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn_N %%hyps %%num_vars),
     tactic.apply ap_expr
 
 end tactic.interactive
@@ -942,4 +1216,12 @@ lemma my_lemma4
   : false
 := begin
 fourier_Z_core_eqn'; reflexivity <|> assumption,
+end
+
+lemma my_lemma5
+  (n : ℕ)
+  (H : n < 0)
+  : false
+:= begin
+fourier_N_core_eqn; reflexivity <|> assumption,
 end
