@@ -1039,11 +1039,9 @@ apply satisfiable_bool_correct_eqn_Z;
 assumption,
 end
 
+open tactic
 
-namespace tactic.interactive
-
-open tactic lean lean.parser
-open interactive interactive.types expr
+namespace fourier
 
 meta def intern_var (xs : list expr) (e : expr) : list expr × ℕ
   := (if e ∈ xs then xs else xs ++ [e], xs.index_of e)
@@ -1084,36 +1082,48 @@ meta def reify_formula_helper
 | xs `(has_le.le %%ee (has_zero.zero _)) := some <$> reify_axpr_helper xs ee
 | xs other := pure none
 
-meta def reify_eqn_helper
+meta def reify_eqn_helper (num_ty : expr)
   : list expr → expr → tactic (option (expr ff × list expr))
-| xs `(has_le.le %%ee %%ee') := do
-  (e, xs') ← reify_axpr_helper xs ee,
-  (e', xs'') ← reify_axpr_helper xs' ee',
-  pure (``(eqn.le %%e %%e'), xs'')
+| xs `(@has_le.le %%ty %%tyc %%ee %%ee') :=
+    if ty = num_ty then do
+      (e, xs') ← reify_axpr_helper xs ee,
+      (e', xs'') ← reify_axpr_helper xs' ee',
+      pure (``(eqn.le %%e %%e'), xs'')
+    else pure none
 | xs other := pure none
 
-meta def reify_eqnd_helper
+meta def reify_eqnd_helper (num_ty : expr)
   : list expr → expr → tactic (option (expr ff × list expr))
-| xs `(has_le.le %%ee %%ee') := do
-  (e, xs') ← reify_axpr_helper xs ee,
-  (e', xs'') ← reify_axpr_helper xs' ee',
-  pure (``(eqnd.le %%e %%e'), xs'')
-| xs `(has_lt.lt %%ee %%ee') := do
-  (e, xs') ← reify_axpr_helper xs ee,
-  (e', xs'') ← reify_axpr_helper xs' ee',
-  pure (``(eqnd.lt %%e %%e'), xs'')
-| xs `(eq %%ee %%ee') := do
-  (e, xs') ← reify_axpr_helper xs ee,
-  (e', xs'') ← reify_axpr_helper xs' ee',
-  pure (``(eqnd.eq %%e %%e'), xs'')
-| xs `(gt %%ee %%ee') := do
-  (e, xs') ← reify_axpr_helper xs ee,
-  (e', xs'') ← reify_axpr_helper xs' ee',
-  pure (``(eqnd.gt %%e %%e'), xs'')
-| xs `(ge %%ee %%ee') := do
-  (e, xs') ← reify_axpr_helper xs ee,
-  (e', xs'') ← reify_axpr_helper xs' ee',
-  pure (``(eqnd.ge %%e %%e'), xs'')
+| xs `(@has_le.le %%ty %%tyc %%ee %%ee') :=
+    if ty = num_ty then do
+      (e, xs') ← reify_axpr_helper xs ee,
+      (e', xs'') ← reify_axpr_helper xs' ee',
+      pure (``(eqnd.le %%e %%e'), xs'')
+    else pure none
+| xs `(@has_lt.lt %%ty %%tyc %%ee %%ee') :=
+    if ty = num_ty then do
+      (e, xs') ← reify_axpr_helper xs ee,
+      (e', xs'') ← reify_axpr_helper xs' ee',
+      pure (``(eqnd.lt %%e %%e'), xs'')
+    else pure none
+| xs `(@eq %%ty %%ee %%ee') :=
+    if ty = num_ty then do
+      (e, xs') ← reify_axpr_helper xs ee,
+      (e', xs'') ← reify_axpr_helper xs' ee',
+      pure (``(eqnd.eq %%e %%e'), xs'')
+    else pure none
+| xs `(@gt %%ty %%tyc %%ee %%ee') := do
+    if ty = num_ty then do
+      (e, xs') ← reify_axpr_helper xs ee,
+      (e', xs'') ← reify_axpr_helper xs' ee',
+      pure (``(eqnd.gt %%e %%e'), xs'')
+    else pure none
+| xs `(@ge %%ty %%tyc %%ee %%ee') := do
+    if ty = num_ty then do
+      (e, xs') ← reify_axpr_helper xs ee,
+      (e', xs'') ← reify_axpr_helper xs' ee',
+      pure (``(eqnd.ge %%e %%e'), xs'')
+    else pure none
 | xs other := pure none
 
 meta def reify_all_helper (f : list expr → expr → tactic (option (expr ff × list expr)))
@@ -1152,76 +1162,111 @@ meta def reify_hyps_numvars (f : list expr → expr → tactic (option (expr ff 
     hyps''' ← i_to_expr hyps'',
     return (hyps''', num_vars)
 
-meta def fourier_Q_core : tactic unit := do
+meta def Q_core : tactic unit := do
     (hyps, num_vars) ← reify_hyps_numvars reify_formula_helper,
     ap_expr ← i_to_expr ``(satisfiable_bool_correct %%hyps %%num_vars),
     tactic.apply ap_expr
 
-meta def fourier_Q_core_eqn : tactic unit := do
-    (hyps, num_vars) ← reify_hyps_numvars reify_eqn_helper,
+meta def Q_core_eqn : tactic unit := do
+    Q ← i_to_expr ``(ℚ),
+    (hyps, num_vars) ← reify_hyps_numvars (reify_eqn_helper Q),
     ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn %%hyps %%num_vars),
     tactic.apply ap_expr
 
-meta def fourier_Z_core_eqn : tactic unit := do
-    (hyps, num_vars) ← reify_hyps_numvars reify_eqn_helper,
+meta def Z_core_eqn : tactic unit := do
+    Z ← i_to_expr ``(ℤ),
+    (hyps, num_vars) ← reify_hyps_numvars (reify_eqn_helper Z),
     ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn_Z %%hyps %%num_vars),
     tactic.apply ap_expr
 
-meta def fourier_Z_core_eqn' : tactic unit := do
-    (hyps, num_vars) ← reify_hyps_numvars reify_eqnd_helper,
+meta def Z_core_eqn' : tactic unit := do
+    Z ← i_to_expr ``(ℤ),
+    (hyps, num_vars) ← reify_hyps_numvars (reify_eqnd_helper Z),
     ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn_Z' %%hyps %%num_vars),
     tactic.apply ap_expr
 
-meta def fourier_N_core_eqn : tactic unit := do
-    (hyps, num_vars) ← reify_hyps_numvars reify_eqnd_helper,
+meta def N_core_eqn : tactic unit := do
+    N ← i_to_expr ``(ℕ),
+    (hyps, num_vars) ← reify_hyps_numvars (reify_eqnd_helper N),
     ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn_N %%hyps %%num_vars),
     tactic.apply ap_expr
 
-end tactic.interactive
+meta def solve (t : tactic unit) : tactic unit := do
+  t,
+  all_goals (reflexivity <|> assumption)
 
+end fourier
+
+/-- A collection of example uses of the Fourier tactics tactic. -/
 lemma my_lemma
   (x y z : ℚ)
-  (Hx : 1 * x + 3 ≤ 0)
+  (Hx : x + 3 ≤ 0)
   (Hy : -5 ≤ 2 * x)
   (Hz : (0 : ℚ) ≤ 0)
   : false
-:= begin
-fourier_Q_core_eqn; reflexivity <|> assumption,
-end
+:= by fourier.solve fourier.Q_core_eqn
 
 lemma my_lemma2
   (x y z : ℤ)
-  (Hx : 1 * x + 3 ≤ 0)
+  (Hx : x + 3 ≤ 0)
   (Hy : -2 * x ≤ 5)
   (Hz : (0 : ℤ) ≤ 0)
   : false
-:= begin
-fourier_Z_core_eqn; reflexivity <|> assumption,
-end
+:= by fourier.solve fourier.Z_core_eqn
 
 lemma my_lemma3
   (x y z : ℤ)
-  (Hx : 1 * x + 3 < 0)
+  (Hx : x + 3 < 0)
   (Hy : -2 * x ≤ 5)
   (Hz : (0 : ℤ) ≤ 0)
   : false
-:= begin
-fourier_Z_core_eqn'; reflexivity <|> assumption,
-end
+:= by fourier.solve fourier.Z_core_eqn'
 
 lemma my_lemma4
   (x : ℤ)
   (Hx : x < 3)
   (Hy : x ≥ 3)
   : false
-:= begin
-fourier_Z_core_eqn'; reflexivity <|> assumption,
-end
+:= by fourier.solve fourier.Z_core_eqn'
 
 lemma my_lemma5
   (n : ℕ)
   (H : n < 0)
   : false
+:= by fourier.solve fourier.N_core_eqn
+
+lemma my_lemma6
+  (m n k : ℕ)
+  (H : m + n = k)
+  (H' : k < n + m)
+  : false
+:= by fourier.solve fourier.N_core_eqn
+
+lemma de_morgan (P Q : Prop)
+  [decP : decidable P] [decQ : decidable Q]
+  : P ∧ Q
+  ↔ ¬ (¬ P ∨ ¬ Q)
 := begin
-fourier_N_core_eqn; reflexivity <|> assumption,
+split; intros H,
+{ induction H with H1 H2,
+  intros contra, induction contra with HP HQ;
+  contradiction,
+},
+{ induction decP; induction decQ;
+  try { split; assumption };
+  exfalso; apply H,
+  left, assumption, left, assumption,
+  right, assumption,
+}
+end
+
+lemma my_lemma7
+  (m n : ℕ)
+  (H : m + n = n)
+  : m = 0
+:= begin
+rw le_antisymm_iff,
+rw de_morgan, repeat { rw ← lt_iff_not_ge },
+intros contra, induction contra with contra contra;
+fourier.solve fourier.N_core_eqn
 end

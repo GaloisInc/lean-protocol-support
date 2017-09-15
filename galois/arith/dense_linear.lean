@@ -93,29 +93,57 @@ f_equal,
   rw mul_add, simp }
 end
 
+/-- Given inequalities
+    lb * x + lbe ≤ 0
+    ub * x + ube ≤ 0
+    where lb < 0 and ub > 0, we eliminate the variable x
+    by creating the equisatisfiable inequality constraint
+    -lb * ube + ub * lbe ≤ 0
+-/
 def combine {n : ℕ} (lb : ℚ) (lbe : linear_expr n) (ub : ℚ)
   (ube : linear_expr n) : linear_expr n
 := add_expr (scale_mul (-lb) ube) (scale_mul ub lbe)
 
+/-- Evaluate an expression with a particular vector of
+    variable assignments
+-/
 def evaluate {n : ℕ} (e:linear_expr n) (a: vector ℚ n) : ℚ :=
 dot_product e.coef a + e.offset
 
+/-- Indicates whether a list of linear inequalities
+    is satisfiable, i.e., there is a variable assignment
+    such that all the inequalities hold.
+-/
 def satisfiable {n : ℕ} (es : list (linear_expr n))
   := ∃ (a : vector ℚ n), es.Forall (λ e, evaluate e a ≤ 0)
 
+/-- A list of linear inequalities with n + 1 variables, focused
+    on the additional "1" variable, which we can call x, in the sense
+    that we split up the inequalities based on how they interact with
+    x. If the coefficient of x is negative, it is a lower bound (`lbs`).
+    If the coefficient of x is positive, it's an upper bound (`ubs`).
+    If the coefficient of x is 0, it's `uninvolved`.
+-/
 structure focused (n : ℕ) :=
   (lbs : list ({ q : ℚ // q < 0} × linear_expr n))
   (ubs : list ({ q : ℚ // q > 0} × linear_expr n))
   (uninvolved : list (linear_expr n))
 
+/-- Compute the minimum of a list of values, with a default in case the
+    list is empty
+-/
 def minimum_opt {A} [decidable_linear_order A] (default : A) : list A → A
 | [] := default
 | (x :: xs) := list.foldr min x xs
 
+/-- Compute the maximum of a list of values, with a default in case the
+    list is empty
+-/
 def maximum_opt {A} [decidable_linear_order A] (default : A) : list A → A
 | [] := default
 | (x :: xs) := list.foldr max x xs
 
+/-- Any member of a list is at most the maximum in the list -/
 lemma maximum_opt_in {A} [decidable_linear_order A] (default : A)
   {x : A} {xs : list A} (H : x ∈ xs)
   : x ≤ maximum_opt default xs
@@ -135,6 +163,7 @@ apply ih_1, dsimp [has_mem.mem, list.mem], right,
 assumption
 end
 
+/-- Any member of a list is at least the minimum in the list -/
 lemma minimum_opt_in {A} [decidable_linear_order A] (default : A)
   {x : A} {xs : list A} (H : x ∈ xs)
   : minimum_opt default xs ≤ x
@@ -154,10 +183,18 @@ apply ih_1, dsimp [has_mem.mem, list.mem], right,
 assumption
 end
 
+/-- A helper function for `focused_soln` below -/
 def focused_soln_ub_map {n : ℕ} (soln : vector ℚ n)
   : { q : ℚ // q > 0} × linear_expr n → ℚ
 | (ub, ube) := -ub.val⁻¹ * (dot_product (ube.coef) soln + ube.offset)
 
+/-- Given a problem focused on a particular variable, and a putative
+    variable assignment for all the other variables, pick a variable
+    assignment for the particular variable such that if the
+    problem is indeed satisfiable with the given assignment for all
+    the other variables, then the assignment for the particular
+    variable will give a satisfying assignment for the whole problem.
+-/
 def focused_soln {n : ℕ} (prob : focused n)
   (soln : vector ℚ n)
   : ℚ
@@ -206,15 +243,27 @@ split; intros H' x, rw ← H, apply H',
 rw H, apply H',
 end
 
+/-- Convert a problem "focused" on a particular variable
+    into the general formulation of a problem as a list
+    of linear expressions with n + 1 variables.
+-/
 def focused_linear_exprs {n : ℕ} (prob : focused n)
   : list (linear_expr (n + 1))
   :=    prob.lbs.map (λ p, extend p.fst.val p.snd)
      ++ prob.ubs.map (λ p, extend p.fst.val p.snd)
      ++ prob.uninvolved.map (extend 0)
 
+/-- A focused problem is satisfiable if it is satisfiable
+    when we convert a problem to a list of linear expressions.
+-/
 def focused_satisfiable {n : ℕ} (prob : focused n)
   := satisfiable (focused_linear_exprs prob)
 
+/-- Given a list of linear expressions, focus it on
+    the first variable, separating the inequalities based
+    on the whether the coefficients of that variable are
+    0, positive, or negative.
+-/
 def focus_problem {n : ℕ} : list (linear_expr (n + 1))
   → focused n
 | [] := ⟨ [], [], [] ⟩
@@ -227,6 +276,12 @@ def focus_problem {n : ℕ} : list (linear_expr (n + 1))
       else  { prob with ubs := (⟨ x, gt_of_not_eq_lt Heq Hlt⟩ , rest) :: prob.ubs }
 
 
+/-- If one focuses a problem on a particular variable, and then
+    converts back to a list of linear inequalities with n + 1
+    variables, the new list has the same elements as the
+    previous one (in fact, it is a permutation of the previous one,
+    but we don't need to know this).
+-/
 lemma focus_problem_equiv {n : ℕ}
   (xs : list (linear_expr (n + 1)))
   : same_elements xs (focused_linear_exprs (focus_problem xs))
@@ -283,6 +338,9 @@ case list.cons x xs IH
 }
 end
 
+/-- If two lists of linear expressions have the same
+    linear expressions in them, they are equisatisfiable.
+-/
 lemma same_elements_satisfiable {n : ℕ}
   {xs ys : list (linear_expr n)}
   (H : same_elements xs ys)
@@ -294,6 +352,10 @@ split; intros H'; induction H' with a Ha;
   rw Forall_equiv_list, assumption, assumption,
 end
 
+/-- A helper function for variable elimination.
+    Given a focused problems, compute the list
+    of inequalities
+-/
 def bounds_list {n : ℕ} (prob : focused n)
   : list (linear_expr n)
 := do (lb, lbe) ← prob.lbs, (ub, ube) ← prob.ubs,
@@ -512,8 +574,6 @@ split; intros H,
       have Hubs := minimal_list_opt _ _ (focused_soln_ub_map a) Hubs',
       induction Hubs with ub Hub, induction Hub with Hub Hub',
       induction ub with ub ube,
-      -- NO! The following line is a mistake. I should use the
-      -- "minimal" (- ube / ub)
       specialize (H1 (combine lb.val lbe ub.val ube)),
       have H2 : combine (lb.val) lbe (ub.val) ube ∈ bounds_list prob,
       unfold bounds_list,
