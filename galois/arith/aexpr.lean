@@ -1,3 +1,29 @@
+/- In this file, we define more and more expressive syntax
+   for arithmetic expressions and formulae, over
+   ℚ, ℤ, and ℕ, give procedures for transforming these formulae
+   to the linear arithmetic expressions defined for Fourier-Motzkin
+   elimination, and prove that these procedures preserve validity
+   of the logical formulae.
+
+   We then construct a suite of reflective tactics that use
+   Fourier-Motzkin elimination to solve goals of the form
+
+   H1 : aexpr OP aexpr
+   ...
+   Hn : aexpr OP aexpr
+   -----
+   false
+
+   where OP ∈ (<, ≤, =, ≥, >) and an `aexpr` looks like
+   expressions of linear arithmetic over ℚ, ℤ, or ℕ.
+   Any non-linear expressions, or expressions that otherwise
+   fail to have the syntactic structure represent by the
+   `aexpr` datatype defined below, are interpreted as variables.
+
+   If the Fourier-Motzkin procedure finds that the generated
+   problem is unsatisfiable, it solves the goal.
+-/
+
 import .dense_linear
 
 universes u v
@@ -22,12 +48,17 @@ end
 open linear_expr
 
 inductive aexpr (A : Type u) (vTy : Type) : Type u
+-- a variable multiplied on the left by a scalar constant
 | var {} : A → vTy → aexpr
+-- a variable without any scalar multiplier
 | var1 {} : vTy → aexpr
+-- a constant term
 | const {} : A → aexpr
+-- a sum
 | add {} : aexpr → aexpr → aexpr
 
 inductive eqn (A : Type u) (vTy : Type) : Type u
+-- the first expression is at most the second
 | le {} : aexpr A vTy → aexpr A vTy → eqn
 
 namespace aexpr
@@ -38,6 +69,8 @@ def map {A : Type u} {B : Type v} (f : A → B) {vTy : Type}
 | (const q) := const (f q)
 | (add x y) := add (map x) (map y)
 
+/-- Multiply an arithmetic expression by a (constant) scalar
+-/
 def scale {A : Type u} [semiring A] {vTy : Type}
   (c : A)
   : aexpr A vTy → aexpr A vTy
@@ -58,7 +91,7 @@ lemma interp_scale {A : Type u} [semiring A] {vTy : Type} (ctxt : vTy → A)
   (e : aexpr A vTy) : (e.scale c).interp ctxt = c * e.interp ctxt
 := begin
 induction e; simp [scale, interp],
-rw [ih_1, ih_2], rw mul_add,
+rw [ih_1, ih_2, mul_add]
 end
 
 def to_linear_expr {n : ℕ}
@@ -67,6 +100,25 @@ def to_linear_expr {n : ℕ}
 | (var1 x) := linear_expr.var 1 x
 | (const q) := linear_expr.const _ q
 | (add x y) := add_expr (to_linear_expr x) (to_linear_expr y)
+
+lemma to_linear_expr_sound {n : ℕ}
+  (e : aexpr ℚ (fin n))
+  (ctxt : fin n → ℚ)
+  : e.interp ctxt = e.to_linear_expr.evaluate (vector.of_fn ctxt)
+:= begin
+induction e; dsimp [interp, to_linear_expr],
+case var c i
+{ rw var_evaluate, rw vector.nth_of_fn, },
+{ rw var_evaluate, rw vector.nth_of_fn, rw [mul_comm, mul_one], },
+{ unfold evaluate, dsimp [linear_expr.const],
+  rw ← vector.generate_const_repeat,
+  rw dot_product_0, simp,
+},
+{ rw [ih_1, ih_2],
+  dsimp [evaluate, linear_expr.add_expr],
+  rw dot_product_sum_l, simp,
+}
+end
 
 def var_map {A : Type u} {vTy vTy' : Type} (f : vTy → vTy')
   : aexpr A vTy → aexpr A vTy'
@@ -88,25 +140,6 @@ def var_map_default {A : Type u} {vTy vTy' : Type} (f : vTy → option vTy')
    end
 | (const q) := const q
 | (add x y) := add (var_map_default x) (var_map_default y)
-
-lemma to_linear_expr_sound {n : ℕ}
-  (e : aexpr ℚ (fin n))
-  (ctxt : fin n → ℚ)
-  : e.interp ctxt = e.to_linear_expr.evaluate (vector.of_fn ctxt)
-:= begin
-induction e; dsimp [interp, to_linear_expr],
-case var c i
-{ rw var_evaluate, rw vector.nth_of_fn, },
-{ rw var_evaluate, rw vector.nth_of_fn, rw [mul_comm, mul_one], },
-{ unfold evaluate, dsimp [linear_expr.const],
-  rw ← vector.generate_const_repeat,
-  rw dot_product_0, simp,
-},
-{ rw [ih_1, ih_2],
-  dsimp [evaluate, linear_expr.add_expr],
-  rw dot_product_sum_l, simp,
-}
-end
 end aexpr
 
 namespace eqn
