@@ -526,7 +526,7 @@ induction x,
     rw Q at H, revert fst snd l r Q,
     induction H; intros,
     { contradiction },
-    { subst x, injection Q, subst l_1, subst r_1,
+    { subst x, injection Q with h, subst l_1, subst r_1,
       clear Q, generalize Y : (root l) = X,
       apply congr_arg2_pair, rw h,
       apply root_untwice_tree' }

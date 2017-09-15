@@ -1081,8 +1081,8 @@ meta def intern_var (xs : list expr) (e : expr) : list expr × ℕ
 
 meta def reify_constant_helper
   : expr → option (expr ff)
-| `(has_one.one %%TT) := pure (``(has_one.one %%TT))
-| `(has_zero.zero %%TT) := pure (``(has_zero.zero %%TT))
+| `(@@has_one.one %%TT %%Tc) := pure (``(has_one.one %%TT))
+| `(@@has_zero.zero %%TT %%Tc) := pure (``(has_zero.zero %%TT))
 | `(bit0 %%x) := do
   x' ← reify_constant_helper x,
   pure (``(bit0 %%x))

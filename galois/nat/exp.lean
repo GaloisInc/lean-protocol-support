@@ -42,6 +42,7 @@ begin
   dsimp [div2_one],
   unfold binary_rec,
   simp [eq.mpr],
+  rw if_pos, constructor,
 end
 
 theorem exp_bit (x : α) (b:bool) (n:ℕ)
@@ -49,9 +50,13 @@ theorem exp_bit (x : α) (b:bool) (n:ℕ)
 begin
   transitivity,
   unfold1 exp,
-  simp [binary_rec_eq, exp.f],
-  cases b,
-  all_goals { simp [exp], },
+  rw binary_rec_eq,
+  simp [exp.f],
+  cases b; simp [exp],
+  rw if_neg, rw if_neg, simp, contradiction, contradiction,
+  rw if_pos, rw if_pos, constructor, constructor,
+  dsimp [exp.f], rw if_neg, simp,
+  contradiction,
 end
 
 theorem exp_bit0 (x : α) (n:ℕ)
@@ -59,7 +64,8 @@ theorem exp_bit0 (x : α) (n:ℕ)
 begin
   have p := exp_bit x ff n,
   simp [bit] at p,
-  exact p,
+  rw if_neg at p, simp at p,
+  exact p, contradiction,
 end
 
 theorem exp_bit1 (x : α) (n:ℕ)

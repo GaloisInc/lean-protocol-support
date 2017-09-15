@@ -109,6 +109,9 @@ lemma index_of_append {A} [decidable_eq A] (x : A) (xs ys : list A)
 apply list.find_index_append; assumption
 end
 
+lemma not_not_iff {a : Prop} [decidable a] : ¬¬a ↔ a :=
+iff.intro by_contradiction not_not_intro
+
 lemma find_option_append {A} [decidable_eq A] (x : A) (xs ys : list A)
   (n : ℕ)
   (Hn : xs.find_option x = some n)

@@ -1,5 +1,6 @@
 import galois.tactic
        galois.fin
+       data.vector
 
 universes u
 

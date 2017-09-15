@@ -309,7 +309,6 @@ case list.cons x xs IH
     apply same_elements_app_comm, apply same_elements_refl,
     dsimp [list.append],
     rw list.append_assoc,
-    dsimp [list.append],
     apply cons_same, dsimp [extend],
     rw vector.head_cons at Heq, subst c,
     apply same_elements_trans, apply IH,

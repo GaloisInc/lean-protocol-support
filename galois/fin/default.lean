@@ -70,7 +70,7 @@ dsimp [nat_to_fin_option],
 apply (if H : (nat.succ k < nat.succ n) then _ else _),
 { rw (dif_pos H), intros H', injection H' with H'', clear H',
   intros contra, subst i, injection contra,
-  injection h,
+  injection h_1,
 },
 { rw (dif_neg H), intros contra, contradiction, }
 end

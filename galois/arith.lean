@@ -1,6 +1,6 @@
 import data.int.basic
 import data.rat
-import init.data.vector
+import data.vector
 import galois.nat.div_lemmas
 import data.nat.basic
 import galois.sum
@@ -585,7 +585,7 @@ begin
     case bound.lower e {
       cases l,
       simp [satisfies, add_bound, bound.satisfies, lower_bound, upper_bound],
-      intros ineq_sat ge_b le_b,
+      intros ineq_sat,
       constructor,
       { cc, },
       constructor,

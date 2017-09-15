@@ -118,8 +118,8 @@ meta def intern_var (xs : list expr) (e : expr) : list expr × ℕ
 
 meta def reify_helper
   : list expr → expr → tactic (expr ff × list expr)
-| xs `(lattice.has_top.top %%TT) := pure (``(formula.top), xs)
-| xs `(lattice.has_bot.bot %%TT) := pure (``(formula.bot), xs)
+| xs `(@lattice.has_top.top %%TT %%Tc) := pure (``(formula.top), xs)
+| xs `(@lattice.has_bot.bot %%TT %%Tc) := pure (``(formula.bot), xs)
 | xs `(always %%P) := do
     (P', xs') ← reify_helper xs P,
     pure (``(formula.always %%P'), xs')
