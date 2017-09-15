@@ -1,6 +1,6 @@
 import galois.tactic
        .init .tail .inter .map_accum_lemmas .nth
-       .take_drop_lemmas .preds .fin_nth
+       .take_drop_lemmas .preds .fin_nth .mem
 
 universe u
 
@@ -109,6 +109,9 @@ lemma index_of_append {A} [decidable_eq A] (x : A) (xs ys : list A)
 apply list.find_index_append; assumption
 end
 
+lemma not_not_iff {a : Prop} [decidable a] : ¬¬a ↔ a :=
+iff.intro by_contradiction not_not_intro
+
 lemma find_option_append {A} [decidable_eq A] (x : A) (xs ys : list A)
   (n : ℕ)
   (Hn : xs.find_option x = some n)
@@ -123,7 +126,7 @@ apply (if H : list.index_of x xs = list.length xs then _ else _),
   rw list.index_of_append, tactic.rotate 2, assumption,
   tactic.swap, intros contra, apply H, subst n, assumption,
   rw list.index_of_eq_length at H, subst Hn',
-  rw [not_not] at H,
+  rw [not_not_iff] at H,
   rw ← list.index_of_lt_length at H,
   have H1 : list.index_of x xs ≠ list.length (xs ++ ys),
   apply ne_of_lt, rw list.length_append,
@@ -274,19 +277,6 @@ lemma repeat_length {A} (x : A) (n : ℕ)
   : (list.repeat x n).length = n
 := begin
 induction n; simp [list.repeat, list.length],
-end
-
-def mem_induction {A : Type u}
-  (P : A → list A → Prop)
-  (Phere : ∀ x xs, P x (x :: xs))
-  (Pthere : ∀ x y ys, P x ys → P x (y :: ys))
-  (x : A) (xs : list A) (H : x ∈ xs)
-  : P x xs
-:= begin
-induction xs, cases H,
-dsimp [has_mem.mem, list.mem] at H,
-induction H, subst a, apply Phere,
-apply Pthere, apply ih_1, assumption,
 end
 
 end list

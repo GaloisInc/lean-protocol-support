@@ -686,7 +686,7 @@ begin
     case bound.lower e {
       cases l,
       simp [satisfies, add_bound, bound.satisfies, lower_bound, upper_bound],
-      intros ineq_sat ge_b le_b,
+      intros ineq_sat,
       constructor,
       { cc, },
       constructor,

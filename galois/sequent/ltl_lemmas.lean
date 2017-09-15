@@ -31,6 +31,8 @@ repeat {sequent.revert},
 rw tautology_iff, apply temporal.eventually_strengthen_until,
 end
 
+--notation a `&\n` b `]` := a & b
+
 lemma well_founded_LTL_template (A : Type v) (P Q X : tProp A)
   [decidable_pred Q]
   : rlist.nil
