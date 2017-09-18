@@ -28,6 +28,9 @@ import .dense_linear
 
 universes u v
 
+/-- A typeclass that is inhabited by ℕ and ℤ, that enables rephrasing
+    strict inequalities (<, >) in terms of weak inequalities (≤, ≥).
+-/
 class discrete_order_ring (α : Type u) extends semiring α, decidable_linear_order α :=
 (lt_iff_add_one_le : ∀ (a b : α), a < b ↔ a + 1 ≤ b)
 (gt_iff_add_one_le : ∀ (a b : α), a > b ↔ b + 1 ≤ a)
@@ -47,6 +50,9 @@ end
 
 open linear_expr
 
+/-- Arithmetic expressions in a (restricted) language of
+    linear arithmetic.
+-/
 inductive aexpr (A : Type u) (vTy : Type) : Type u
 -- a variable multiplied on the left by a scalar constant
 | var {} : A → vTy → aexpr
@@ -62,6 +68,7 @@ inductive eqn (A : Type u) (vTy : Type) : Type u
 | le {} : aexpr A vTy → aexpr A vTy → eqn
 
 namespace aexpr
+/-- Map a function over the underlying element type. -/
 def map {A : Type u} {B : Type v} (f : A → B) {vTy : Type}
   : aexpr A vTy → aexpr B vTy
 | (var c x) := var (f c) x
@@ -79,6 +86,9 @@ def scale {A : Type u} [semiring A] {vTy : Type}
 | (const q) := const (c * q)
 | (add x y) := add (scale x) (scale y)
 
+/-- Given a context `ctxt` defining what each variable should
+    be interpreted as, compute what the expression is.
+-/
 def interp {A : Type u} [semiring A] {vTy : Type} (ctxt : vTy → A)
   : aexpr A vTy → A
 | (var c x) := c * ctxt x
@@ -94,6 +104,12 @@ induction e; simp [scale, interp],
 rw [ih_1, ih_2, mul_add]
 end
 
+/-- Convert arithmetic expressions to `linear_expr`s, which is
+    the expression type over which the Fourier-Motzkin
+    decision procedure is defined. If the type of variables
+    of the `aexprs` is `fin n`, then we produce ` linear_expr n`,
+    i.e., linear expression with `n` variables.
+-/
 def to_linear_expr {n : ℕ}
   : aexpr ℚ (fin n) → linear_expr n
 | (var c x) := linear_expr.var c x
@@ -127,12 +143,13 @@ def var_map {A : Type u} {vTy vTy' : Type} (f : vTy → vTy')
 | (const q) := const q
 | (add x y) := add (var_map x) (var_map y)
 
-def var_map_default {A : Type u} {vTy vTy' : Type} (f : vTy → option vTy')
+def var_map_default {A : Type u} [has_mul A]
+  {vTy vTy' : Type} (f : vTy → option vTy')
   (default : A)
   : aexpr A vTy → aexpr A vTy'
 | (var c x) := match f x with
    | some y := var c y
-   | none := const default
+   | none := const (c * default)
    end
 | (var1 x) := match f x with
    | some y := var1 y
@@ -164,41 +181,46 @@ def to_aexpr {vTy : Type} {A} [ring A]
 | (le e e') := aexpr.add e (aexpr.scale (-1) e')
 end eqn
 
+inductive cmp_op : Type
+  | le
+  | lt
+  | eq
+  | gt
+  | ge
+
+namespace cmp_op
+def interp (A : Type) [decidable_linear_order A]
+  : cmp_op → A → A → Prop
+| le := (≤)
+| lt := (<)
+| eq := (=)
+| gt := (>)
+| ge := (≥)
+
+end cmp_op
 
 inductive eqnd (Z : Type) (vTy : Type) : Type u
-| le {} : aexpr Z vTy → aexpr Z vTy → eqnd
-| lt {} : aexpr Z vTy → aexpr Z vTy → eqnd
-| eq {} : aexpr Z vTy → aexpr Z vTy → eqnd
-| gt {} : aexpr Z vTy → aexpr Z vTy → eqnd
-| ge {} : aexpr Z vTy → aexpr Z vTy → eqnd
+| mk : cmp_op → aexpr Z vTy → aexpr Z vTy → eqnd
 
 namespace eqnd
 def interp {Z : Type} {vTy : Type}
   [semiring Z] [decidable_linear_order Z]
    (ctxt : vTy → Z)
   : eqnd Z vTy → Prop
-| (le e e') := e.interp ctxt ≤ e'.interp ctxt
-| (lt e e') := e.interp ctxt < e'.interp ctxt
-| (eq e e') := e.interp ctxt = e'.interp ctxt
-| (gt e e') := e.interp ctxt > e'.interp ctxt
-| (ge e e') := e.interp ctxt ≥ e'.interp ctxt
+| (mk op e e') := (op.interp Z) (e.interp ctxt) (e'.interp ctxt)
 
 def to_eqns {Z} {vTy : Type}
   [has_one Z]
   : eqnd Z vTy → list (eqn Z vTy)
-| (le e e') := [eqn.le e e']
-| (lt e e') := [eqn.le (aexpr.add e (aexpr.const 1)) e']
-| (eq e e') := [eqn.le e e', eqn.le e' e]
-| (ge e e') := [eqn.le e' e]
-| (gt e e') := [eqn.le (aexpr.add e' (aexpr.const 1)) e]
+| (mk cmp_op.le e e') := [eqn.le e e']
+| (mk cmp_op.lt e e') := [eqn.le (aexpr.add e (aexpr.const 1)) e']
+| (mk cmp_op.eq e e') := [eqn.le e e', eqn.le e' e]
+| (mk cmp_op.ge e e') := [eqn.le e' e]
+| (mk cmp_op.gt e e') := [eqn.le (aexpr.add e' (aexpr.const 1)) e]
 
 def map_aexpr {Z Z'} {vTy : Type} (f : aexpr Z vTy → aexpr Z' vTy)
   : eqnd Z vTy → eqnd Z' vTy
-| (le e e') := le (f e) (f e')
-| (lt e e') := lt (f e) (f e')
-| (eq e e') := eq (f e) (f e')
-| (gt e e') := gt (f e) (f e')
-| (ge e e') := ge (f e) (f e')
+| (mk op e e') := mk op (f e) (f e')
 
 lemma map_aexpr_compose {A B C} {vTy : Type} (f : aexpr A vTy → aexpr B vTy)
   (g : aexpr B vTy → aexpr C vTy)
@@ -212,20 +234,21 @@ lemma to_eqns_interp {A} [discrete_order_ring A]
   {vTy} (x : eqnd A vTy) (ctxt : vTy → A)
   : x.interp ctxt ↔ list.foldr (∧) true (x.to_eqns.map (eqn.interp ctxt))
 := begin
-induction x; dsimp [to_eqns, interp, eqn.interp],
-case le e e' { simp, },
-case lt e e' {
+induction x with op e e',
+induction op; dsimp [cmp_op.interp, to_eqns, interp, eqn.interp],
+case cmp_op.le { simp, },
+case cmp_op.lt {
   dsimp [aexpr.interp],
   rw discrete_order_ring.lt_iff_add_one_le, simp,
  },
-case eq e e' {
+case cmp_op.eq {
   rw le_antisymm_iff, simp,
 },
-case gt e e' {
+case cmp_op.gt {
   dsimp [aexpr.interp],
   rw discrete_order_ring.gt_iff_add_one_le, simp,
  },
-case ge e e' { simp, },
+case cmp_op.ge { simp, },
 end
 
 end eqnd
@@ -493,7 +516,7 @@ lemma eqnd_map_aexpr_commute {Z} [has_one Z] [semiring Z]
   list.map (eqn.map_aexpr (aexpr.instantiate_head x)) (eqnd.to_eqns a) =
     (eqnd.to_eqns (eqnd.map_aexpr (aexpr.instantiate_head x) a))
 := begin
-induction a; reflexivity
+induction a with op e e', induction op; reflexivity
 end
 
 lemma eqnd_to_aexprs_map_aexpr_commutes {Z}
@@ -614,7 +637,9 @@ lemma eqnd_interp_N_Z (a : eqnd ℕ ℕ) (ctxt : ℕ → ℕ)
   : eqnd.interp ctxt a
   ↔ eqnd.interp (λ x, (↑ (ctxt x) : ℤ)) (eqnd.map_aexpr (aexpr.map coe) a)
 := begin
-induction a; simp [eqnd.interp, eqnd.map_aexpr, aexpr.map],
+induction a with op e e',
+induction op;
+ simp [cmp_op.interp, eqnd.interp, eqnd.map_aexpr, aexpr.map],
 { rw ← int.coe_nat_le_coe_nat_iff,
   repeat {rw aexpr_interp_N_Z}, },
 { rw ← int.coe_nat_lt_coe_nat_iff,
@@ -1074,11 +1099,29 @@ end
 
 open tactic
 
+/- In this section, we define meta defs to create
+   the reflective tactic that uses the Fourier-Motzkin
+   decision procedure.
+-/
 namespace fourier
 
+/- This definition "interns" variables. Given a list of expressions
+   of expressions that have already been interned as variables,
+   and a new expression to intern, we check to see if the expression
+   has already been seen. If so, we don't need to add the new expression,
+   and return the index of that expression in the list. If the expression
+   hasn't been seen before, we concatenate it to the end of the list.
+   Since `list.index_of` returns the length of the list if the element
+   wasn't found in the list, the result will in fact give the index
+   of the newly interned expression in the new list of interned
+   expressions.
+-/
 meta def intern_var (xs : list expr) (e : expr) : list expr × ℕ
   := (if e ∈ xs then xs else xs ++ [e], xs.index_of e)
 
+/-- Attempt to reify an expression as a constant numeric literal,
+    returning `none` if the expression is not a constant literal.
+-/
 meta def reify_constant_helper
   : expr → option (expr ff)
 | `(@@has_one.one %%TT %%Tc) := pure (``(has_one.one %%TT))
@@ -1094,11 +1137,12 @@ meta def reify_constant_helper
   pure (``(bit1 %%x))
 | _ := none
 
-meta def reify_axpr_helper
+/-- Reify an arithmetic expression. -/
+meta def reify_aexpr_helper
   : list expr → expr → tactic (expr ff × list expr)
 | xs `(%%P + %%Q) := do
-    (P', xs') ← reify_axpr_helper xs P,
-    (Q', xs'') ← reify_axpr_helper xs' Q,
+    (P', xs') ← reify_aexpr_helper xs P,
+    (Q', xs'') ← reify_aexpr_helper xs' Q,
     pure (``(aexpr.add %%P' %%Q'), xs'')
 | xs `(%%P * %%Q) := do
   P' ← reify_constant_helper P,
@@ -1110,54 +1154,43 @@ meta def reify_axpr_helper
   ) <|>
   let (xs', n) := intern_var xs P in pure (``(aexpr.var1 %%(n.reflect)), xs')
 
-meta def reify_formula_helper
-  : list expr → expr → tactic (option (expr ff × list expr))
-| xs `(has_le.le %%ee (has_zero.zero _)) := some <$> reify_axpr_helper xs ee
-| xs other := pure none
-
+/-- Reify a hypothesis in context into the
+    `eqn` expression datatype
+-/
 meta def reify_eqn_helper (num_ty : expr)
   : list expr → expr → tactic (option (expr ff × list expr))
 | xs `(@has_le.le %%ty %%tyc %%ee %%ee') :=
     if ty = num_ty then do
-      (e, xs') ← reify_axpr_helper xs ee,
-      (e', xs'') ← reify_axpr_helper xs' ee',
+      (e, xs') ← reify_aexpr_helper xs ee,
+      (e', xs'') ← reify_aexpr_helper xs' ee',
       pure (``(eqn.le %%e %%e'), xs'')
     else pure none
 | xs other := pure none
 
-meta def reify_eqnd_helper (num_ty : expr)
-  : list expr → expr → tactic (option (expr ff × list expr))
-| xs `(@has_le.le %%ty %%tyc %%ee %%ee') :=
-    if ty = num_ty then do
-      (e, xs') ← reify_axpr_helper xs ee,
-      (e', xs'') ← reify_axpr_helper xs' ee',
-      pure (``(eqnd.le %%e %%e'), xs'')
+meta def build_eqnd_formula (num_ty : expr) (xs : list expr)
+  (ty ee ee' : expr) (op : expr) : tactic (option (expr ff × list expr))
+  := if ty = num_ty then do
+      (e, xs') ← reify_aexpr_helper xs ee,
+      (e', xs'') ← reify_aexpr_helper xs' ee',
+      pure (``(eqnd.mk %%op %%e %%e'), xs'')
     else pure none
-| xs `(@has_lt.lt %%ty %%tyc %%ee %%ee') :=
-    if ty = num_ty then do
-      (e, xs') ← reify_axpr_helper xs ee,
-      (e', xs'') ← reify_axpr_helper xs' ee',
-      pure (``(eqnd.lt %%e %%e'), xs'')
-    else pure none
-| xs `(@eq %%ty %%ee %%ee') :=
-    if ty = num_ty then do
-      (e, xs') ← reify_axpr_helper xs ee,
-      (e', xs'') ← reify_axpr_helper xs' ee',
-      pure (``(eqnd.eq %%e %%e'), xs'')
-    else pure none
-| xs `(@gt %%ty %%tyc %%ee %%ee') := do
-    if ty = num_ty then do
-      (e, xs') ← reify_axpr_helper xs ee,
-      (e', xs'') ← reify_axpr_helper xs' ee',
-      pure (``(eqnd.gt %%e %%e'), xs'')
-    else pure none
-| xs `(@ge %%ty %%tyc %%ee %%ee') := do
-    if ty = num_ty then do
-      (e, xs') ← reify_axpr_helper xs ee,
-      (e', xs'') ← reify_axpr_helper xs' ee',
-      pure (``(eqnd.ge %%e %%e'), xs'')
-    else pure none
-| xs other := pure none
+
+/-- Reify a hypothesis in context into the
+    `eqnd` expression datatype (suitable for ℕ or ℤ)
+-/
+meta def reify_eqnd_helper (num_ty : expr) (xs : list expr)
+  : expr → tactic (option (expr ff × list expr))
+| `(@has_le.le %%ty %%tyc %%ee %%ee') :=
+  build_eqnd_formula num_ty xs ty ee ee' `(cmp_op.le)
+| `(@has_lt.lt %%ty %%tyc %%ee %%ee') :=
+  build_eqnd_formula num_ty xs ty ee ee' `(cmp_op.lt)
+| `(@eq %%ty %%ee %%ee') :=
+  build_eqnd_formula num_ty xs ty ee ee' `(cmp_op.eq)
+| `(@gt %%ty %%tyc %%ee %%ee') :=
+  build_eqnd_formula num_ty xs ty ee ee' `(cmp_op.gt)
+| `(@ge %%ty %%tyc %%ee %%ee') :=
+  build_eqnd_formula num_ty xs ty ee ee' `(cmp_op.ge)
+| other := pure none
 
 meta def reify_all_helper (f : list expr → expr → tactic (option (expr ff × list expr)))
   : list expr → list expr → tactic (list (expr ff) × list expr)
@@ -1179,12 +1212,12 @@ meta def make_list : list expr → expr ff
 | [] := ``(list.nil)
 | (x :: xs) := ``(list.cons %%x %%(make_list xs))
 
-meta def make_nat : ℕ → expr ff
-| 0 := ``(0)
-| (nat.succ n) := ``(nat.succ %%(make_nat n))
+meta def make_nat : ℕ → expr
+| 0 := `(0)
+| (nat.succ n) := `(nat.succ %%(make_nat n))
 
 meta def reify_hyps_numvars (f : list expr → expr → tactic (option (expr ff × list expr)))
-   : tactic (expr × expr ff) := do
+   : tactic (expr × expr) := do
     ctx ← local_context,
     ctx_types ← ctx.mmap infer_type,
     (hyps, ctxt) ← my_reify f ctx_types,
@@ -1196,31 +1229,17 @@ meta def reify_hyps_numvars (f : list expr → expr → tactic (option (expr ff 
     return (hyps''', num_vars)
 
 meta def Q_core : tactic unit := do
-    (hyps, num_vars) ← reify_hyps_numvars reify_formula_helper,
-    ap_expr ← i_to_expr ``(satisfiable_bool_correct %%hyps %%num_vars),
-    tactic.apply ap_expr
-
-meta def Q_core_eqn : tactic unit := do
-    Q ← i_to_expr ``(ℚ),
-    (hyps, num_vars) ← reify_hyps_numvars (reify_eqn_helper Q),
+    (hyps, num_vars) ← reify_hyps_numvars (reify_eqn_helper `(ℚ)),
     ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn %%hyps %%num_vars),
     tactic.apply ap_expr
 
-meta def Z_core_eqn : tactic unit := do
-    Z ← i_to_expr ``(ℤ),
-    (hyps, num_vars) ← reify_hyps_numvars (reify_eqn_helper Z),
-    ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn_Z %%hyps %%num_vars),
-    tactic.apply ap_expr
-
-meta def Z_core_eqn' : tactic unit := do
-    Z ← i_to_expr ``(ℤ),
-    (hyps, num_vars) ← reify_hyps_numvars (reify_eqnd_helper Z),
+meta def Z_core : tactic unit := do
+    (hyps, num_vars) ← reify_hyps_numvars (reify_eqnd_helper `(ℤ)),
     ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn_Z' %%hyps %%num_vars),
     tactic.apply ap_expr
 
-meta def N_core_eqn : tactic unit := do
-    N ← i_to_expr ``(ℕ),
-    (hyps, num_vars) ← reify_hyps_numvars (reify_eqnd_helper N),
+meta def N_core : tactic unit := do
+    (hyps, num_vars) ← reify_hyps_numvars (reify_eqnd_helper `(ℕ)),
     ap_expr ← i_to_expr ``(satisfiable_bool_correct_eqn_N %%hyps %%num_vars),
     tactic.apply ap_expr
 
@@ -1237,7 +1256,7 @@ lemma my_lemma
   (Hy : -5 ≤ 2 * x)
   (Hz : (0 : ℚ) ≤ 0)
   : false
-:= by fourier.solve fourier.Q_core_eqn
+:= by fourier.solve fourier.Q_core
 
 lemma my_lemma2
   (x y z : ℤ)
@@ -1245,7 +1264,7 @@ lemma my_lemma2
   (Hy : -2 * x ≤ 5)
   (Hz : (0 : ℤ) ≤ 0)
   : false
-:= by fourier.solve fourier.Z_core_eqn
+:= by fourier.solve fourier.Z_core
 
 lemma my_lemma3
   (x y z : ℤ)
@@ -1253,27 +1272,27 @@ lemma my_lemma3
   (Hy : -2 * x ≤ 5)
   (Hz : (0 : ℤ) ≤ 0)
   : false
-:= by fourier.solve fourier.Z_core_eqn'
+:= by fourier.solve fourier.Z_core
 
 lemma my_lemma4
   (x : ℤ)
   (Hx : x < 3)
   (Hy : x ≥ 3)
   : false
-:= by fourier.solve fourier.Z_core_eqn'
+:= by fourier.solve fourier.Z_core
 
 lemma my_lemma5
   (n : ℕ)
   (H : n < 0)
   : false
-:= by fourier.solve fourier.N_core_eqn
+:= by fourier.solve fourier.N_core
 
 lemma my_lemma6
   (m n k : ℕ)
   (H : m + n = k)
   (H' : k < n + m)
   : false
-:= by fourier.solve fourier.N_core_eqn
+:= by fourier.solve fourier.N_core
 
 lemma de_morgan (P Q : Prop)
   [decP : decidable P] [decQ : decidable Q]
@@ -1295,11 +1314,11 @@ end
 
 lemma my_lemma7
   (m n : ℕ)
-  (H : m + n = n)
+  (H : m + n ≤ n)
   : m = 0
 := begin
 rw le_antisymm_iff,
 rw de_morgan, repeat { rw ← lt_iff_not_ge },
 intros contra, induction contra with contra contra;
-fourier.solve fourier.N_core_eqn
+fourier.solve fourier.N_core
 end
