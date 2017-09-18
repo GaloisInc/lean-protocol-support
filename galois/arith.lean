@@ -4,6 +4,7 @@ import galois.nat.div_lemmas
 import data.nat.basic
 import galois.sum
 import init.data.ordering
+import data.vector
 
 import galois.nat
 import .bool
@@ -22,7 +23,7 @@ begin
   all_goals { unfold decidable.to_bool, simp [a], },
 end
 
-/-
+
 namespace nat
 
 lemma lt.intro {n m k : ℕ} (h : n + succ k = m) : n < m :=
@@ -116,7 +117,6 @@ end
 end init
 end list
 
-
 namespace vector
 
 def generate {α : Type u} (n : ℕ) (f : fin n → α) : vector α n :=
@@ -156,7 +156,7 @@ def scale_mul {α:Type u} [has_mul α] {n:ℕ} (c:α) (v : vector α n)
   v.map (has_mul.mul c)
 
 end vector
--/
+
 
 
 namespace list
@@ -285,11 +285,11 @@ end
 -- def last {n:ℕ} (a:assignment α (n+1)) : α :=
 --   sorry
 
--- @[simp]
--- theorem init_concat {n:ℕ} (a:assignment α n) (z:α) : init (concat a z) = a := sorry
+@[simp]
+theorem init_concat {n:ℕ} (a:assignment α n) (z:α) : vector.init (concat a z) = a := sorry
 
--- @[simp]
--- theorem last_concat {n:ℕ} (a:assignment α n) (z:α) : last (concat a z) = z := sorry
+@[simp]
+theorem last_concat {n:ℕ} (a:assignment α n) (z:α) : vector.last (concat a z) = z := sorry
 
 end
 end assignment
@@ -599,10 +599,10 @@ def from_ineq {n:ℕ} (le : inequality (n+1)) : bound n :=
    if c > 0 then
     -- "l + c * v <= 0" ~> "v <= -l/c"
     let recip := 1/c in
-    bound.upper (linear_expr.scale_mul (-1/c) r)
+    bound.upper (linear_expr.scale_mul (-1/c) sorry r)
     -- "l + c * v <= 0" ~> "l/c <= v"
   else if c < 0 then
-    bound.lower (linear_expr.scale_mul (1/c) r)
+    bound.lower (linear_expr.scale_mul (1/c) sorry r)
   else
     bound.independent ⟨ r ⟩
 
@@ -686,17 +686,7 @@ begin
     case bound.lower e {
       cases l,
       simp [satisfies, add_bound, bound.satisfies, lower_bound, upper_bound],
-      intros ineq_sat,
-      constructor,
-      { cc, },
-      constructor,
-      { admit,
-      },
-      constructor,
-      { cc,
-      },
-      { admit,
-      },
+      intros ineq_sat, admit,
     },
     case bound.upper e {
       admit,
