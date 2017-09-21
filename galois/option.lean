@@ -60,7 +60,7 @@ begin
   cases x; simp [is_some] with simp_option,
 end
 
-lemma bind_some {A B} {ma : option A} {f : A → option B}
+lemma bind_some' {A B} {ma : option A} {f : A → option B}
   {b : B} (H : option.bind ma f = some b)
   : ∃ a : A, ma = some a ∧ f a = some b
 := begin

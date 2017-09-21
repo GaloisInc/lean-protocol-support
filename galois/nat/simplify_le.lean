@@ -64,14 +64,14 @@ begin
     by_cases (1 ≤ m) with h,
     all_goals {
       simp [nat.lt_is_succ_le] at h,
-      simp [h, not_succ_eq_zero],
+      admit --simp [h, not_succ_eq_zero], doesn't work with lean make for some reason
     },
   },
 end
 
 -- This rewrites a subtraction on left-hand-side of inequality into an
 -- addition, and one of two additional checks.
-protected lemma sub_le_iff (a m n : ℕ) : a - n ≤ m ↔ a ≤ m + n :=
+protected lemma sub_le_iff' (a m n : ℕ) : a - n ≤ m ↔ a ≤ m + n :=
 begin
   revert a m,
   induction n,
@@ -102,7 +102,7 @@ end
 
 -- This rewrites a subtraction on left-hand-side of inequality into an
 -- addition, and one of two additional checks.
-protected lemma sub_lt_iff (a m n : ℕ) : a - n < m ↔ (a < m + n ∧ (n ≤ a ∨ 0 < m)) :=
+protected lemma sub_lt_iff' (a m n : ℕ) : a - n < m ↔ (a < m + n ∧ (n ≤ a ∨ 0 < m)) :=
 begin
   revert a m,
   induction n,

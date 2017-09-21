@@ -33,7 +33,7 @@ def add  : intmod n → intmod n → intmod n
   else
     let q : (x+y)-n < n :=
          begin
-           simp [nat.sub_lt_iff],
+           simp [nat.sub_lt_iff'],
            have xy_lt_nn : x + y < n + n := add_lt_add x_lt y_lt,
            have n_le_xy  : n ≤ x + y := le_of_not_gt p,
            cc,
@@ -55,7 +55,7 @@ def neg  : intmod n → intmod n
         have x_pos := nat.eq_zero_or_pos x,
         simp [h] at x_pos,
         -- show n - x < n
-        simp [h, nat.sub_lt_iff],
+        simp [h, nat.sub_lt_iff'],
         -- Decompose and
         constructor,
         -- n < n + x
@@ -80,7 +80,7 @@ def sub  : intmod n → intmod n → intmod n
     let q : x + n - y < n :=
           begin
             --have p : x < y := sorry,
-            simp [nat.sub_lt_iff],
+            simp [nat.sub_lt_iff'],
             constructor,
             { apply add_lt_add_left,
               -- Enforce h := x < y
@@ -124,7 +124,7 @@ begin
     have q : xv + yv ≥ n :=
       or.resolve_left (nat.lt_or_ge (xv + yv) n) p,
     have r : (xv + yv - n) < n,
-    { simp [nat.sub_lt_iff],
+    { simp [nat.sub_lt_iff'],
       constructor,
       {
         transitivity,

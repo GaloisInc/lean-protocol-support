@@ -47,7 +47,7 @@ def leaves {A} : tree A -> list A
 | (node x l r) := leaves r ++ leaves l
 | (leaf x) := [x]
 
-lemma leaves_combine {A} f
+lemma leaves_combine {A} (f)
   (x y : tree A)
   : (combine f x y).leaves
   = y.leaves ++ x.leaves :=

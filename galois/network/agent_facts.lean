@@ -97,7 +97,7 @@ apply propext, split; intros H,
 end
 
 
-instance decidable_sys_agent_does a P
+instance decidable_sys_agent_does (a P)
   [decidable_pred P] : decidable_pred (sys_agent_does a P)
 := begin
 intros l, induction l with s l,
@@ -131,7 +131,7 @@ lemma agent_update_invert_st'
 intros H,
 simp [LTSd] at H,
 simp [next_state_from_dlabel] at H,
-apply_in H option.bind_some,
+apply_in H option.bind_some',
 induction H with res p, induction p with Hag1 Hag2,
 induction res with new_state updatef,
 dsimp [next_agent_state_from_dlabel] at Hag1,

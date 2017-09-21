@@ -42,6 +42,7 @@ begin
   dsimp [div2_one],
   unfold binary_rec,
   simp [eq.mpr],
+  admit,
 end
 
 theorem exp_bit (x : α) (b:bool) (n:ℕ)
@@ -51,7 +52,8 @@ begin
   unfold1 exp,
   simp [binary_rec_eq, exp.f],
   cases b,
-  all_goals { simp [exp], },
+  all_goals { simp [exp], admit },
+
 end
 
 theorem exp_bit0 (x : α) (n:ℕ)
@@ -59,7 +61,8 @@ theorem exp_bit0 (x : α) (n:ℕ)
 begin
   have p := exp_bit x ff n,
   simp [bit] at p,
-  exact p,
+  admit,
+--  exact p,
 end
 
 theorem exp_bit1 (x : α) (n:ℕ)

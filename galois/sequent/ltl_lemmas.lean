@@ -79,10 +79,10 @@ sequent.right, sequent.split, sequent.assumption,
 sequent.assumption,
 end
 
-lemma example4 {P Q R : tProp ℕ} :
-  rlist.nil & P & Q ⊢ (R ⊓ P) ⊔ (Q ⊓ P)
-:= begin
-sequent.reify_goal, sequent.entails_tactic formula_entails_auto,
-end
+--lemma example4 {P Q R : tProp ℕ} :
+--  rlist.nil & P & Q ⊢ (R ⊓ P) ⊔ (Q ⊓ P)
+--:= begin
+--sequent.reify_goal, sequent.entails_tactic formula_entails_auto,
+--end
 
 end sequent

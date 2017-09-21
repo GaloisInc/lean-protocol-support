@@ -145,7 +145,7 @@ def merge_to_tree {A} (f : A -> A -> A)
   := lptree_to_tree f (list_to_lptree xs)
 
 lemma list_to_tree_Some {A} (xs : list A)
-  f (H : xs ≠ [])
+  (f) (H : xs ≠ [])
   : option.Issome (merge_to_tree f xs)
   :=
 begin
@@ -528,7 +528,7 @@ induction x,
     { contradiction },
     { subst x, injection Q, subst l_1, subst r_1,
       clear Q, generalize Y : (root l) = X,
-      apply congr_arg2_pair, rw h,
+      apply congr_arg2_pair, rw h_1,
       apply root_untwice_tree' }
   },
 }
@@ -648,7 +648,7 @@ induction xs,
   assumption }
 end
 
-lemma lptree.leaves_helper_same' {A} f (t : lptree A)
+lemma lptree.leaves_helper_same' {A} (f) (t : lptree A)
  : t.leaves
  = left_subtrees_leaves' (lptree_to_tree_helper f t) :=
 begin
@@ -672,7 +672,7 @@ induction t,
 }
 end
 
-lemma lptree.leaves_helper_same {A} f (t : lptree A)
+lemma lptree.leaves_helper_same {A} (f) (t : lptree A)
  : t.leaves
  = match lptree_to_tree_helper f t with
    | [] := []
@@ -694,7 +694,7 @@ end
     as if we convert it to a binary tree and then compute
     the leaves
 -/
-lemma tree_lptree.leaves {A} f (t : lptree A)
+lemma tree_lptree.leaves {A} (f) (t : lptree A)
   : t.leaves = tree_leaves_option (lptree_to_tree f t)
   :=
 begin
