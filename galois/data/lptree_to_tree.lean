@@ -528,7 +528,7 @@ induction x,
     { contradiction },
     { subst x, injection Q with h, subst l_1, subst r_1,
       clear Q, generalize Y : (root l) = X,
-      apply congr_arg2_pair, rw h_1,
+      apply congr_arg2_pair, rw h,
       apply root_untwice_tree' }
   },
 }
