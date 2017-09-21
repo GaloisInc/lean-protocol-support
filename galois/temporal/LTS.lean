@@ -158,7 +158,7 @@ def inSkipLabel (P : sigma L → Prop) : sigma (WithSkip L) → Prop
   | some l' := P (sigma.mk s l')
   end
 
-instance inSkipLabel_decidable P [decP : decidable_pred P]
+instance inSkipLabel_decidable (P) [decP : decidable_pred P]
   : decidable_pred (inSkipLabel P)
 := begin
 intros x, induction x with s l,

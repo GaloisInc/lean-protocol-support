@@ -256,7 +256,7 @@ induction xs,
 }
 end
 
-lemma map_not_nil {A B} xs (f : A -> B)
+lemma map_not_nil {A B} (xs) (f : A -> B)
   (H : xs ≠ []) : list.map f xs ≠ [] :=
 begin
 cases xs,
@@ -278,5 +278,61 @@ lemma repeat_length {A} (x : A) (n : ℕ)
 := begin
 induction n; simp [list.repeat, list.length],
 end
+
+end list
+
+universe variable v
+
+namespace list
+
+variables {α : Type u} {β : Type v}
+
+/- null theorems -/
+
+-- Return true if list is empty
+--
+-- null x is equivalent to x = nil, but always decidable even if equality
+-- of list elements is undecidable
+def null : list α → Prop := λx, x = nil
+
+instance null_decidable : ∀ xs : list α, decidable (null xs)
+| nil := is_true (begin unfold null end)
+| (x :: xs) := is_false (begin unfold null, contradiction end)
+
+/- foldl theorem -/
+
+-- Recursor to prove properties about a list and a left-fold over that list
+protected
+lemma foldl_rec_gen (P : list β → α → Prop)
+                    (f : α → β → α)
+                    (h : ∀(l : list β) (t : α) (e : β), P l t →  P (l ++ [e]) (f t e))
+: ∀(r : list β) (s : α), P r s → ∀ (l : list β), P (r ++ l) (foldl f s l)
+| r s p l :=
+begin
+  revert r s p,
+  induction l,
+  case list.nil { intros r s p, simp, exact p, },
+  case list.cons e l ind {
+    intros r s p,
+    simp [foldl],
+    have g := ind (r ++ [e]) (f s e) (h r s e p),
+    simp at g,
+    exact g,
+  }
+end
+
+-- Recursor to prove properties about a list and a left-fold over that list
+protected
+theorem foldl_rec (P : list β → α → Prop)
+                  (f : α → β → α)
+                  (ind_step : ∀(l : list β) (t : α) (e : β), P l t →  P (l ++ [e]) (f t e))
+                  (s : α)
+                  (base_case : P nil s)
+                  (l : list β)
+: P l (foldl f s l) :=
+  list.foldl_rec_gen P f ind_step nil s base_case l
+
+def drop_last {a : Type} (l : list a) := list.remove_nth l (list.length l - 1)
+
 
 end list

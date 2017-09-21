@@ -39,7 +39,7 @@ end
 
 end
 
-def LTSd (ag : agent) s l s' := @next_agent_state_from_dlabel ag.state_type (ag.loop s) l = s'
+def LTSd (ag : agent) (s l s') := @next_agent_state_from_dlabel ag.state_type (ag.loop s) l = s'
 
 end loc
 
@@ -67,7 +67,7 @@ lemma next_state_local
 := begin
 induction label, dsimp [loc.next_agent_state_from_dlabel, dlabel.cont_result],
 dsimp [next_agent_state_from_dlabel] at Hx1,
-apply_in Hx1 option.bind_some,
+apply_in Hx1 option.bind_some',
 induction Hx1 with updatef H,
 induction H with H1 H2,
 dsimp [next_agent_state_from_dlabel] at H2,
@@ -89,7 +89,7 @@ def refinesd
    simp only [next_state_from_dlabel] at H,
    simp only [sys_dlabel_to_local],
    rename ag_1 ag',
-   apply_in H option.bind_some,
+   apply_in H option.bind_some',
    induction H with Hx Hx', induction Hx' with Hx1 Hx2,
    induction Hx with new_state updatef,
    dsimp [next_state_from_dlabel] at Hx2,

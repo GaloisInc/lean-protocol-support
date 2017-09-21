@@ -110,7 +110,7 @@ begin
           { exact n_gt_1, },
         },
       },
-      { simp [nat.sub_add_iff, n_le_m, nat.sub_lt_iff, zero_lt_m],
+      { simp [nat.sub_add_iff, n_le_m, nat.sub_lt_iff', zero_lt_m],
         apply add_lt_add_left,
         exact n_gt_1,
       },
