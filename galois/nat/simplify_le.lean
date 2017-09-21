@@ -64,7 +64,7 @@ begin
     by_cases (1 ≤ m) with h,
     all_goals {
       simp [nat.lt_is_succ_le] at h,
-      admit --simp [h, not_succ_eq_zero], doesn't work with lean make for some reason
+      simp [h, not_succ_eq_zero],
     },
   },
 end
